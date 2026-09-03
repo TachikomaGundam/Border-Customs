@@ -8,7 +8,7 @@
       "plan_name": "border-push-gate",
       "status": "active",
       "started_at": "2026-09-03T17:34:25.613Z",
-      "updated_at": "2026-09-03T20:11:00.251Z",
+      "updated_at": "2026-09-03T20:55:54.460Z",
       "session_ids": [
         "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
       ],
@@ -53,6 +53,17 @@
           "updated_at": "2026-09-03T20:11:00.251Z",
           "started_at": "2026-09-03T20:11:00.251Z",
           "status": "running"
+        },
+        "todo:5": {
+          "task_key": "todo:5",
+          "task_label": "5",
+          "task_title": "secretlint in-process adapter + pattern generation",
+          "session_id": "opencode:ses_f97153a2dffefaEwC4Y26vUDQh",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-09-03T20:55:54.461Z",
+          "started_at": "2026-09-03T20:55:54.461Z",
+          "status": "running"
         }
       }
     }
@@ -60,7 +71,7 @@
   "active_plan": "/home/lab/workspace/harness/border/.omo/plans/border-push-gate.md",
   "started_at": "2026-09-03T17:34:25.613Z",
   "status": "active",
-  "updated_at": "2026-09-03T20:11:00.251Z",
+  "updated_at": "2026-09-03T20:55:54.460Z",
   "session_ids": [
     "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
   ],
@@ -104,6 +115,17 @@
       "category": "deep",
       "updated_at": "2026-09-03T20:11:00.251Z",
       "started_at": "2026-09-03T20:11:00.251Z",
+      "status": "running"
+    },
+    "todo:5": {
+      "task_key": "todo:5",
+      "task_label": "5",
+      "task_title": "secretlint in-process adapter + pattern generation",
+      "session_id": "opencode:ses_f97153a2dffefaEwC4Y26vUDQh",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-09-03T20:55:54.461Z",
+      "started_at": "2026-09-03T20:55:54.461Z",
       "status": "running"
     }
   },
