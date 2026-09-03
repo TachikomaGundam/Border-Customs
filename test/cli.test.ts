@@ -275,7 +275,7 @@ test("push dry-run prints the per-remote plan and propagates a clean gate verdic
   }
 });
 
-test("push dry-run exits 1 when the gate would block, and exits 2 fail-closed when the gate is unwired", async () => {
+test("push dry-run exits 1 when the gate would block, and exits 2 fail-closed when the gate errors out", async () => {
   const fx = makeRemoteFixture();
   try {
     writeRel(fx.work, "border.yaml", borderYaml([{ name: "origin", url: fx.bare }]));
@@ -287,9 +287,18 @@ test("push dry-run exits 1 when the gate would block, and exits 2 fail-closed wh
     } finally {
       restore();
     }
-    const unwired = await runCli(["push"], { cwd: fx.work });
-    assert.equal(unwired.code, EXIT_ERROR, "gate unavailable must never fake 0");
-    assert.match(unwired.err.join("\n"), /not implemented/i);
+    // todo 10 wired the real check; the fail-closed contract now covers ANY
+    // gate failure (engine crash, config error, …) — never a misleading 0.
+    const broken = setHandler("check", () => {
+      throw new EngineRunError("gitleaks exited 99", 99);
+    });
+    try {
+      const unwired = await runCli(["push"], { cwd: fx.work });
+      assert.equal(unwired.code, EXIT_ERROR, "gate unavailable must never fake 0");
+      assert.match(unwired.err.join("\n"), /engine run error/i);
+    } finally {
+      broken();
+    }
   } finally {
     removeDir(fx.root);
   }
@@ -348,8 +357,9 @@ test("push reports sanitized remote URLs in the dry-run plan", async () => {
 
 // ------------------------------------------------- stub honesty (todo 7 contract)
 
-test("check/status/llm stubs fail loudly with exit 2, printing nothing on stdout", async () => {
-  for (const cmd of ["check", "status", "llm-request", "llm-ingest"] as const) {
+test("status/llm stubs fail loudly with exit 2, printing nothing on stdout", async () => {
+  // 'check' left this loop when plan todo 10 wired the real gate pipeline.
+  for (const cmd of ["status", "llm-request", "llm-ingest"] as const) {
     const r = await runCli([cmd]);
     assert.equal(r.code, EXIT_ERROR, cmd);
     assert.equal(r.out.length, 0, `${cmd} stub must not print a success payload`);

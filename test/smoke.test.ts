@@ -40,9 +40,10 @@ test("absent command (no args) exits 2 and prints an error line to stderr", () =
 });
 
 test("recognized-but-unwired subcommand fails loudly instead of faking success", () => {
+  // 'check' became a real gate in plan todo 10; 'status' is the remaining wired-stub surface.
   const err: string[] = [];
   const out: string[] = [];
-  const code = run(["check"], (s) => {
+  const code = run(["status"], (s) => {
     out.push(String(s));
   }, (s) => {
     err.push(String(s));
