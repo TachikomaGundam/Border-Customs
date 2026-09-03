@@ -35,3 +35,22 @@ _Auto-scaffolded by /start-work. Append new entries below - never overwrite._
 - concurrent todo-3 integration: `import { sanitizeUrl } from "./redact.ts"` resolved as soon as 73ae8e2 landed — exposureSet asserts 'https://user:tok@h/r.git' enters as 'https://h/r.git'. Reusable gates under concurrent tsc: scoped `node --import ./tools/register-ts.mjs --test test/config.test.ts` + full `tsc --noEmit` partitioned by file ownership (at task end the WHOLE repo typechecks: 0 errors).
 - LOC honesty: src/config.ts measured 340 pure lines (>250 ceiling). Kept unsplit because the task hard-mandates EXACTLY src/config.ts + test/config.test.ts as product files; if a later todo grows it, split schema/ from load/ first.
 consumers see scp-form output '<host>/<path>' (no scheme) — exposureSet entries differ per remote (fix: sanitizeUrl SCP_STYLE_RE branch before WHATWG fallback, src/redact.ts)
+- 2026-09-04 todo4 gitleaks adapter: FIXTURE GIT LEAK INCIDENT — a fixture helper
+  that ran `git add -A` before gitInit() committed planted secrets into border's
+  OWN repo (commits on top of 32987c4). Recovery: reset --mixed + reflog expire
+  --all + gc --prune=now, verified blob unreachable. Prevention shipped in
+  test/helpers/fixtures.ts: git() throws unless <cwd>/.git exists (gitInit
+  exempts only `init`) and sets GIT_CEILING_DIRECTORIES=dirname(cwd) so discovery
+  can never walk up into the enclosing repo. ALWAYS gitInit before any git helper.
+- todo4 spike lesson: gitleaks archive dispatch is EXTENSION-based, not
+  magic-based — .tgz silently missed by `dir --max-archive-depth 2` while
+  .tar.gz/.zip/.tar/.gz/.tar.bz2 are native (⇒ extract.ts shim exists solely for
+  .tgz = npm pack). Byte-identical duplicate secrets across archives in ONE scan
+  are DEDUPED to a single finding — fixtures must plant fresh random pairs
+  (randAwsPair()), never reused literals.
+- todo4 literal-shape lesson: not every "AKIA…" string is detected — the vendored
+  aws regex is AKIA[A-Z2-7]{16} (I/T/0/1 excluded) and generic-api-key needs real
+  entropy (a 40-char zero-padded "secret" scored 0). Fixed evidence literals must
+  be tuned against the real binary before being baked into AC proofs.
+- Node quirk: rmSync(dir,{recursive:false}) throws EISDIR on non-empty dirs —
+  use rmdirSync for the "prune tmp root only if empty" pattern, swallow ENOTEMPTY.
