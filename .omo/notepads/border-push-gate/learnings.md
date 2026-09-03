@@ -54,3 +54,40 @@ consumers see scp-form output '<host>/<path>' (no scheme) — exposureSet entrie
   be tuned against the real binary before being baked into AC proofs.
 - Node quirk: rmSync(dir,{recursive:false}) throws EISDIR on non-empty dirs —
   use rmdirSync for the "prune tmp root only if empty" pattern, swallow ENOTEMPTY.
+
+## todo 5 (secretlint adapter) — 2026-09-04
+- secretlint 13.0.5 EXACT pins (@secretlint/core + preset-recommend/no-homedir/
+  pattern/no-dotenv deps, secretlint CLI devDep). @secretlint/preset is a 404 —
+  the preset package is @secretlint/secretlint-rule-preset-recommend. In-process
+  API HOLDS (spike tools/spike-secretlint.mjs kept as contract evidence):
+  lintSource({source:{content,filePath,contentType},options:{config,locale}}),
+  rule packages export NAMED `creator`.
+- TRAP (fail-open class): preset-recommend gates AKIA… scanning behind
+  options.enableIDScanRule which DEFAULTS FALSE — without the preset-entry
+  override {id:"@secretlint/secretlint-rule-aws",options:{enableIDScanRule:true}}
+  AWS keys silently pass. Same category as gitleaks rules=[] — pin an AC.
+- TRAP: upstream 13.0.5 AWSSecretAccessKey range is [fullMatchStart,
+  +groupLength] — range-slicing returns the label prefix, not the credential.
+  Adapter trusts slice only if the en-message echoes it, else recovers the
+  ": <cred>" tail gated on source-presence (recoverRawValue). valueDigest/sanitizer
+  keys on the TRUE value (AC8/AC11).
+- ruleId asymmetry: core reports the CONFIG id; CLI loader reports the rule's
+  META/package id. Pattern rule must be matched under BOTH ("border-pattern"
+  and "@secretlint/secretlint-rule-pattern") for transport-transparent mode
+  switching (AC12).
+- CLI fallback flags are load-bearing: --no-gitignore (v13 respects it by
+  DEFAULT — spec forbids), --no-maskSecrets (masks by default → digests the
+  mask), --secretlintrcJSON inline (never write .secretlintrc.json into the
+  target), --no-glob + explicit abs paths, chunks of 200 for ARG_MAX.
+- @textlint/regexp-string-matcher: slash-wrapped "/src/flags" strings compile as
+  regex SOURCE (flags merged with "ug"), bare strings auto-escape. border
+  slash-wraps everything: config literals escapeRegex'd first (a(b proven
+  literal-safe AC5), built-in defaults carry raw regex sources. Empty pattern
+  string => adapter fails closed with the rule name BEFORE engine throw (AC6).
+- Pattern rule reports carry no structural name (message "found matching
+  <name>: <cred>") — Finding.rule resolved by re-matching own compiled regexes
+  against the range.
+- LOC honesty: src/engines/secretlint.ts 347 pure lines > 250 ceiling — kept
+  single-file per todo-2 precedent (task mandates the exact artifact; adapter +
+  pattern-gen + fingerprint are one transport abstraction; split candidate =
+  patterns/fingerprint if todo 6 grows it).
