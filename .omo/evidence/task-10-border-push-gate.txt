@@ -1,0 +1,90 @@
+# Evidence — task 10: Check orchestration (ref-set, exclusions, pipeline assembly)
+
+Date: 2026-09-04 · Repo: /home/lab/workspace/harness/border · Baseline HEAD: 706466e · Commit: c72db95
+
+## Baseline proof (anti-sandbox protocol, FIRST action)
+
+```
+$ pwd && git -C /home/lab/workspace/harness/border log --oneline -1
+/home/lab/workspace/harness/border
+706466e chore(state): todos 7/8/9 ledgered+checkboxed; record todo-10 phantom-sandbox incident
+```
+
+## Deliverables
+
+- src/check.ts — pipeline keystone: ctx → G22 lock → tracked-state guard → probeEngines
+  → gitleaks (hostile/history/tree/tag-stdin) → secretlint → [trufflehog] → native rules → Report
+  (145 pure LOC)
+- src/check/context.ts (83) — headSha, sha256 porcelain=v1 digest, dirty, sorted refSet
+  (current-branch refname + ALL refs/tags; rev-list-basis interpretation documented:
+  gitleaks --log-opts receives refSet as positive revs; --branches=<cur> glob form proven
+  unreliable and rejected with rationale), detached-HEAD fallback, computeEffectiveTargets
+  (unknown target ⇒ ConfigError exit 2)
+- src/check/lock.ts (78) — ensureStateDir (.border/.gitignore == exactly "*\n", root never
+  touched), O_EXCL pid lock, signal-0 liveness probe (EPERM=alive), stale ⇒ replace +
+  WARNING "stale lock recovered", release on every exit path (try/finally incl. throws)
+- src/check/exclusions.ts (16) — gitleaks has no exclude flag ⇒ ingest-time hard filter;
+  normalises repo-relative (history leg) AND absolute (tree leg) AND `<archive>!<inner>`
+  reattributed paths before segment-wise `.border` matching
+- src/check/tagScan.ts (126) — per-tag `git for-each-ref --format=%(contents)` piped
+  through `gitleaks stdin` (v8.30.1 subcommand empirically verified; support.ts spawnEngine
+  cannot pipe → local spawnSync loop mirroring the adapter's 0/1-only exit discipline);
+  Finding.path = tag refname (documented AC choice), commit = dereferenced sha
+- src/check/rulesHash.ts (46) — stableStringify; configDigest = sha256 of raw border.yaml
+  bytes when a file backs the run (source path exists), canonical effective-config JSON for
+  the git-remote inferred fallback (documented); computeCheckRulesHash(engineVersions from
+  probe, bundledRulePaths=[assets/gitleaks-defaults-v8.30.1.toml], promptTemplatePaths=[]
+  until todo 18); computeCheckKey = sha256 stable JSON {headSha, porcelainDigest, rulesHash,
+  exposureSet, refSet, effectiveTargets} (todo-14 ledger key seam)
+- src/commands/check.ts — REAL handler: no-op contract (NO_OP_MESSAGE exit 0; --require-engine
+  upgrades to a health probe), dirty note, lock-held ⇒ exit 2 naming holder pid,
+  degraded ⇒ exit 2 REGARDLESS of verdict, --json prints Report (digest/snippet only),
+  human lines all pass through TextSanitizer (G23 defense-in-depth), --force seam comment
+  (skip-ledger is todo 14). src/cli.ts untouched (registry seam only).
+
+## AC results (test/check.orchestration.test.ts + test/check.exclusions.test.ts, real engines)
+
+1. self-exclusion: planted secret in UNTRACKED .border/runs/junk/report.json ⇒ 0 findings,
+   PASS, exit 0 (orchestration "AC1…" + exclusions tree-leg test proves raw scan finds it
+   pre-filter — filter is load-bearing) ✓
+2. hostile COMMITTED .border/planted.env ⇒ CRITICAL repo-tracks-border-state naming the
+   path, verdict FAIL, engine legs produce zero .border/ findings post-filter; ≤50-path cap
+   with "+N more" tail ✓ (exit-1 mapping asserted via verdict→exitCodeFromVerdict; cli wiring
+   covered by cli.test)
+3. annotated tag message containing key ⇒ CRITICAL engine=gitleaks path=refs/tags/v-secret
+   commit=<sha> ("CRITICAL with tag ref" AC: ref in path AND message) ✓
+4. two concurrent runs ⇒ child process exits 2 with "lock held by pid <N>" ✓
+5. engine crash injection (PATH stub exit 99): probe-level ⇒ degraded=true, CRITICAL
+   DEGRADED-ENGINE collected, border exit 2, lock released; mid-leg crash (stub --version OK,
+   scan 99) ⇒ EngineRunError propagates, exit 2, lock released ✓
+
+## Manual QA (live CLI, src/index.ts under register-ts)
+
+- clean fixture: `border check` ⇒ "border check PASS: 0 finding(s), 0 blocking" exit 0
+- planted .env + tagged release: --json ⇒ verdict FAIL, 7 CRITICAL (aws-access-token +
+  generic-api-key via history and tree legs, tag-message leg, secretlint dotenv/preset),
+  valueDigest/snippet only — raw secret never serialized; plain run exit 1
+- .border/runs/junk/report.json copy of the same secret ⇒ excluded (PASS 0 findings)
+- live holder lock: exit 2 "border: lock held by pid 1231646 — another border check is
+  running (pid 1231647 refuses to race it)"
+- gitleaks stub exit 99: exit 2 + CRITICAL DEGRADED-ENGINE + "verdict is UNTRUSTWORTHY"
+  line; .border/lock absent afterwards
+
+## Suite / gates
+
+- npm run typecheck: 0 errors
+- node --import ./tools/register-ts.mjs --test test/*.test.ts ⇒ 187/187 pass
+  (160 inherited + 27 new)
+- Stub-era test reworks (permitted surfaces): cli.test.ts stub-loop drops "check";
+  gate-unwired scenario now uses a throwing check handler; cli.dist.test.ts real-gate
+  fail-closed assertion updated (dist cannot resolve vendored assets — files:["dist"]
+  packaging gap, todo 20/21); smoke.test.ts unwired-subcommand switched to "status".
+
+## Deviations / follow-ups recorded
+
+- refSet basis: explicit full refnames instead of `rev-list --branches=<cur> --tags`
+  (empirical: --branches= glob form proved unreliable; documented in context.ts header).
+- History leg scoping = positive revs of refSet (detached-no-tags falls back to headSha).
+- GITLEAKS_VENDORED_CONFIG mis-resolves inside the esbuild dist bundle (import.meta.url
+  relative to dist/, vendored config lands outside the package). Fails CLOSED (exit 2),
+  flagged for the release/packaging todo (20/21).

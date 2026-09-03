@@ -122,3 +122,42 @@ consumers see scp-form output '<host>/<path>' (no scheme) — exposureSet entrie
 - LOC honesty: test/cli.test.ts 357 pure lines stays above the 250 marker —
   consistent with repo test culture (config.test.ts 420); src files all ≤161.
   cli.test.ts = unit+seam, cli.dist.test.ts = child-process AC2.
+
+## todo 10 (2026-09-04) — check orchestration
+- refSet basis DEVIATION (documented in src/check/context.ts header): git's
+  `rev-list --branches=<name>` is a PREFIX-GLOB (empirically can return EMPTY for an
+  exact refname), so border enumerates FULL REFNAMES (current branch symbolic-ref +
+  every refs/tags/*) and feeds them to gitleaks `--log-opts` as positive revs.
+  Detached HEAD pushes tags only ⇒ branch entry drops; history falls back to headSha.
+- gitleaks leg path shapes (probed live): history leg ⇒ REPO-RELATIVE, dir/tree leg ⇒
+  ABSOLUTE, archive reattribution ⇒ `<abs>!<inner>`. Exclusions filter normalises via
+  toRepoRelative + segment-wise `.border` match — never prefix-match one shape only.
+- gitleaks v8.30.1 DOES have `gitleaks stdin` (reads text on stdin, exit 0/1, JSON on
+  stdout with File:'' — attribution must come from the caller: we set path=<tag refname>,
+  commit=<dereferenced sha>). support.ts spawnEngine CANNOT pipe stdin (no input option)
+  ⇒ tagScan.ts spawns its own spawnSync loop mirroring the 0/1-only exit discipline.
+- G23 fixture trap (bit once): border's own built-in secretlint path patterns
+  (/home/[a-z]+/) fire on the fixture border.yaml itself if the remote URL is an
+  absolute /home/... file:// path ⇒ committed config self-flags. Test remotes use
+  scp-form `origin.example:widgets.git` (sanitizeUrl: user@ REQUIRED for scp branch —
+  a bare `host:path` without user falls through WHATWG and passes through verbatim).
+- .border/.gitignore `*` SELF-IGNORES the whole state dir ⇒ a planted .border secret
+  does NOT make `git status --porcelain=v1` dirty; dirty-flag tests need non-.border dirt.
+- PIPELINE DESIGN (all fail-closed): probe degraded skips ONLY the broken engine's legs
+  but detectHostileConfig runs regardless (pure git plumbing, guards gitleaks
+  self-silencing); native aiArtifacts/identity always run so a degraded run still
+  reports what CAN be seen; guard fires BEFORE any engine leg (B-R5-1).
+- Lock liveness: process.kill(pid,0) EPERM = ALIVE (other uid), ESRCH = dead. Recovery
+  loop is 2-attempt: unlink stale ⇒ retry wx; second EEXIST ⇒ re-probe (the race winner
+  is alive ⇒ refuse). releaseLock only unlinks while our pid is still the holder.
+- configDigest policy: sha256 of raw border.yaml bytes when the source path exists;
+  canonical stableStringify(effective config) for the git-remote inferred fallback
+  (no file). Overlay-merged env expansion already baked into `config` — base-file bytes
+  would under-fingerprint IF overlays exist (flagged risk; todo 14 can revisit).
+- DIST BUNDLE GAP (surfaced, NOT todo-10's fix): esbuild bundle resolves
+  GITLEAKS_VENDORED_CONFIG relative to dist/ ⇒ `<parent>/harness/assets/...` (outside
+  the package; package.json files:["dist"] doesn't ship assets/ at all). The CLI fails
+  CLOSED (exit 2, one clear line) — cli.dist.test.ts now pins the fail-closed path.
+  Release packaging (todo 20/21) must ship assets/ + resolve paths from the package root.
+- CLI test culture: todo 7's "check stub" expectations (loop entry + push-unwired 2)
+  were the canary that the stub was replaced — reworked, cli.ts itself untouched.
