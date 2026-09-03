@@ -1,0 +1,84 @@
+Task 6 — Trufflehog opt-in + fail-closed engine policy
+Date: 2026-09-04  Worker: border-push-gate todo 6
+Commit: feat(engines): fail-closed engine policy + optional trufflehog
+
+## Deliverables
+- src/engines/policy.ts        probeEngines(cfg, opts?) -> {degraded, findings, engineVersions}
+- src/engines/trufflehog.ts    scanTrufflehog + trufflehogVersion + ruleForDetector
+- test/engines.policy.test.ts  (9 tests)
+- test/engines.trufflehog.test.ts (7 tests)
+
+Fixture strategy (documented choice): PATH/bin stubs are GENERATED per test
+under gitignored test/tmp/ (never checked into test/fixtures/bin, never /tmp),
+chmod 755 shell scripts replaying canned --json JSON-lines + scripted exit
+codes. NO network, NO real trufflehog (not provisioned; G41 forbids vendoring
+anyway). gitleaks is also stubbed in policy tests so degraded paths are
+deterministic on any machine; real-gitleaks coverage stays in todo-4 suite.
+
+## Contract decisions
+- validateFinding enforces NO rule-charset regex (only: severity enum,
+  valueDigest /^[0-9a-f]{64}$/, path/commit string, line integer, rest
+  strings). trufflehog rules are still normalized to `trufflehog/<lowercase-dash-slug>`
+  ("Private Key" -> trufflehog/private-key); DEGRADED-ENGINE kept uppercase
+  exactly per plan text — legal under the actual validator.
+- Missing/broken/failing probe (EngineMissingError|EngineRunError) => one
+  CRITICAL finding rule=DEGRADED-ENGINE, engine=<missing engine>, message
+  contains verbatim "run border's engine provisioning or install manually";
+  result.degraded=true (flag todo 14 rides for ledger-write prohibition);
+  CLI must exit 2 regardless of findings.
+- Unparseable version string (no /\d+\.\d+(\.\d+)?/ in probe output) =>
+  EnginePolicyError {exitCode:2} naming the engine — hard error, NOT a
+  degraded finding; border never assumes an unknown engine is current.
+- Unknown names in engines.require / --require-engine override =>
+  DEGRADED-ENGINE (cannot-probe == cannot-trust).
+- secretlint probe = secretlintVersionFingerprint({lockPath?}) (in-process,
+  no --version); lock lacking @secretlint/* family => DEGRADED-ENGINE.
+- trufflehog probed ONLY when cfg.engines.trufflehog:true (or explicitly in
+  the required set); enabled-but-absent == missing required engine.
+- engineVersions: extracted semver for gitleaks/trufflehog, sha256 lock
+  fingerprint for secretlint — direct computeRulesHash input.
+- Empty Raw in a result line => EngineRunError (fail closed; no invented digest).
+
+## Tests: npm run typecheck && npm test
+$ npm run typecheck   -> clean (tsc --noEmit, strict+exactOptionalPropertyTypes+noUncheckedIndexedAccess)
+$ npm test            -> 103/103 pass, 0 fail, 0 skipped (87 pre-existing + 16 new)
+
+New tests:
+  policy: AC1 no-gitleaks stub => degraded+DEGRADED-ENGINE(gitleaks)+FAIL verdict
+          AC1 gitleaks-ok + secretlint lock family absent => DEGRADED-ENGINE(secretlint)
+          healthy => degraded:false, versions {gitleaks:"8.30.1", secretlint:<hex>}
+          --require-engine override drops secretlint from probing
+          trufflehog probed only when enabled; enabled+absent => DEGRADED-ENGINE(trufflehog)
+          trufflehog stub ok => engineVersions.trufflehog=="3.88.0"
+          AC3 unparseable gitleaks/trufflehog version => EnginePolicyError exitCode 2 naming engine
+          unknown required engine => DEGRADED-ENGINE
+  trufflehog: AC2 canned-183 => 2 CRITICAL findings, rules trufflehog/aws +
+          trufflehog/private-key, path/line/commit from SourceMetadata.Data.Git,
+          digest==sha256(raw), snippet AKIA…7X2Q, raw absent from JSON.stringify,
+          sanitizer scrubs raw
+          AC3 exit 0 => []; exit 1/7 => EngineRunError(exitCode); garbage JSON line
+          => EngineRunError; no-SourceMetadata => fields absent; missing binary =>
+          EngineMissingError; trufflehogVersion collectible
+          Command-shape proof: stub exits 64 unless argv is EXACTLY
+          `git file://<repo> --only-verified --fail --no-update --json`.
+
+## Manual QA (hands-on, node --import tools/register-ts.mjs)
+[QA degraded] {"degraded":true,"rule":"DEGRADED-ENGINE","engine":"gitleaks",
+  "msg":"required engine 'gitleaks' failed its probe: engine binary 'gitleaks' not found; border fails closed — install it or pass binPath; run borde",
+  "verdict":"FAIL","versions":["secretlint"]}
+[QA healthy] {"degraded":false,"findings":0,"versions":{"gitleaks":"8.30.1","secretlint":"a9c686b60d37dd0635fe8905c99f3cbd9ee8d1e9013871f9a37c9203a1b6da22"}}
+[QA trufflehog-probed] {"degraded":false,"versions":{"gitleaks":"8.30.1","secretlint":"a9c686...","trufflehog":"3.88.0"}}
+[QA trufflehog-scan] rule=trufflehog/aws severity=CRITICAL target=git path=config/aws.py
+  line=42 commit=3f7a2b9c... valueDigest=65d69f1081d941f1... snippet="AKIA…7X2Q"
+[QA raw-leak-check] no raw in findings
+
+## G23 residue check
+Planted literal AKIAI4Q3EXAMPL3K7X2Q grep across the workspace: only source
+tests + .omo historical files (todo-4/5 constant reuse); my code persists
+nothing. All test fixtures + QA scratch under test/tmp/ removed after run.
+(Aside noted in issues.md: /tmp/girepo, /tmp/artdir, /tmp/e2e, /tmp/opencode/
+spike-out.txt carry the same sample literal from Sep-3 spikes of EARLIER
+tasks — not produced by this task's runs.)
+
+## LOC (pure, <=250 gate)
+policy.ts 132 | trufflehog.ts 124 | engines.policy.test.ts 185 | engines.trufflehog.test.ts 169
