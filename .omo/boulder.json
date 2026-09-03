@@ -8,7 +8,7 @@
       "plan_name": "border-push-gate",
       "status": "active",
       "started_at": "2026-09-03T17:34:25.613Z",
-      "updated_at": "2026-09-03T20:55:54.460Z",
+      "updated_at": "2026-09-03T21:27:05.731Z",
       "session_ids": [
         "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
       ],
@@ -64,6 +64,19 @@
           "updated_at": "2026-09-03T20:55:54.461Z",
           "started_at": "2026-09-03T20:55:54.461Z",
           "status": "running"
+        },
+        "todo:6": {
+          "task_key": "todo:6",
+          "task_label": "6",
+          "task_title": "Trufflehog opt-in + fail-closed engine policy",
+          "session_id": "opencode:ses_f96eb3191ffePz0F1faZERp5yx",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-09-03T21:27:05.731Z",
+          "started_at": "2026-09-03T21:22:20.193Z",
+          "status": "completed",
+          "ended_at": "2026-09-03T21:27:05.731Z",
+          "elapsed_ms": 285538
         }
       }
     }
@@ -71,7 +84,7 @@
   "active_plan": "/home/lab/workspace/harness/border/.omo/plans/border-push-gate.md",
   "started_at": "2026-09-03T17:34:25.613Z",
   "status": "active",
-  "updated_at": "2026-09-03T20:55:54.460Z",
+  "updated_at": "2026-09-03T21:27:05.731Z",
   "session_ids": [
     "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
   ],
@@ -127,6 +140,19 @@
       "updated_at": "2026-09-03T20:55:54.461Z",
       "started_at": "2026-09-03T20:55:54.461Z",
       "status": "running"
+    },
+    "todo:6": {
+      "task_key": "todo:6",
+      "task_label": "6",
+      "task_title": "Trufflehog opt-in + fail-closed engine policy",
+      "session_id": "opencode:ses_f96eb3191ffePz0F1faZERp5yx",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-09-03T21:27:05.731Z",
+      "started_at": "2026-09-03T21:22:20.193Z",
+      "status": "completed",
+      "ended_at": "2026-09-03T21:27:05.731Z",
+      "elapsed_ms": 285538
     }
   },
   "agent": "atlas"
