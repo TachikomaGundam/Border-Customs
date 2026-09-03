@@ -1,0 +1,60 @@
+task-7-border-push-gate — CLI surface + exit-code contract
+===========================================================
+Date: 2026-09-04 | Worker: todo 7 | Branch: main (border repo)
+
+FILES
+  src/cli.ts                      parseArgs-only dispatch, usage() G9 table, run(argv,stdout,stderr,overrides)
+  src/cli/exit.ts                 G11 contract: EXIT_PASS/BLOCKED/ERROR, ENGINE_EXIT_TABLE, translateEngineCode,
+                                  exitCodeFromFindings/Verdict, translateError (one-line sanitized stderr), UnknownArgError
+  src/cli/types.ts                Ctx/Flags/CommandHandler — run(ctx) contract incl. G10 + m-R5-a dry-run rule
+  src/commands/index.ts           mutable handler registry + setHandler restore-closure seam
+  src/commands/{check,status,llmRequest,llmIngest}.ts  honest exit-2 stubs naming their owning plan todos
+  src/commands/push.ts            DRY-RUN contract layer: DRY_RUN_PREFIX + GIT_PUSH_DRY_RUN single-source constants,
+                                  per-remote plan lines (displayRemote sanitization), gate verdict via ctx.handlers.check,
+                                  --yes refusal until todos 15/16
+  src/index.ts                    thin bin entry → cli.run; process.exitCode only (no process.exit anywhere — grep verified)
+  package.json                    build script + createRequire banner (fixes Dynamic require of "process"
+                                  once config.ts/yaml entered the bundle graph; dist binary was dead without it)
+  test/cli.test.ts                23 in-process tests (AC1 matrix + registry seam + dry-run contract)
+  test/cli.dist.test.ts            7 child-process AC2 tests on real dist build
+  test/helpers/cli-fixtures.ts    bare-remote + clone fixture, minimal valid border.yaml emitter
+
+VERIFICATION
+  $ npm run typecheck   → clean (tsc --noEmit, strict + exactOptionalPropertyTypes + erasableSyntaxOnly)
+  $ npm test            → 160/160 pass (133 pre-existing incl. sibling merges + 27 new; zero regressions)
+  $ npm run build       → dist/index.js bundles clean; manual binary QA:
+      node dist/index.js --help            → 0, full G9 flag table + exit-code contract lines
+      node dist/index.js bogus             → 2, one stderr "unknown command" line + usage on stdout
+      node dist/index.js push --nope       → 2 + usage
+      node dist/index.js check             → 2 "not implemented yet (plan todo 10 wires the gate pipeline)"
+
+AC1 MATRIX — every row covered in test/cli.test.ts:
+  gitleaks 0→0, 1→findings, 126→2 (and any unmapped code→2), trufflehog 183→findings, 0→0,
+  secretlint 1→findings, 2→2, unknown engine→2 (fail-closed);
+  CRITICAL→1, HIGH→1, MEDIUM/LOW/INFO-only→0, []→0;
+  ConfigError kinds→2, EnginePolicyError→2, EngineRunError(126 detail preserved)→2,
+  EngineMissingError→2, UnknownArgError→2, InvalidFindingError→2, spawn EACCES/ENOENT→2,
+  multi-line collapse, https://user:pass@…?token=… credential stripping, 512-char cap.
+
+AC2 (child_process, real dist):
+  clean fixture push → stdout has DRY-RUN + "git push --dry-run" + origin; bare-repo sha UNCHANGED;
+    unwired gate ⇒ fail-closed 2 (never a fake 0) — m-R5-a.
+  gate-blocked (findings spy through the registry seam across a process boundary; CRITICAL finding
+    planted via exitCodeFromFindings, persisted to planted-findings.json and asserted) ⇒ dry-run exit 1, sha unchanged.
+  clean spy ⇒ exit 0, sha unchanged. bad flag ⇒ 2+usage. unknown subcommand ⇒ 2+usage. --help ⇒ 0+flag table.
+
+DESIGN NOTES
+  * cli.ts is frozen by construction: dispatch goes only through the src/commands registry; todos 10/15/18/19
+    edit their own command module. push consumes the gate via ctx.handlers.check (spy-verified 0/1/2 propagation).
+  * "DRY-RUN" and "git push --dry-run" exist exactly once (src/commands/push.ts exports); dist test asserts the
+    strings survive bundling; a no-framework grep guard (commander|yargs|minimist in src) locks the zero-dep rule.
+  * sanitizeUrl placeholder behavior forced displayRemote(): scheme/scp URLs sanitized, plain fs remote paths
+    verbatim (they have no credential slot).
+
+RISKS / FOLLOW-UPS
+  * package.json build-script change is shared-file surface — if a sibling task edits the script, re-verify the
+    createRequire banner survives or the dist binary crashes on first run.
+  * leak-commit-based blocked fixture (vs findings spy) lands with todo 10's real engine pipeline; AC2 wording
+    explicitly allowed the spy planting.
+  * --json/--force/--require-engine/--llm parse into ctx.flags but only check/push/status consumers exist later
+    (by design — the seam, not the logic, is todo 7's deliverable).
