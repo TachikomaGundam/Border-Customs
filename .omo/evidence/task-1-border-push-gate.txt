@@ -1,0 +1,85 @@
+=== border todo 1 acceptance evidence (raw outputs, 2026-09-04) ===
+
+=== pins recorded (plan requires exact versions) ===
+dependencies: {"zod":"4.5.4"}
+devDependencies: {"@types/node":"22.19.0","esbuild":"0.25.12","publint":"0.3.24","typescript":"5.9.3","verdaccio":"6.10.2"}
+(verdaccio resolved 'npm view verdaccio version' = 6.10.2 at install time; zod latest 4.x = 4.5.4; both pinned EXACT in package.json)
+
+=== AC1: git toplevel == border root ===
+/home/lab/workspace/harness/border
+realpath: /home/lab/workspace/harness/border
+
+=== AC2: gitleaks --version == 8.30.1 ===
+gitleaks version 8.30.1
+exit=0
+gitleaks version 8.30.1
+fallback exit=0
+
+=== AC3: python build/twine exit 0 ===
+build 1.6.0 (/home/lab/.local/lib/python3.14/site-packages/build)
+exit=0
+twine version 7.0.0 (readme-renderer: 46.0, requests: 2.32.5, requests-
+exit=0
+
+=== AC4: npm run typecheck && npm run build ===
+npm warn Unknown builtin config "globalignorefile". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> border@0.1.0 typecheck
+> tsc --noEmit
+
+typecheck exit=0
+npm warn Unknown builtin config "globalignorefile". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> border@0.1.0 build
+> esbuild src/index.ts --bundle --format=esm --platform=node --outfile=dist/index.js
+
+
+  dist/index.js  1.6kb
+
+⚡ Done in 4ms
+build exit=0
+
+=== AC4b: stale_state probe — second consecutive build, sha256 of dist must match ===
+2341ab5ce82fd53af20af2c09c3eccd5426a6f9fd422de65f323ce88a83d0df0  dist/index.js
+2341ab5ce82fd53af20af2c09c3eccd5426a6f9fd422de65f323ce88a83d0df0  dist/index.js
+
+=== AC5: node dist/index.js --help exit 0, lists all five subcommands ===
+border — fail-closed gate: nothing leaves this machine unchecked
+
+usage: border <command> [options]
+
+commands:
+  check          run secret + supply-chain gate on the pending scope
+  push           gate-verified fast-forward push to remotes
+  status         show gate state, config, and engine versions
+  llm-request    emit the provenance request for LLM-authored commits
+  llm-ingest     record provenance captured by the harness
+
+subcommands: check, push, status, llm-request, llm-ingest
+exit=0
+
+=== AC6: npm test green (node:test only) ===
+# tests 4
+# pass 4
+# fail 0
+# skipped 0
+npm test exit=0
+
+=== AC7: malformed input — bogus-cmd and no-args both exit 2 with stderr error line ===
+border: unknown command 'bogus-cmd' — run 'border --help' for usage
+exit=2
+border: unknown command '' — run 'border --help' for usage
+exit=2
+border: 'check' is not implemented yet (pending border-push-gate plan wiring)
+(recognized-unwired 'check' fails loudly, never fakes success) exit=2
+
+=== TDD red->green receipts ===
+RED (before src/index.ts existed): ERR_MODULE_NOT_FOUND '/home/lab/workspace/harness/border/src/index.ts' imported from test/smoke.test.ts; npm test fail 1, TEST_EXIT=1
+GREEN: npm test 4/4 pass (this file, AC6 block)
+
+=== require-engines.ts guards live probe ===
+requireGitleaks(): gitleaks version 8.30.1
+requirePythonBuild(): build 1.6.0 (/home/lab/.local/lib/python3.14/site-packages/build)
+requireTwine(): twine version 7.0.0 (readme-renderer: 46.0, requests: 2.32.5, requests- ...
+negative path: EngineMissingError: ENGINE MISSING: gitleaks not found. border fails closed — tests must never skip a missing engine.
+guards_negative_exit=0
