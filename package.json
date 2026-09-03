@@ -20,6 +20,11 @@
     "test": "node --import ./tools/register-ts.mjs --test test/*.test.ts"
   },
   "dependencies": {
+    "@secretlint/core": "13.0.5",
+    "@secretlint/secretlint-rule-no-dotenv": "13.0.5",
+    "@secretlint/secretlint-rule-no-homedir": "13.0.5",
+    "@secretlint/secretlint-rule-pattern": "13.0.5",
+    "@secretlint/secretlint-rule-preset-recommend": "13.0.5",
     "yaml": "2.9.0",
     "zod": "4.5.4"
   },
@@ -27,6 +32,7 @@
     "@types/node": "22.19.0",
     "esbuild": "0.25.12",
     "publint": "0.3.24",
+    "secretlint": "13.0.5",
     "typescript": "5.9.3",
     "verdaccio": "6.10.2"
   }

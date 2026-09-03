@@ -1,0 +1,109 @@
+=== task 5 evidence — secretlint in-process adapter + pattern generation (2026-09-04) ===
+
+--- npm/node ---
+v22.22.1
+11.19.1
+
+--- package.json secretlint family (EXACT pins, no carets; @secretlint/preset NEVER added — 404, round-2 M3) ---
+    "@secretlint/core": "13.0.5",
+    "@secretlint/secretlint-rule-no-dotenv": "13.0.5",
+    "@secretlint/secretlint-rule-no-homedir": "13.0.5",
+    "@secretlint/secretlint-rule-pattern": "13.0.5",
+    "@secretlint/secretlint-rule-preset-recommend": "13.0.5",
+    "secretlint": "13.0.5",
+
+--- package-lock resolved family ---
+@secretlint/config-creator 13.0.5
+@secretlint/config-loader 13.0.5
+@secretlint/core 13.0.5
+@secretlint/formatter 13.0.5
+@secretlint/node 13.0.5
+@secretlint/profiler 13.0.5
+@secretlint/resolver 13.0.5
+@secretlint/secretlint-rule-no-dotenv 13.0.5
+@secretlint/secretlint-rule-no-homedir 13.0.5
+@secretlint/secretlint-rule-pattern 13.0.5
+@secretlint/secretlint-rule-preset-recommend 13.0.5
+@secretlint/source-creator 13.0.5
+@secretlint/tester 13.0.5
+@secretlint/types 13.0.5
+@secretlint/walker 13.0.5
+secretlint 13.0.5
+
+--- secretlintVersionFingerprint() over the lock family ---
+a9c686b60d37dd0635fe8905c99f3cbd9ee8d1e9013871f9a37c9203a1b6da22
+
+--- tools/spike-secretlint.mjs run (kept in repo as API-contract evidence; exit 0) ---
+PASS: A: lintSource returns messages array — ["filePath","sourceContent","sourceContentType","messages"]
+PASS: C: preset-recommend catches planted AWS AccessKeyId — @secretlint/secretlint-rule-aws/AWSAccessKeyID
+PASS: E: range slices to the matched secret — slice='AKIAI4Q3EXAMPL3K7X2Q'
+PASS: E: raw message ECHOES secret (G23 hazard confirmed)
+PASS: F: message carries severity — error
+PASS: D: escaped literal 'a(b' matches literally, no crash — match='a(b'
+PASS: D: slash-wrapped Windows regex matches C:\Users\bob — match='C:\Users\bob'
+PASS: D: pattern rule loc has 1-based line + 0-based column — {"line":1,"column":11}
+PASS: clean fixture => 0 messages — []
+PASS: no-dotenv fires for .env filename — ["@secretlint/secretlint-rule-no-dotenv/FOUND_DOTENV_FILE"]
+INFO: CLI exit=2 stdout head=""
+PASS: G: CLI exit codes are 0/1/2 domain — 2
+
+SPIKE: in-process API contract HOLDS (todo-5 adapter goes in-process)
+
+--- test run ---
+ok 1 - AC1: default POSIX path-pattern catches /home/lab/proj/.env.local inside a file
+ok 2 - AC2: default Windows path-pattern catches C:\\Users\\bob (G40: no-homedir alone misses this)
+ok 3 - AC3: rules.hosts generates an internal-host pattern finding (corp.internal in source)
+ok 4 - AC4: rules.ips literal-matches with dotted-decimal escape safety
+ok 5 - AC5: regex metachars in rules.hosts ('a(b') match literally and never crash
+ok 6 - AC6: empty pattern string fails closed with SecretlintRunError (never a silent no-rule)
+ok 7 - AC7: clean fixture yields 0 findings
+ok 8 - AC8: preset-recommend (with the spike-discovered enableIDScanRule override) catches a planted AWS pair
+ok 9 - AC9: git-tracked scan covers tracked files only and hard-excludes .border/
+ok 10 - AC10: no-dotenv rule flags a committed .env file
+ok 11 - AC11: G23 — raw matched values never reach Finding fields; sanitizer registered; no report residue on disk
+ok 12 - AC12: CLI fallback mode is caller-transparent — same Finding contract for the same fixture
+ok 13 - AC13: CLI crash (exit 2 domain) maps to SecretlintRunError with the exit code — never 'clean'
+ok 14 - AC14: secretlintVersionFingerprint is a stable sha256 over the lockfile's @secretlint family
+# tests 14
+# pass 14
+# fail 0
+
+--- full suite ---
+# tests 87
+# pass 87
+# fail 0
+
+
+--- manual AC pass (test/tmp/qa-manual, removed after) ---
+  "line": 1,
+  "engine": "secretlint",
+  "message": "found matching path-pattern:[A-Za-z]:\\\\: ▮▮▮▮",
+  "valueDigest": "28f709d79730058e2a461518e34126da18ceda07729e792c92f7ca1251e730bf",
+  "snippet": "▮▮▮▮"
+ },
+ {
+  "rule": "path-pattern:C:\\\\Users\\\\\\w+",
+  "severity": "CRITICAL",
+  "target": "tree",
+  "path": "notes.md",
+  "line": 1,
+  "engine": "secretlint",
+  "message": "found matching path-pattern:C:\\\\Users\\\\\\w+: ▮▮▮▮",
+  "valueDigest": "84d856ff7f4caa04cf2e8e6ecaf36de64556ce34fd45d4550458e19d13e22b28",
+  "snippet": "▮▮▮▮"
+ },
+ {
+  "rule": "internal-host:corp.internal",
+  "severity": "CRITICAL",
+  "target": "tree",
+  "path": "src/app.js",
+  "line": 1,
+  "engine": "secretlint",
+  "message": "found matching internal-host:corp…rnal: corp…rnal",
+  "valueDigest": "433d4c7bd053fdc1e67ea7dd2a8df9b984fb927fab502f44704ac0812514d0bb",
+  "snippet": "corp…rnal"
+ }
+]
+RAW-LEAK-CHECK: clean
+residue check:
+test/tmp contents: 
