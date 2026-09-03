@@ -8,7 +8,7 @@
       "plan_name": "border-push-gate",
       "status": "active",
       "started_at": "2026-09-03T17:34:25.613Z",
-      "updated_at": "2026-09-03T22:10:09.962Z",
+      "updated_at": "2026-09-03T23:16:27.788Z",
       "session_ids": [
         "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
       ],
@@ -88,6 +88,17 @@
           "updated_at": "2026-09-03T22:10:09.963Z",
           "started_at": "2026-09-03T22:10:09.963Z",
           "status": "running"
+        },
+        "todo:10": {
+          "task_key": "todo:10",
+          "task_label": "10",
+          "task_title": "Check orchestration: ref-set, exclusions, pipeline assembly",
+          "session_id": "opencode:ses_f96a2c8e9ffekRUhu05IZOJB4W",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-09-03T23:16:27.788Z",
+          "started_at": "2026-09-03T23:16:27.788Z",
+          "status": "running"
         }
       }
     }
@@ -95,7 +106,7 @@
   "active_plan": "/home/lab/workspace/harness/border/.omo/plans/border-push-gate.md",
   "started_at": "2026-09-03T17:34:25.613Z",
   "status": "active",
-  "updated_at": "2026-09-03T22:10:09.962Z",
+  "updated_at": "2026-09-03T23:16:27.788Z",
   "session_ids": [
     "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
   ],
@@ -174,6 +185,17 @@
       "category": "deep",
       "updated_at": "2026-09-03T22:10:09.963Z",
       "started_at": "2026-09-03T22:10:09.963Z",
+      "status": "running"
+    },
+    "todo:10": {
+      "task_key": "todo:10",
+      "task_label": "10",
+      "task_title": "Check orchestration: ref-set, exclusions, pipeline assembly",
+      "session_id": "opencode:ses_f96a2c8e9ffekRUhu05IZOJB4W",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-09-03T23:16:27.788Z",
+      "started_at": "2026-09-03T23:16:27.788Z",
       "status": "running"
     }
   },
