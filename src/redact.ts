@@ -92,13 +92,19 @@ export class TextSanitizer {
   }
 }
 
-// Fail-closed decision: input that cannot be parsed as an absolute URL is
-// replaced wholesale with this placeholder — the unparseable text is never
-// echoed, because it may itself carry a secret (e.g. a bare `user:pass@host`
-// line that is not a well-formed URL). Parse failure is the ONLY path that
-// yields the placeholder literal.
+// Fail-closed decision: input that is neither a git scp-style remote nor a
+// parseable absolute URL is replaced wholesale with this placeholder — the
+// unparseable text is never echoed, because it may itself carry a secret
+// (e.g. a bare `user:pass@host` line that is not a well-formed URL).
+// Parse failure is the ONLY path that yields the placeholder literal.
 const INVALID_URL_PLACEHOLDER = "[invalid-url-redacted]";
 const SENSITIVE_PARAM_RE = /token|auth|key|secret|password|passwd/i;
+
+// scp-style git remotes (`git@github.com:owner/repo.git`) are the most
+// common remote form yet WHATWG URL cannot parse them. The host group
+// excludes ':' '/' '@' and whitespace, so scheme-form URLs (`ssh://…`,
+// `https://…` — userinfo after `//`) never match this shape.
+const SCP_STYLE_RE = /^[A-Za-z0-9_.+-]+@([^:@/\s]+)[:/](.+)$/;
 
 /**
  * Strip everything credential-shaped from a URL before it is persisted or
@@ -106,10 +112,24 @@ const SENSITIVE_PARAM_RE = /token|auth|key|secret|password|passwd/i;
  * /token|auth|key|secret|password|passwd/i (covers `?token=`,
  * `?access_token=`, `?auth=`, `?key=`, `?api_key=`). Parameter VALUES are
  * removed with their names; fragment and non-matching params are kept.
- * Output is WHATWG-serialized (stable, deterministic; a host-only URL gains
- * a trailing '/').
+ * WHATWG-parsable output is serialized (stable, deterministic; a host-only
+ * URL gains a trailing '/').
+ *
+ * git scp-form remotes (`git@github.com:owner/repo.git`) are handled
+ * explicitly: userinfo is dropped and the result is `<host>/<path>` with no
+ * scheme (WHATWG URL cannot parse this form). Anything after a '?' in the
+ * path is conservatively dropped. Distinct scp remotes always yield
+ * distinct outputs, which exposureSet relies on to invalidate the
+ * skip-ledger fingerprint when a remote is added.
  */
 export function sanitizeUrl(urlText: string): string {
+  const scp = SCP_STYLE_RE.exec(urlText);
+  const scpHost = scp?.[1];
+  const scpPath = scp?.[2];
+  if (scpHost !== undefined && scpPath !== undefined) {
+    const q = scpPath.indexOf("?");
+    return `${scpHost}/${q === -1 ? scpPath : scpPath.slice(0, q)}`;
+  }
   let url: URL;
   try {
     url = new URL(urlText);
