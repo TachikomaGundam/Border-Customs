@@ -95,6 +95,43 @@ test("sanitizeUrl fails closed on unparseable input, never echoing it", () => {
   }
 });
 
+test("sanitizeUrl normalizes scp-style git remotes to <host>/<path>", () => {
+  assert.equal(sanitizeUrl("git@github.com:owner/repo.git"), "github.com/owner/repo.git");
+  assert.equal(sanitizeUrl("git@github.com:a/b.git"), "github.com/a/b.git");
+  for (const remote of ["git@github.com:owner/repo.git", "git@gitlab.com:g/r.git", "aws@code.internal.io:team/proj.git"]) {
+    assert.ok(!sanitizeUrl(remote).includes("@"), `userinfo must not survive in: ${sanitizeUrl(remote)}`);
+  }
+});
+
+test("sanitizeUrl scp-form outputs stay distinct per remote (exposureSet invalidation)", () => {
+  assert.notEqual(sanitizeUrl("git@github.com:a/b.git"), sanitizeUrl("git@github.com:c/d.git"));
+  const remotes = [
+    "git@github.com:org/one.git",
+    "git@github.com:org/two.git",
+    "git@code.internal.io:team/proj.git",
+    "git@github.com:org/one",
+  ];
+  const outputs = remotes.map(sanitizeUrl);
+  assert.equal(new Set(outputs).size, remotes.length, "distinct remotes must yield distinct sanitized forms");
+  assert.ok(outputs.every((o) => o !== "[invalid-url-redacted]"));
+});
+
+test("sanitizeUrl scp-form conservatively drops everything after '?'", () => {
+  assert.equal(sanitizeUrl("git@h:x/y?token=sec"), "h/x/y");
+});
+
+test("sanitizeUrl scp handling does not regress ssh:// and https:// forms", () => {
+  assert.equal(sanitizeUrl("ssh://git@github.com/owner/repo.git"), "ssh://github.com/owner/repo.git");
+  assert.equal(sanitizeUrl("https://git@github.com/owner/repo.git"), "https://github.com/owner/repo.git");
+  assert.equal(sanitizeUrl("https://u:t0k@r/npm"), "https://r/npm");
+});
+
+test("sanitizeUrl scp branch does not fire on malformed near-misses, still fails closed", () => {
+  for (const junk of ["@host:path", "u@@h:x", "user@:path", "user@ho st:path"]) {
+    assert.equal(sanitizeUrl(junk), "[invalid-url-redacted]", `junk must stay placeholder: ${junk}`);
+  }
+});
+
 test("TextSanitizer replaces registered values with [REDACTED:<sha8>]", () => {
   const s = new TextSanitizer();
   const v = "letmein123";
