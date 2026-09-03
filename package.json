@@ -16,7 +16,7 @@
   "private": false,
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "esbuild src/index.ts --bundle --format=esm --platform=node --outfile=dist/index.js",
+    "build": "esbuild src/index.ts --bundle --format=esm --platform=node --banner:js='import{createRequire as __borderRequire}from\"node:module\";const require=__borderRequire(import.meta.url);' --outfile=dist/index.js",
     "test": "node --import ./tools/register-ts.mjs --test test/*.test.ts"
   },
   "dependencies": {
