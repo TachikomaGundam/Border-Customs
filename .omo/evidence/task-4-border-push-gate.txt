@@ -1,0 +1,103 @@
+Task 4 evidence — gitleaks adapter + artifact archive spike
+============================================================
+Date: 2026-09-04 | binary: gitleaks version 8.30.1 (~/.local/bin/gitleaks)
+vendored config: assets/gitleaks-defaults-v8.30.1.toml
+sha256 e163e53b9e7e8a8511e77271e2b323ed057759542a6d988258afe3a1fa329caf
+Full contract + spike table: src/engines/ADAPTER-CONTRACT.md
+
+1. SPIKE TABLE (real binary, `gitleaks dir <dir> --max-archive-depth 2 -f json
+   --report-path - --config <vendored>`, planted AWS pair inside each format)
+-----------------------------------------------------------------------------
+| format                       | native result                | border path               |
+| plain file                   | DETECTED                     | dir leg                   |
+| .tar.gz                      | DETECTED `a.tar.gz!payload`  | dir leg (native)          |
+| .tgz                         | **MISSED** (0 findings,exit0)| extract shim -> scan -> reattribute `<archive>!<inner>` |
+| .zip                         | DETECTED `a.zip!gz.txt`      | dir leg (native)          |
+| .tar (uncompressed)          | DETECTED                     | dir leg (native)          |
+| .gz                          | DETECTED                     | dir leg (native)          |
+| .tar.bz2                     | DETECTED                     | dir leg (native)          |
+| nested: tar.gz>zip>file d=2  | DETECTED                     | dir leg (native)          |
+| gzip bytes renamed .mybin    | MISSED (extension-based dispatch — root cause of the .tgz row) | n/a |
+
+Consequence: `src/artifacts/extract.ts` exists ONLY for `.tgz`
+(NATIVE_MISS_EXTENSIONS = ['.tgz']) — tar -xzf into mkdtemp under
+`<stateDir>/tmp/`, sandbox removed in finally on both paths.
+
+Spike gotchas recorded:
+- --max-archive-depth defaults to 0; explicit 2 is load-bearing.
+- byte-identical duplicate secret in two archives in ONE scan report ->
+  deduped to 1 finding; test fixtures therefore plant fresh random pairs.
+- fixed literals must be high-entropy: `Evide…4LITse…`-style all-caps/zero-pad
+  strings pass the AWS regex shape yet score below generic-api-key entropy —
+  the evidence runner uses a tuned mixed-case 44-char literal.
+- `gitleaks dir` on a repo root reports 0 for a deleted-at-HEAD secret that
+  lives only in (zlib-compressed) git objects -> history leg irreplaceable.
+- exit translation observed: 0 clean / 1 findings / 126 usage error (-> border
+  exit 2 via GitleaksRunError, never "clean").
+
+2. HOSTILE-CONFIG SPIKE
+-----------------------
+- committed `.gitleaksignore` matching planted fingerprint: findings 1->0 even
+  with `-i <empty-file>` (v8 obeys repo-local ignore UNCONDITIONALLY) ->
+  detector emits CRITICAL `repo-self-ignores-findings` (path + HEAD sha).
+- committed `title="empty"` `rules = []` `.gitleaks.toml`: WITHOUT --config the
+  git leg printed EMPTY stdout (silent fail-OPEN); WITH vendored --config the
+  planted key was STILL reported, exit 1 -> --config replaces auto-discovery.
+
+3. ADAPTER RUN TRANSCRIPT (test/tmp fixture; fixed literal
+   Evide4tPlantedLit3ralSe7cretVa9luexWqZkRtMbNp7sYdHf; node --import
+   ./tools/register-ts.mjs on a runner driving the real src/engines/gitleaks.ts)
+--------------------------------------------------------------------------------
+version: gitleaks version 8.30.1
+history leg: 1 finding(s); commit-carrier=true; severities=CRITICAL
+tree leg: 2 finding(s):
+  - …/art/pkg.tar.gz!env.txt rule=generic-api-key snippet=Evid…YdHf digest=294ebc391ad4e908…
+  - …/art/pkg.tgz!env.txt   rule=generic-api-key snippet=Evid…YdHf digest=294ebc391ad4e908…
+hostile detector on clean HEAD: 0 finding(s)
+plaintext literal anywhere under fixture tree after scans: NONE (git objects compressed)
+(secret added, DELETED at HEAD, old commit reachable; .tgz row proves the
+extract shim path, .tar.gz row the native path; snippets/digests from border's
+redact(), raw value never printed)
+
+4. GREP-EMPTY RESIDUE PROOF (run AFTER the scans above; fixtures live under
+   test/tmp/, never /tmp, so the /tmp sweep is meaningful)
+-----------------------------------------------------------
+$ ls -la .border/            -> No such file or directory   (zero residue —
+                                 sandboxes removed in finally, tmp root pruned)
+$ grep -r "$S" .border/      -> No such file or directory   exit=2
+$ grep -rl "$S" /tmp | grep -v opencode/ev4
+                             -> (no hits)
+$ grep -rl "AKIAEVIDENCE4FIXED\|Evide4tPlantedLit3ral" .border/ /tmp
+             | grep -v '/tmp/opencode/ev4/prove.ts'
+                             -> (no hits outside the runner script itself)
+$ grep -rl "…" test/tmp/     -> (test/tmp: no hits — fixture tree deleted in finally)
+Only container of literals after cleanup: the evidence runner source under
+/tmp/opencode/ev4 (scratch, deleted below) — never any engine report file,
+never .border/, never the repo.
+$ rm -rf /tmp/opencode/ev4 /tmp/opencode/spike4 /tmp/opencode/spike
+$ ls -A test/tmp/            -> empty
+
+5. ACCEPTANCE CRITERIA -> TESTS (test/engines.gitleaks.test.ts, 11 tests, all
+   behind requireGitleaks())
+-----------------------------------------------------------------------------
+AC1 secret added-then-deleted-at-HEAD, old commit reachable -> history leg >=1
+    CRITICAL carrying the leaking commit sha ....................... PASS
+AC2 planted key in .tgz detected via spike-proven extract-shim path;
+    .tar.gz/.zip detected natively with `archive!inner` paths ....... PASS (2a/2b)
+AC3 clean fixture -> 0 findings on both legs ........................ PASS
+AC4 no residue: fixture tree grep-clean + no .border/tmp survives ... PASS
+AC5 committed .gitleaksignore / .gitleaks.toml in HEAD tree ->
+    CRITICAL repo-self-ignores-findings naming path + head sha ...... PASS
+AC6 committed rules=[] .gitleaks.toml -> key STILL reported (vendored
+    --config neutralizes auto-discovery) ............................ PASS
+AC7 PATH-stripped run -> typed EngineMissingError at every spawn
+    entry point ..................................................... PASS
+AC8 exit 126 (fake binary) -> GitleaksRunError.exitCode=126, never clean  PASS
+AC9 --version collectible for rulesHash engineVersions .............. PASS
+AC10 ingest via redact() only: sanitizer scrub, valueDigest=sha256(raw),
+     GITLEAKS_CONFIG env stripped from child ........................ PASS
+
+6. FULL SUITE
+-------------
+$ npm run typecheck   -> tsc --noEmit, 0 errors
+$ npm test            -> # tests 73  # pass 73  # fail 0  (62 pre-existing + 11 new)
