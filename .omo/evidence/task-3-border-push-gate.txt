@@ -35,4 +35,75 @@ free text. Test-vector only, never a real credential.)
 - stale_state: computeRulesHash deterministic across runs (test: two calls, equal); 4 flip tests (engine bump, rule file content, promptTemplatePaths add, configDigest) all change the hash
 - prompt_injection: registered value '[REDACTED:abc12345]' (double-mask attempt) scrubbed once + sanitize idempotent (sanitize(sanitize(x)) === sanitize(x), test)
 - dirty_worktree: porcelain below is MY delta only; pre-existing dirty files (package.json, package-lock.json, .omo/boulder.json, .omo/plans/border-push-gate.md, untracked .omo/run-continuation/) are the concurrent todo-2 agent's and were present before this task started
-- cancel_resume / flaky / repeated: N/A — no long-running processes, no network, no wall-clock deps; every test deterministic and order-independent
+- cancel_resume / flaky / repeated: N/A — no long-running processes, no network, no wall-clock deps; every test deterministic and order-independent=== RED run 2026-09-03T19:18:39Z — node --import ./tools/register-ts.mjs --test test/redact.test.ts (before sanitizeUrl fix) ===
+not ok 13 - sanitizeUrl normalizes scp-style git remotes to <host>/<path>
+    + actual - expected
+  name: 'AssertionError'
+  expected: 'github.com/owner/repo.git'
+  actual: '[invalid-url-redacted]'
+  operator: 'strictEqual'
+not ok 14 - sanitizeUrl scp-form outputs stay distinct per remote (exposureSet invalidation)
+    Expected "actual" to be strictly unequal to:
+  name: 'AssertionError'
+  expected: '[invalid-url-redacted]'
+  actual: '[invalid-url-redacted]'
+  operator: 'notStrictEqual'
+not ok 15 - sanitizeUrl scp-form conservatively drops everything after '?'
+    + actual - expected
+  name: 'AssertionError'
+  expected: 'h/x/y'
+  actual: '[invalid-url-redacted]'
+  operator: 'strictEqual'
+# tests 27
+# pass 24
+# fail 3
+
+=== GREEN run 2026-09-03T19:20:21Z — node --import ./tools/register-ts.mjs --test test/redact.test.ts (after sanitizeUrl scp fix) ===
+ok 13 - sanitizeUrl normalizes scp-style git remotes to <host>/<path>
+ok 14 - sanitizeUrl scp-form outputs stay distinct per remote (exposureSet invalidation)
+ok 15 - sanitizeUrl scp-form conservatively drops everything after '?'
+ok 16 - sanitizeUrl scp handling does not regress ssh:// and https:// forms
+ok 17 - sanitizeUrl scp branch does not fire on malformed near-misses, still fails closed
+# tests 27
+# pass 27
+# fail 0
+# cancelled 0
+
+=== FULL npm test + tsc 2026-09-03T19:20:29Z ===
+  duration_ms: 0.495
+  type: 'test'
+  ...
+1..62
+# tests 62
+# suites 0
+# pass 62
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1254.891996
+--- npx tsc --noEmit ---
+src/redact.ts(128,15): error TS2532: Object is possibly 'undefined'.
+src/redact.ts(129,45): error TS2532: Object is possibly 'undefined'.
+
+=== re-verify after noUncheckedIndexedAccess fix 2026-09-03T19:21:03Z ===
+tsc: clean
+# tests 27
+# pass 27
+# fail 0
+# tests 62
+# pass 62
+# fail 0
+
+=== adversarial probes 2026-09-03T19:21:50Z ===
+distinctness 7/7: true
+no @ survives / no placeholder: true
+"@h:p" => "[invalid-url-redacted]"
+"u@" => "[invalid-url-redacted]"
+"u@h" => "[invalid-url-redacted]"
+"u@h:" => "[invalid-url-redacted]"
+"user@ host:p" => "[invalid-url-redacted]"
+"user@:path" => "[invalid-url-redacted]"
+"ssh://git@github.com/o/r.git" => "ssh://github.com/o/r.git"
+"https://u:t0k@r/npm" => "https://r/npm"
+"git@h:x/y?token=sec#frag" => "h/x/y"
