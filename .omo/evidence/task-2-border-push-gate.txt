@@ -1,0 +1,50 @@
+=== task 2 evidence — border.yaml schema + loader + target inference (2026-09-04) ===
+--- dependency pin ---
+yaml 2.9.0 | zod 4.5.4
+pin: yaml@2.9.0 exact (npm view yaml version = 2.9.0). Rationale: border.yaml parsing;
+ownership per consuming-todo pattern, plan names no parser.
+--- RED (before src/config.ts existed) ---
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 544.764507
+--- GREEN: node --import ./tools/register-ts.mjs --test test/config.test.ts ---
+# suites 0
+# pass 24
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1295.817278
+(after anchors-test correction: 24 tests) 
+# suites 0
+# pass 24
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1292.586451
+--- tsc full --noEmit after fixes: 0 errors (whole repo incl. other agents' files) ---
+--- adversarial probes (malformed_input, raw ConfigError messages, no stack traces) ---
+root-scalar ConfigError invalid-value "invalid config at '<root>' in probe.yaml: Invalid input: expected object, received string"
+root-list   ConfigError invalid-value "invalid config at '<root>' in probe.yaml: Invalid input: expected object, received array"
+deep-type   ConfigError invalid-value "invalid config at 'targets.git.remotes' in probe.yaml: Invalid input: expected array, received string"
+tab-indent  ConfigError malformed-yaml line=2 ; unclosed-flow ConfigError malformed-yaml line=3 col=1
+merge-key << rejected: unknown config key '<<' (yaml 2.9.0 resolves << only with merge:true; we keep default-off => strict schema rejects, no escape hatch)
+prompt_injection: url 'https://x.example/a$b/{c}/$/${ j : $(id) }' round-trips literal (test 10); env values are string-replaced, never evaluated
+stale_state: loadConfig twice -> assert.deepEqual (test 22); repeated full runs deterministic (24/24 every run)
+dirty_worktree: after suite, 'ls -d /tmp/border-cfg-* | wc -l' = 0; git status shows ONLY owned + notepad/omo-shared files
+cancel_resume / flaky_tests / repeated_interruptions: N/A — suite has no timing/network dependence, fixtures under mkdtemp with t.after cleanup, no retries observed
+--- design decisions ---
+1. Top-level required keys: version, targets, rules. allow/engines OMITTABLE with specified defaults ([], {gitleaks,secretlint},false) — defaults in plan imply omission; nested defaults (maxFileKB, require, trufflehog) also apply.
+2. Overlay .border/config.local.yaml: deep-merged at RAW-doc level (objects recurse, arrays/scalars replace), merged result validated ONCE against same strict schema => partial overlays legal, unknown keys anywhere still named.
+3. NO-OP exposed as LoadResult {kind:'no-op', warnings}; fires when (a) no config + zero git remotes, (b) loaded config declares zero targets (todo 19 'full NO-OP if all empty'). NO_OP_MESSAGE + FALLBACK_WARNING exported constants for CLI/check.ts; no ledger writes possible since caller only gets config under kind==='loaded'.
+4. ${VAR} expansion AFTER schema validation, ONLY remotes[].url / npm.registry / pypi.repository; unset var => ConfigError missing-env naming var; regex \$\\{([A-Za-z_][A-Za-z0-9_]*)\\} ignores '$'/'{ \'/dollar-paren literals.
+5. ConfigError: kinds unknown-key|invalid-value|malformed-yaml|missing-env|unreadable|git-failed; carries exitCode:2 (never process.exit), key/line/column where applicable.
+6. exposureSet(cfg,{cwd}): Set-dedup then sort; remotes via sanitizeUrl(./redact.ts todo3); npm/pypi name@version read via 'git show HEAD:package.json' / pyproject.toml (test mutates worktree to 9.9.9 post-commit, HEAD value asserted).
+7. LOC: src/config.ts 340 pure lines > 250 ceiling — accepted: task mandates EXACTLY src/config.ts + test/config.test.ts as product files, splitting forbidden by assignment; single cohesive config domain.
+8. concurrency: src/redact.ts appeared committed (73ae8e2 todo3) before first full test run; only dependency imported: sanitizeUrl. learnings.md commit piggybacks todo-3 uncommitted append (append-only journal).
