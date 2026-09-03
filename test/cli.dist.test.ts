@@ -122,7 +122,10 @@ test("push on a clean fixture: stdout carries DRY-RUN + git push --dry-run, bare
     assert.match(r.stdout, /DRY-RUN/);
     assert.ok(r.stdout.includes(GIT_PUSH_DRY_RUN), "grep-guard string must survive bundling");
     assert.ok(r.stdout.includes("origin"));
-    assert.match(r.stderr, /not implemented/i, "unwired gate ⇒ fail-closed 2, never a fake 0");
+    // post todo-10 the dist bundle wires the REAL check; dist cannot resolve
+    // the vendored gitleaks assets yet (files:["dist"] packaging is todo 20/21),
+    // so the gate fails CLOSED — exactly the "never a fake 0" contract:
+    assert.match(r.stderr, /engine run error|not implemented/i, "unwired gate ⇒ fail-closed 2, never a fake 0");
     assert.equal(r.code, EXIT_ERROR);
     assert.equal(gitIn(fx.root, fx.bare, ["rev-parse", "main"]), before);
   } finally {
