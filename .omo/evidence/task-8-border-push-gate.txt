@@ -1,0 +1,93 @@
+task 8 — AI-session + junk artifact rules (closed list)          2026-09-04
+=============================================================================
+
+DELIVERABLES
+  src/rules/aiArtifacts.ts        scanAiArtifacts({repoDir, refSet?, cfg?, sanitizer?}): Finding[]
+  test/rules.aiArtifacts.test.ts  7 tests (AC1..AC4 + refSet scoping + G23 dedupe/masking)
+
+SPEC (plan section "8. AI-session") implemented verbatim:
+  CRITICAL closed list : .omo/** | **/transcripts/** | *.session.jsonl |
+                         opencode.json | opencode.jsonc | .opencode/** |
+                         .env | .env.* EXCEPT .env.example/.env.sample
+  MEDIUM               : *.ipynb w/ non-empty cells[].outputs (JSON parse;
+                         unparseable => treated as no-outputs, never crashes),
+                         probe* | *.rej | *.orig | **/node_modules/**
+  HIGH checked-in-binary: NUL byte in first 8000 bytes of the blob
+  MEDIUM oversized-file : git ls-tree -r --long size > rules.maxFileKB*1024 (cfg, default 500)
+  G35 closure          : user additions ride border.yaml rules.pathPatterns through
+                         the SAME matcher pipeline; no other hardcoded patterns.
+
+TWO LEGS
+  tree    : `git ls-tree -r --long HEAD` (path+blob sha+size), content via
+            `git cat-file --batch --buffer` (read-only plumbing; never checkout/reset).
+  history : `git log --diff-filter=A --name-only --format=%x00%H` over refSet
+            (default = `git for-each-ref --format=%(refname)`, i.e. all refs).
+  pathPatterns cfg shape NOTE: src/config.ts schema is z.array(z.string()) —
+  the consumer accepts `string | {pattern, severity?, message?}` so BOTH the
+  current schema (bare strings, default CRITICAL = G35 closed-list addition
+  vehicle, mirroring secretlint's CRITICAL mapping) and a future rich form
+  parse. Win+POSIX separators normalized (backslash -> '/') on BOTH sides;
+  patterns without '/' match basename at any depth (gitignore semantics).
+
+DEDUPE KEY (documented, AC1): (rule, normalized-path) -> ONE finding.
+  commit field = HEAD sha when path is tree-resident, else the
+  lexicographically smallest adding commit (deterministic across ref walk).
+
+FINDING SHAPE
+  rule slugs: ai-session-artifact | env-file-committed | notebook-outputs |
+  junk-artifact | checked-in-binary | oversized-file | path-pattern.
+  engine "ai-artifacts", target "git", valueDigest/snippet = redact(path),
+  path registered with the sanitizer when provided. All pass validateFinding().
+  .border/ prefix skipped (todo-10 contract: native rules skip the prefix;
+  the tracked-state guard owns it).
+
+MANUAL QA TRANSCRIPT (all on real throwaway `git init -b main` fixtures under test/tmp/)
+  $ node --import ./tools/register-ts.mjs --test test/rules.aiArtifacts.test.ts
+    # tests 7  # pass 7  # fail 0
+  AC1 kitchen-sink: 14 expected (rule,path) findings deepEqual the fired matrix —
+    every category fires EXACTLY once; README/.env.example/.env.sample/
+    empty-cells.ipynb/corrupt.ipynb/probe-word decoys stay silent.
+  AC1-dedupe: .omo/loop.json added@C1, deleted@C2, re-added@C3(HEAD) =>
+    exactly 1 finding, commit == HEAD sha.
+  AC2: .env with planted credential removed before HEAD => fires once via the
+    history leg citing the ADDING commit sha (CRITICAL).
+  AC3: clean fixture => [] ; empty repo (no commits/refs) => [] (legal zero input).
+  AC4: maxFileKB=1 fixture: 1024B file silent (strict >), 1025B fires;
+    pathPatterns ["internal/**", {pattern:"scratch\\tmp\\**", severity:MEDIUM,
+    message:"windows-style scratch dir"}] => bare string fires CRITICAL,
+    backslash pattern normalizes and fires MEDIUM with the custom message.
+  refSet scoping: artifact committed only on branch `feature` fires with the
+    default all-refs scan; refSet:["refs/heads/main"] => [].
+  G23: valueDigest == sha256(path) exactly; short path snippet fully masked
+    (redact's .env snippet); sanitizer.sanitize() scrubs the registered path
+    from free text; JSON.stringify(findings) never contains the file CONTENT.
+
+FULL SUITE (sibling-concurrent worktree, this moment)
+  per-file: config 24/24 | gitleaks 11/11 | policy 9/9 | secretlint 14/14 |
+            trufflehog 7/7 | findings 7/7 | redact 27/27 | smoke 4/4  => 103/103 green
+            identity 18/18 (sibling todo 9) | aiArtifacts 7/7 (this task)
+  test/cli.test.ts: 16/27 — sibling todo-7 work-in-progress (its file imports
+    src/commands/{push,llmIngest,llmRequest,status}.ts that don't exist yet);
+    NOT produced by this task. `npm run typecheck` likewise fails ONLY in
+    src/cli.ts + src/commands/index.ts + test/cli.test.ts; grep confirms zero
+    diagnostics in src/rules/aiArtifacts.ts and test/rules.aiArtifacts.test.ts.
+
+EMPIRICAL GOTCHA (appended to issues.md)
+  `git ls-tree -r --long` separates the size with SPACE PADDING (right-aligned),
+  then a TAB before the path: `100644 blob <sha>       3\ta.txt`. A regex
+  assuming `<sha>\t<size>\t<path>` silently parses ZERO entries — the tree leg
+  and all content rules vanish while history-leg findings still look plausible.
+  Matcher: /^(\d{6}) (\w+) ([0-9a-f]{40})\s+(\d+)\t(.+)$/ + type=="blob" filter.
+
+CLEANUP: all fixture dirs removed via finally/removeDir; test/tmp/ empty;
+no writes into scanned repos (plumbing reads only); no new deps.
+
+RISKS CARRIED
+  * cat-file --batch buffers HEAD contents (default 32MB cap): ENOBUFS fails
+    CLOSED as EngineRunError (never a silent pass). Streaming leg is a
+    post-1.0 optimization if real repos exceed the cap.
+  * content rules (NUL/ipynb) evaluate HEAD-tree blobs only; history-only
+    paths get path-shape rules (documented; the closed list is path-based,
+    so coverage of AC2-class leaks is complete).
+  * `probe*`/`opencode.json` basename semantics match at any depth — fail-
+    closed by design; allowlisting belongs to todo 3's `allow[]`, not here.

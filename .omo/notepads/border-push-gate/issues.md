@@ -33,3 +33,39 @@ _Auto-scaffolded by /start-work. Append new entries below - never overwrite._
   *probe failure* (DEGRADED-ENGINE finding), never an unparseable-version
   hard error. Policy distinguishes: probe-throws ⇒ finding; probe-returns-
   garbage-version-string ⇒ EnginePolicyError exit 2.
+
+---
+
+## todo 8 (2026-09-04) — AI-session + junk artifact rules
+
+- **`git ls-tree -r --long` size separator gotcha**: output is
+  `100644 blob <sha>       3\tpath` — the size is RIGHT-ALIGNED SPACE-PADDED,
+  only the path is tab-separated. A `<sha>\t<size>\t` regex silently yields
+  ZERO entries: the tree leg, oversized/binary/notebook rules all evaporate
+  while history-leg path findings keep the test looking half-alive. Matcher
+  that works: `/^(\d{6}) (\w+) ([0-9a-f]{40})\s+(\d+)\t(.+)$/` + type=="blob"
+  (gitlinks mode 160000 have no size field — filtered, not parsed).
+- **pathPatterns consumer shape**: config schema is `z.array(z.string())`
+  (todo 2, strict). scanAiArtifacts therefore accepts
+  `string | {pattern, severity?, message?}` — bare strings default CRITICAL
+  (G35: pathPatterns ARE the closed-list addition vehicle; also mirrors
+  secretlint's CRITICAL internal-host mapping). Todo 10 can pass
+  `config.rules` straight through (structural typing). Later todos: do NOT
+  re-validate the union at the call site.
+- **engine label for native rules := "ai-artifacts"** (todo 9 sibling should
+  pick its own, e.g. "identity"; todo 3/17 rendering must not assume
+  engine==gitleaks for native findings). target is "git" per task spec.
+- **dedupe key = (rule, normalized-path)**: one finding per pair; commit =
+  HEAD sha when tree-resident else lex-smallest adding commit. History-only
+  paths get NO content rules (NUL/ipynb read HEAD-tree blobs only) — the
+  closed list is path-based so AC2-class leaks stay fully covered.
+- **`.border/` prefix is skipped here** per todo-10's "native rules skip the
+  prefix" contract; the CRITICAL `repo-tracks-border-state` guard is todo 10's
+  job for committed `.border/**`. Don't duplicate the finding in todo 10.
+- spawnSync `encoding:"buffer"` + `input: Buffer` is the ONLY safe mode for
+  cat-file --batch: utf8 decoding mangles NUL bytes and would blind the
+  checked-in-binary sniffer.
+- sibling snapshot at commit time: 103/103 pre-existing green + identity 18/18;
+  `npm run typecheck` and test/cli.test.ts fail ONLY inside todo-7's
+  in-flight surface (src/cli.ts, src/commands/*.ts missing modules) —
+  pre-existing on this worktree, not introduced by todo 8.
