@@ -2,9 +2,10 @@
 //
 // Native-rule layer (D7 gap) for AI-session artifacts, env files, executed
 // notebooks, junk, checked-in binaries and oversized blobs. The closed list
-// (G35) lives HERE and nowhere else — every pattern addition ships as
-// border.yaml `rules.pathPatterns`, never as code. Two legs feed one matcher
-// pipeline so user patterns ride the exact same code path as the closed list:
+// (G35) lives in artifactMatchers.ts and nowhere else — every pattern
+// addition ships as border.yaml `rules.pathPatterns`, never as code. Two legs
+// feed one matcher pipeline so user patterns ride the same path as the
+// built-ins:
 //   * HEAD tree  — `git ls-tree -r --long HEAD` (path, blob sha, size);
 //   * history    — `git log --diff-filter=A --name-only` over the ref-set
 //     (todo 10 supplies refSet; default = every ref), so an .env removed
@@ -26,26 +27,24 @@ import { DEFAULT_MAX_FILE_KB } from "../config.ts";
 import { EngineRunError } from "../engines/support.ts";
 import type { Finding, Severity } from "../findings.ts";
 import { redact, type TextSanitizer } from "../redact.ts";
+import {
+  closedMatchers,
+  normalizePath,
+  type PathMatcher,
+  type PathPatternEntry,
+  userMatchers,
+} from "./artifactMatchers.ts";
+
+export type { PathPatternEntry } from "./artifactMatchers.ts";
 
 export const AI_ARTIFACTS_ENGINE = "ai-artifacts";
 export const BINARY_SNIFF_BYTES = 8000;
 const BORDER_PREFIX = ".border/";
 
-const AI_SESSION_RULE = "ai-session-artifact";
-const ENV_RULE = "env-file-committed";
 const NOTEBOOK_RULE = "notebook-outputs";
-const JUNK_RULE = "junk-artifact";
 const BINARY_RULE = "checked-in-binary";
 const OVERSIZED_RULE = "oversized-file";
-const PATTERN_RULE = "path-pattern";
 
-/** Closed G35 lists — additions ride border.yaml rules.pathPatterns, never here. */
-const AI_SESSION_PATTERNS = [".omo/**", "**/transcripts/**", "*.session.jsonl", "opencode.json", "opencode.jsonc", ".opencode/**"];
-const JUNK_PATTERNS = ["probe*", "*.rej", "*.orig", "**/node_modules/**"];
-const ENV_EXEMPT = new Set([".env.example", ".env.sample"]);
-
-/** Rich pattern entry; the current schema ships bare strings, which default to CRITICAL. */
-export type PathPatternEntry = { readonly pattern: string; readonly severity?: Severity; readonly message?: string };
 export type AiArtifactsRules = {
   readonly pathPatterns?: readonly (string | PathPatternEntry)[];
   readonly maxFileKB?: number;
@@ -101,88 +100,6 @@ function gitText(c: Ctx, args: readonly string[]): string {
     throw new EngineRunError(`git ${args.join(" ")} in ${c.repoDir} exited non-zero: ${r.stderr.trim().slice(-200)}`, null);
   }
   return r.stdout.toString("utf8");
-}
-
-// ---------------------------------------------------------------- path shapes
-
-function normalizePath(p: string): string {
-  const n = p.replaceAll("\\", "/").replace(/^\.\//, "");
-  return n.endsWith("/") && n.length > 1 ? n.slice(0, -1) : n;
-}
-
-function baseName(p: string): string {
-  const i = p.lastIndexOf("/");
-  return i === -1 ? p : p.slice(i + 1);
-}
-
-function escapeRe(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/** gitignore-flavoured glob: `**` crosses directories, `*`/`?` do not. */
-function globToRegExp(glob: string): RegExp {
-  const segs = glob.split("/");
-  let re = "";
-  for (let i = 0; i < segs.length; i += 1) {
-    const seg = segs[i] ?? "";
-    const last = i === segs.length - 1;
-    if (seg === "**") {
-      re += last ? ".*" : "(?:[^/]+/)*";
-      continue;
-    }
-    let piece = "";
-    for (const ch of seg) {
-      if (ch === "*") piece += "[^/]*";
-      else if (ch === "?") piece += "[^/]";
-      else piece += escapeRe(ch);
-    }
-    re += piece;
-    if (!last) re += "/";
-  }
-  return new RegExp(`^${re}$`);
-}
-
-type PathMatcher = {
-  readonly rule: string;
-  readonly severity: Severity;
-  readonly message: string;
-  readonly test: (path: string) => boolean;
-};
-
-/** A pattern WITHOUT '/' matches the basename at any depth (gitignore semantics). */
-function globMatcher(rule: string, severity: Severity, pattern: string, message: string): PathMatcher {
-  const pat = normalizePath(pattern);
-  const re = globToRegExp(pat);
-  const anchored = pat.includes("/");
-  return { rule, severity, message, test: (p) => re.test(anchored ? p : baseName(p)) };
-}
-
-function closedMatchers(): PathMatcher[] {
-  const out: PathMatcher[] = AI_SESSION_PATTERNS.map((p) =>
-    globMatcher(AI_SESSION_RULE, "CRITICAL", p, `AI-session artifact on the closed list (pattern '${p}'): agent/session state must never ship.`),
-  );
-  out.push({
-    rule: ENV_RULE,
-    severity: "CRITICAL",
-    message: "Environment file tracked (closed list): .env files routinely carry credentials; commit .env.example/.env.sample templates instead.",
-    test: (p) => {
-      const b = baseName(p);
-      return (b === ".env" || b.startsWith(".env.")) && !ENV_EXEMPT.has(b);
-    },
-  });
-  for (const p of JUNK_PATTERNS) {
-    out.push(globMatcher(JUNK_RULE, "MEDIUM", p, `Junk artifact on the closed list (pattern '${p}'): patch/probe leftovers and vendored deps must not be tracked.`));
-  }
-  return out;
-}
-
-function userMatchers(entries: readonly (string | PathPatternEntry)[]): PathMatcher[] {
-  return entries.map((entry) => {
-    const e: PathPatternEntry = typeof entry === "string" ? { pattern: entry } : entry;
-    const severity: Severity = e.severity ?? "CRITICAL"; // G35: pathPatterns ARE closed-list additions
-    const message = e.message ?? `Path matches border.yaml rules.pathPatterns entry '${e.pattern}'.`;
-    return globMatcher(PATTERN_RULE, severity, e.pattern, message);
-  });
 }
 
 // ---------------------------------------------------------------- git legs
@@ -298,10 +215,10 @@ export function scanAiArtifacts(o: ScanAiArtifactsOptions): Finding[] {
     hits.set(key, { rule, severity, path, message, commits: [...commits], inTree });
   };
 
-  const matchers = [...closedMatchers(), ...userMatchers(o.cfg?.pathPatterns ?? [])];
+  const matchers: PathMatcher[] = [...closedMatchers(), ...userMatchers(o.cfg?.pathPatterns ?? [])];
   for (const entry of tree) {
     for (const m of matchers) {
-      if (m.test(entry.path) && headSha !== undefined) record(m.rule, m.severity, entry.path, m.message, [headSha], true);
+      if (headSha !== undefined && m.test(entry.path)) record(m.rule, m.severity, entry.path, m.message, [headSha], true);
     }
   }
   for (const [path, shas] of historyAdditions(c, refs)) {

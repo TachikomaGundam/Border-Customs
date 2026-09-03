@@ -91,3 +91,16 @@ RISKS CARRIED
     so coverage of AC2-class leaks is complete).
   * `probe*`/`opencode.json` basename semantics match at any depth — fail-
     closed by design; allowlisting belongs to todo 3's `allow[]`, not here.
+
+== POST-COMMIT SPLIT (LOC ceiling) ==
+Initial commit 59e2355 measured src/rules/aiArtifacts.ts at 288 pure LOC (> 250 ceiling).
+Split by responsibility, plan-required entry point preserved:
+  - src/rules/artifactMatchers.ts (83 pure LOC): path normalization, hand-rolled
+    gitignore-flavoured glob compiler (**/*/?), closed G35 matcher table +
+    rules.pathPatterns consumer, PathPatternEntry type. Pure logic, no git/fs.
+  - src/rules/aiArtifacts.ts (214 pure LOC): git legs (ls-tree/log --diff-filter=A/
+    cat-file --batch), notebook + NUL + size rules, dedupe, Finding assembly.
+    Re-exports PathPatternEntry; tests import only from aiArtifacts.ts (untouched).
+Re-verified after split: test/rules.aiArtifacts.test.ts 7/7 pass; full suite
+node --import ./tools/register-ts.mjs --test test/*.test.ts => 153/153 pass, 0 fail;
+npx tsc --noEmit => 0 errors repo-wide.
