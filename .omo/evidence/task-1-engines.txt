@@ -1,0 +1,26 @@
+=== border task-1 provisioned engines (raw --version output) ===
+provisioned: 2026-09-04, machine linux x86_64
+
+[gitleaks] $ gitleaks --version   (also resolves via $HOME/.local/bin/gitleaks)
+gitleaks version 8.30.1
+source: https://github.com/gitleaks/gitleaks releases v8.30.1 asset gitleaks_8.30.1_linux_x64.tar.gz
+tarball sha256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb (matches GitHub API asset digest)
+installed at: /home/lab/.local/bin/gitleaks (mode 755)
+
+[python build] $ python3 -m build --version
+build 1.6.0 (/home/lab/.local/lib/python3.14/site-packages/build)
+
+[python twine] $ python3 -m twine --version
+twine version 7.0.0 (readme-renderer: 46.0, requests: 2.32.5, requests-toolbelt: 1.0.0, urllib3: 2.6.3, keyring: 25.7.0, rfc3986: 2.0.0, rich: 15.0.0, packaging: 26.3, id: 1.6.1)
+
+[node] $ node --version
+v22.22.1
+
+[npm] $ npm --version
+11.19.1
+
+[vendored gitleaks rules config] assets/gitleaks-defaults-v8.30.1.toml
+sha256: e163e53b9e7e8a8511e77271e2b323ed057759542a6d988258afe3a1fa329caf
+git blob sha1: 256f64790ea6d954f0041024be2938089ae1e7a7 == git tree entry for config/gitleaks.toml at tag v8.30.1 (lightweight tag -> commit 83d9cd684c87d95d656c1458ef04895a7f1cbd8e); byte-identical to raw.githubusercontent.com/gitleaks/gitleaks/v8.30.1/config/gitleaks.toml
+
+[NOT provisioned] trufflehog — opt-in only, absence policy handled by todo 6.
