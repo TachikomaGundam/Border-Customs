@@ -8,7 +8,7 @@
       "plan_name": "border-push-gate",
       "status": "active",
       "started_at": "2026-09-03T17:34:25.613Z",
-      "updated_at": "2026-09-03T17:34:25.613Z",
+      "updated_at": "2026-09-03T18:13:31.356Z",
       "session_ids": [
         "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
       ],
@@ -16,13 +16,25 @@
         "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7": "direct"
       },
       "agent": "atlas",
-      "task_sessions": {}
+      "task_sessions": {
+        "todo:1": {
+          "task_key": "todo:1",
+          "task_label": "1",
+          "task_title": "Scaffold package + toolchain",
+          "session_id": "opencode:ses_f97a34bb1ffeZS6Gx0Y2mV3oQq",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-09-03T18:13:31.356Z",
+          "started_at": "2026-09-03T18:13:31.356Z",
+          "status": "running"
+        }
+      }
     }
   },
   "active_plan": "/home/lab/workspace/harness/border/.omo/plans/border-push-gate.md",
   "started_at": "2026-09-03T17:34:25.613Z",
   "status": "active",
-  "updated_at": "2026-09-03T17:34:25.613Z",
+  "updated_at": "2026-09-03T18:13:31.356Z",
   "session_ids": [
     "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
   ],
@@ -30,6 +42,18 @@
     "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7": "direct"
   },
   "plan_name": "border-push-gate",
-  "task_sessions": {},
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Scaffold package + toolchain",
+      "session_id": "opencode:ses_f97a34bb1ffeZS6Gx0Y2mV3oQq",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-09-03T18:13:31.356Z",
+      "started_at": "2026-09-03T18:13:31.356Z",
+      "status": "running"
+    }
+  },
   "agent": "atlas"
 }
