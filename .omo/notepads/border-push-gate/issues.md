@@ -69,3 +69,14 @@ _Auto-scaffolded by /start-work. Append new entries below - never overwrite._
   `npm run typecheck` and test/cli.test.ts fail ONLY inside todo-7's
   in-flight surface (src/cli.ts, src/commands/*.ts missing modules) —
   pre-existing on this worktree, not introduced by todo 8.
+
+## INCIDENT (2026-09-04) — todo-10 phantom sandbox
+- First todo-10 worker ran 39min and returned a coherent, code-consistent
+  DoneClaim — but zero artifacts exist in the real repo (no objects, no
+  files, no reflog entries). Root must treat worker-claimed commits as
+  UNVERIFIED until `git log --oneline -2` IN ROOT SHOWS THEM.
+- Mitigations adopted for all future dispatches: (1) worker's FIRST action
+  = echo `git -C /home/lab/workspace/harness/border log --oneline -1` +
+  `pwd` + include both in DoneClaim; (2) commit production code as soon as
+  tests-green, before writing evidence/docs; (3) DoneClaim must paste ACTUAL
+  final `git log --oneline -3` output, not narrated hashes.
