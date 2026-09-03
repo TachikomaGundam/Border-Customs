@@ -1,0 +1,38 @@
+=== border todo 3 acceptance evidence (raw outputs, 2026-09-04) ===
+=== Findings model + secret redactor (src/findings.ts, src/redact.ts) ===
+
+=== AC1: git toplevel == border root ===
+/home/lab/workspace/harness/border
+
+=== RED phase: scoped gate before src files existed (TDD proof) ===
+node --import ./tools/register-ts.mjs --test test/findings.test.ts test/redact.test.ts
+=> both suites failed ERR_MODULE_NOT_FOUND for src/findings.ts + src/redact.ts
+   # tests 2 / # pass 0 / # fail 2   (failureType: testCodeFailure — modules did not exist)
+
+=== GREEN phase: scoped gate after implementation ===
+# tests 29
+# pass 29
+# fail 0
+# duration_ms 665.412378
+
+=== typecheck (full repo, npx tsc --noEmit) ===
+exit 0, zero diagnostics across src/ and test/ (src/config.ts not yet landed by the concurrent agent, so no foreign errors to filter)
+
+=== runtime AC probe (node --import tools/register-ts.mjs -e) ===
+redact20: {"valueDigest":"1a5d44a2dca19669d72edf4c4f1c27c4c1ca4b4408fbb17f6ce4ad452d78ddb3","snippet":"AKIA…MPLE"}
+redact7 : {"valueDigest":"5f76e3e8b1659d40c157f0c3e136b402f111c8d21d9d0eb529e96f1d1bbcf053","snippet":"▮▮▮▮"}
+redactCJK: {"valueDigest":"f38e23f3bdc1f36b64a04fc729d1417e7db2a40716fd91a79049fff22b6915e9","snippet":"▮▮▮▮"}
+url    : https://r/npm
+junk   : [invalid-url-redacted]
+scrub  : deploy key [REDACTED:1a5d44a2] on host
+(AKIAIOSFODNN7EXAMPLE is the public AWS documentation example key used as the
+plan's test vector; the scrub demo line is that fixture being replaced in
+free text. Test-vector only, never a real credential.)
+
+=== adversarial checks ===
+- malformed_input: redact('') -> masked, no throw (test); redact CJK 7-code-point -> fully masked, no leak (test); redact of value with embedded newlines -> no throw (test); sanitizeUrl junk ('not a url', 'garbage////', '//relative/path', '') -> '[invalid-url-redacted]' fail-closed, input never echoed (test)
+- misleading_success_output: evidence here is raw tool output only; no fabricated claims
+- stale_state: computeRulesHash deterministic across runs (test: two calls, equal); 4 flip tests (engine bump, rule file content, promptTemplatePaths add, configDigest) all change the hash
+- prompt_injection: registered value '[REDACTED:abc12345]' (double-mask attempt) scrubbed once + sanitize idempotent (sanitize(sanitize(x)) === sanitize(x), test)
+- dirty_worktree: porcelain below is MY delta only; pre-existing dirty files (package.json, package-lock.json, .omo/boulder.json, .omo/plans/border-push-gate.md, untracked .omo/run-continuation/) are the concurrent todo-2 agent's and were present before this task started
+- cancel_resume / flaky / repeated: N/A — no long-running processes, no network, no wall-clock deps; every test deterministic and order-independent
