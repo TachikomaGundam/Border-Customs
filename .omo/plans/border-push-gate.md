@@ -137,7 +137,7 @@ All paths relative to repo root `/home/lab/workspace/harness/border`. Spec autho
   QA scenarios: happy — `node --import ./tools/register-ts.mjs --test test/engines.policy.test.ts test/engines.trufflehog.test.ts` (stubs via test/fixtures/bin + PATH prepend); failure — version string unparseable ⇒ exit 2 naming engine. Evidence `.omo/evidence/task-6-border-push-gate.txt`.
   Commit: Y | feat(engines): fail-closed engine policy + optional trufflehog
 
-- [ ] 7. CLI surface + exit-code contract
+- [x] 7. CLI surface + exit-code contract
   What to do / Must NOT do: `src/cli.ts` using `node:util parseArgs` only (NO command framework): subcommands `check | push | status | llm-request | llm-ingest` (+`--help` printing full flag table: `--config --targets --force --yes --require-engine --llm --json`); global exit-code module `src/cli/exit.ts`: 0 pass (MEDIUM/INFO/LOW warnings allowed), 1 blocked (CRITICAL/HIGH-blocking) or partial push, 2 config/tool error (bad config, missing engine, unreachable registry, malformed ingest). `border push` WITHOUT `--yes` = dry-run: prints planned per-target actions + exact commands, performs ZERO mutations incl. no registry network writes (reads pre-flight permitted), **exits with the verdict the gate would produce (round-5 m-R5-a: clean⇒0, gate-blocked⇒1 — never a misleading 0; `--yes` execution stays the only mutation path)**. Wire check/push/status/llm-* to stub modules from later todos via a thin `run(ctx)` registry so each todo plugs in without CLI edits. Must NOT: no commander/yargs, no colors/deps, no cron entrypoints.
   Parallelization: Wave 2 | Blocked by: 1,3,6 | Blocks: 11,12,14,16,17,19
   References: Must-have CLI bullets, G9 flag table, G10 dry-run default, G11 matrix; draft D4 (as amended).
@@ -145,7 +145,7 @@ All paths relative to repo root `/home/lab/workspace/harness/border`. Spec autho
   QA scenarios: happy — test/cli.test.ts full-command matrix via child_process on fixture repos; failure — unknown subcommand exits 2 with usage. Evidence `.omo/evidence/task-7-border-push-gate.txt`.
   Commit: Y | feat(cli): subcommands, dry-run default, exit-code contract
 
-- [ ] 8. AI-session + junk artifact rules (closed list)
+- [x] 8. AI-session + junk artifact rules (closed list)
   What to do / Must NOT do: `src/rules/aiArtifacts.ts` scanning git-tracked paths (tree) AND full ref-set history pathspec-additions (`git log --diff-filter=A --name-only --format=`): CRITICAL if path matches closed list: `.omo/**`, `**/transcripts/**` or `*.session.jsonl`, committed opencode configs (`opencode.json`, `opencode.jsonc`, `.opencode/**`), `.env`, `.env.*` (except `.env.example`/`.env.sample`); MEDIUM: `*.ipynb` with non-empty `outputs[]` (parse JSON), `probe*`/`*.rej`/`*.orig`, `node_modules/` tracked paths; binaries: NUL-in-first-8000-bytes ⇒ HIGH `checked-in-binary`; large files: `git ls-tree -r --long` size > `rules.maxFileKB` ⇒ MEDIUM. List is CLOSED (G35): any addition ships as border.yaml pathPatterns, never code. Must NOT: no content parsing beyond notebook JSON; no user-home scanning outside the repo.
   Parallelization: Wave 3 | Blocked by: 2,3 | Blocks: 10
   References: draft F3 (AI-session artifacts line) + D7(i); G35 closure; plan Must-have "(2) native TS rules".
@@ -153,7 +153,7 @@ All paths relative to repo root `/home/lab/workspace/harness/border`. Spec autho
   QA scenarios: happy — test/rules.aiArtifacts.test.ts; failure — `.env.example` must NOT fire (negative test). Evidence `.omo/evidence/task-8-border-push-gate.txt`.
   Commit: Y | feat(rules): closed-list AI-session/env/notebook/binary/large detectors
 
-- [ ] 9. Git identity allowlist (author/committer)
+- [x] 9. Git identity allowlist (author/committer)
   What to do / Must NOT do: `src/rules/identity.ts`: collect over the ref-set (todo 10 supplies it; unit against `git log --format='%an%x1f%ae%x1f%cn%x1f%ce%x1f%P' <range>` + tag objects `git for-each-ref --format='%(refname) %(taggername) %(taggeremail)' refs/tags`): every non-merge author/committer email AND name must match `rules.authors.emails/names` (glob via minimatch-equivalent hand-rolled `*`/`?` matcher — no new deps; `noreply` GitHub pattern allowance flag `allowBots` covers `*[bot]@users.noreply.github.com` + dependabot). Violation ⇒ CRITICAL `identity-not-allowlisted` listing commit shas (max 50, then summary) — pushing exposes these emails forever. Merge commits: check committer only (co-authored-by trailers ignored by design, note in code). Must NOT: no rewriting suggestions beyond doc text "use filter-repo manually (out of scope)".
   Parallelization: Wave 3 | Blocked by: 2,3 | Blocks: 10
   References: draft F3 first item; D7(ii); G46 merge/bot note; GitHub noreply bot patterns.

@@ -8,7 +8,7 @@
       "plan_name": "border-push-gate",
       "status": "active",
       "started_at": "2026-09-03T17:34:25.613Z",
-      "updated_at": "2026-09-03T21:27:05.731Z",
+      "updated_at": "2026-09-03T22:10:09.962Z",
       "session_ids": [
         "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
       ],
@@ -77,6 +77,17 @@
           "status": "completed",
           "ended_at": "2026-09-03T21:27:05.731Z",
           "elapsed_ms": 285538
+        },
+        "todo:7": {
+          "task_key": "todo:7",
+          "task_label": "7",
+          "task_title": "CLI surface + exit-code contract",
+          "session_id": "opencode:ses_f96d31572ffeOuB46FOm9J7uRn",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-09-03T22:10:09.963Z",
+          "started_at": "2026-09-03T22:10:09.963Z",
+          "status": "running"
         }
       }
     }
@@ -84,7 +95,7 @@
   "active_plan": "/home/lab/workspace/harness/border/.omo/plans/border-push-gate.md",
   "started_at": "2026-09-03T17:34:25.613Z",
   "status": "active",
-  "updated_at": "2026-09-03T21:27:05.731Z",
+  "updated_at": "2026-09-03T22:10:09.962Z",
   "session_ids": [
     "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
   ],
@@ -153,6 +164,17 @@
       "status": "completed",
       "ended_at": "2026-09-03T21:27:05.731Z",
       "elapsed_ms": 285538
+    },
+    "todo:7": {
+      "task_key": "todo:7",
+      "task_label": "7",
+      "task_title": "CLI surface + exit-code contract",
+      "session_id": "opencode:ses_f96d31572ffeOuB46FOm9J7uRn",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-09-03T22:10:09.963Z",
+      "started_at": "2026-09-03T22:10:09.963Z",
+      "status": "running"
     }
   },
   "agent": "atlas"
