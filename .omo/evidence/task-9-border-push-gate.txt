@@ -1,0 +1,53 @@
+Task 9 — Git identity allowlist (author/committer/tagger) — border
+Date: 2026-09-04
+Branch: main (border repo /home/lab/workspace/harness/border)
+
+DELIVERABLES
+- src/rules/identity.ts (235 pure LOC): scanIdentity({repoDir, refSet, cfg, sanitizer?}) => Finding[]
+  + exported hand-rolled matchGlob(pattern, value) (* spans any run, ? = one char, [ literal,
+    anchored both ends, split-on-* leftmost-greedy = decision-complete, no backtracking)
+  + IDENTITY_RULE = "identity-not-allowlisted"
+- test/rules.identity.test.ts (18 tests): glob units, AC1-AC4, aggregation (1 identity = 1 finding,
+  50-sha cap + "(+1 more)"), refSet scoping incl. "main..feature" range, empty refSet, case policy,
+  bot-off, empty-email fail-closed, bad-ref fail-closed, sanitizer contract, validateFinding.
+
+SEMANTICS DECIDED
+- email vs patterns: case-INsensitive (both sides lowercased); name vs patterns: case-SENSITIVE (documented).
+- identity allowed iff emailOk AND nameOk (plan: "email AND name must match").
+- allowBots:true replaces BOTH checks with hardcoded glob "*[bot]@users.noreply.github.com"
+  (covers dependabot 4999333+/49699333+ and github-actions[bot] shapes); allowBots false/unset => bots fire.
+- merge commits (>=2 parents in %P): committer checked ONLY. Non-merge: author AND committer.
+- annotated tags via for-each-ref '%(refname) %(taggername) %(taggeremail)'; %(taggeremail) prints
+  "<email>" with angle brackets => stripped; lightweight tags (empty tagger fields) skipped.
+  Space-format parse: refname cannot contain spaces (git ref grammar), email cannot contain spaces
+  (ident grammar) => first/last-token split unambiguous even for "Jo Doe"-style names.
+- %H PREPENDED to the plan's format string (plan's five fields carry no sha; findings must list shas).
+- Co-authored-by trailers ignored by design (free text, spoofable, not the exposed ident) — code comment.
+- Remediation text: "use git filter-repo manually (out of scope for border; border never rewrites history)."
+- Identity string redact()ed for valueDigest/snippet but NOT registered with TextSanitizer:
+  the identity is the finding's evidence; registering would scrub it from its own message.
+- Read-only plumbing: git log + git for-each-ref only; GIT_CEILING_DIRECTORIES=dirname(repoDir) fence;
+  git failure (bad ref, non-repo) throws — never a silent empty scan.
+
+TESTS
+$ node --import ./tools/register-ts.mjs --test test/rules.identity.test.ts
+  # tests 18 | pass 18 | fail 0
+$ npm run typecheck
+  0 errors in src/rules/identity.ts / test/rules.identity.test.ts
+  (remaining errors belong to siblings' in-flight files: test/cli.test.ts, test/rules.aiArtifacts.test.ts)
+$ npm test
+  # pass 121 fail 2 — the 2 failures are test/rules.aiArtifacts.test.ts (sibling todo 8 in flight);
+  all 103 pre-existing + all 18 new pass. Verified subset:
+  node --import ./tools/register-ts.mjs --test test/rules.identity.test.ts test/findings.test.ts \
+    test/config.test.ts test/redact.test.ts test/engines.gitleaks.test.ts test/engines.secretlint.test.ts
+  # pass 101 fail 0
+
+MANUAL QA (throwaway /tmp fixture, allowBots:true, wiki+evil+dependabot commits, evil-tagged v0.1.0)
+  finding 1: 'Joe Evil <evil@personal.example>' ... author+committer of 6fa5ea77...(full sha in msg, commit field set)
+  finding 2: 'Mallory <mallory@attacker.test>' ... tagger of refs/tags/v0.1.0
+  dependabot[bot] commit + wiki commits: silent. git status --porcelain of scanned repo: empty (read-only proven).
+  Fixtures + smoke script deleted; test/tmp clean.
+
+COMMIT
+  feat(rules): author/committer/tagger identity allowlist over ref-set
+  staged: src/rules/identity.ts, test/rules.identity.test.ts, .omo/evidence/task-9-border-push-gate.txt
