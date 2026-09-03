@@ -1,0 +1,35 @@
+{
+  "schema_version": 2,
+  "active_work_id": "border-push-gate-f0f760b0",
+  "works": {
+    "border-push-gate-f0f760b0": {
+      "work_id": "border-push-gate-f0f760b0",
+      "active_plan": "/home/lab/workspace/harness/border/.omo/plans/border-push-gate.md",
+      "plan_name": "border-push-gate",
+      "status": "active",
+      "started_at": "2026-09-03T17:34:25.613Z",
+      "updated_at": "2026-09-03T17:34:25.613Z",
+      "session_ids": [
+        "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
+      ],
+      "session_origins": {
+        "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7": "direct"
+      },
+      "agent": "atlas",
+      "task_sessions": {}
+    }
+  },
+  "active_plan": "/home/lab/workspace/harness/border/.omo/plans/border-push-gate.md",
+  "started_at": "2026-09-03T17:34:25.613Z",
+  "status": "active",
+  "updated_at": "2026-09-03T17:34:25.613Z",
+  "session_ids": [
+    "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
+  ],
+  "session_origins": {
+    "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7": "direct"
+  },
+  "plan_name": "border-push-gate",
+  "task_sessions": {},
+  "agent": "atlas"
+}
