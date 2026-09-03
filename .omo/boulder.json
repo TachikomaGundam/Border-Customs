@@ -8,7 +8,7 @@
       "plan_name": "border-push-gate",
       "status": "active",
       "started_at": "2026-09-03T17:34:25.613Z",
-      "updated_at": "2026-09-03T19:22:55.767Z",
+      "updated_at": "2026-09-03T20:11:00.251Z",
       "session_ids": [
         "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
       ],
@@ -42,6 +42,17 @@
           "updated_at": "2026-09-03T19:22:55.767Z",
           "ended_at": "2026-09-03T19:22:55.767Z",
           "elapsed_ms": 2534769
+        },
+        "todo:4": {
+          "task_key": "todo:4",
+          "task_label": "4",
+          "task_title": "gitleaks adapter + archive-support spike",
+          "session_id": "opencode:ses_f9743db72ffeKC37AFBsHU2WHw",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-09-03T20:11:00.251Z",
+          "started_at": "2026-09-03T20:11:00.251Z",
+          "status": "running"
         }
       }
     }
@@ -49,7 +60,7 @@
   "active_plan": "/home/lab/workspace/harness/border/.omo/plans/border-push-gate.md",
   "started_at": "2026-09-03T17:34:25.613Z",
   "status": "active",
-  "updated_at": "2026-09-03T19:22:55.767Z",
+  "updated_at": "2026-09-03T20:11:00.251Z",
   "session_ids": [
     "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
   ],
@@ -83,6 +94,17 @@
       "updated_at": "2026-09-03T19:22:55.767Z",
       "ended_at": "2026-09-03T19:22:55.767Z",
       "elapsed_ms": 2534769
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "gitleaks adapter + archive-support spike",
+      "session_id": "opencode:ses_f9743db72ffeKC37AFBsHU2WHw",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-09-03T20:11:00.251Z",
+      "started_at": "2026-09-03T20:11:00.251Z",
+      "status": "running"
     }
   },
   "agent": "atlas"
