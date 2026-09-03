@@ -91,3 +91,34 @@ consumers see scp-form output '<host>/<path>' (no scheme) — exposureSet entrie
   single-file per todo-2 precedent (task mandates the exact artifact; adapter +
   pattern-gen + fingerprint are one transport abstraction; split candidate =
   patterns/fingerprint if todo 6 grows it).
+
+## todo 7 (CLI surface + exit-code contract) findings
+- esbuild ESM bundle + CJS dep graph: the moment src/config.ts (yaml) entered the
+  bundle graph, `node dist/index.js` died with `Dynamic require of "process" is not
+  supported` (esbuild's __require shim). Fix lives in package.json build script:
+  `--banner:js='import{createRequire as __borderRequire}from"node:module";const
+  require=__borderRequire(import.meta.url);'`. If anything touches the build script,
+  re-run `node dist/index.js --help` or the bin ships dead.
+- border.yaml zod schema REQUIRES the full `rules` block (authors.emails/names,
+  hosts, ips, pathPatterns); only allow/engines carry defaults. Minimal test
+  fixtures must emit all four or loadConfig fails `invalid config at 'rules'`.
+- YAML gotcha: a block sequence under `remotes:` must be indented deeper than the
+  key, and an empty list belongs inline (`remotes: []`) — a dangling ` []` line
+  after `remotes:` is a parse error.
+- Registry seam supports cross-PROCESS test injection: a tiny .mjs wrapper run
+  under `node --import ./tools/register-ts.mjs` imports src/cli.ts, calls
+  setHandler("check", verdict-spy), then `run(["push"])` — full real parseArgs +
+  dispatch + dry-run layer with only the gate faked. This is how todo 7 proves
+  m-R5-a (dry-run exits with the gate's verdict) before todo 10's engines exist.
+- sanitizeUrl() replaces UNPARSEABLE input with `[invalid-url-redacted]` wholesale —
+  never run it on plain filesystem remote paths. push.ts exports displayRemote():
+  scheme-URL / scp-form ⇒ sanitizeUrl, plain path ⇒ verbatim.
+- translateError sanitization for free-form messages: collapse `\s+` to one space,
+  cap 512, and regex-scrub only URL-shaped substrings
+  `(?:\w+:\/\/\S+|user@host:\S+)` through sanitizeUrl — whole-message sanitizing
+  would placeholder ordinary prose.
+- node:test `before()` takes the fn (or options object), NOT (name, fn) — the
+  string-first form is a typecheck failure.
+- LOC honesty: test/cli.test.ts 357 pure lines stays above the 250 marker —
+  consistent with repo test culture (config.test.ts 420); src files all ≤161.
+  cli.test.ts = unit+seam, cli.dist.test.ts = child-process AC2.
