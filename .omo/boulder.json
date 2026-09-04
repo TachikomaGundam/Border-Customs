@@ -8,7 +8,7 @@
       "plan_name": "border-push-gate",
       "status": "active",
       "started_at": "2026-09-03T17:34:25.613Z",
-      "updated_at": "2026-09-03T23:16:27.788Z",
+      "updated_at": "2026-09-04T00:48:11.185Z",
       "session_ids": [
         "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
       ],
@@ -99,6 +99,16 @@
           "updated_at": "2026-09-03T23:16:27.788Z",
           "started_at": "2026-09-03T23:16:27.788Z",
           "status": "running"
+        },
+        "todo:11": {
+          "task_key": "todo:11",
+          "task_label": "11",
+          "task_title": "npm artifact pipeline (pack-once, scan, publint)",
+          "session_id": "opencode:ses_f96682d1effeKzEs3279vmmjAM",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-09-04T00:29:58.601Z",
+          "status": "running",
+          "updated_at": "2026-09-04T00:48:11.186Z"
         }
       }
     }
@@ -106,7 +116,7 @@
   "active_plan": "/home/lab/workspace/harness/border/.omo/plans/border-push-gate.md",
   "started_at": "2026-09-03T17:34:25.613Z",
   "status": "active",
-  "updated_at": "2026-09-03T23:16:27.788Z",
+  "updated_at": "2026-09-04T00:48:11.185Z",
   "session_ids": [
     "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
   ],
@@ -197,6 +207,16 @@
       "updated_at": "2026-09-03T23:16:27.788Z",
       "started_at": "2026-09-03T23:16:27.788Z",
       "status": "running"
+    },
+    "todo:11": {
+      "task_key": "todo:11",
+      "task_label": "11",
+      "task_title": "npm artifact pipeline (pack-once, scan, publint)",
+      "session_id": "opencode:ses_f96682d1effeKzEs3279vmmjAM",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-09-04T00:29:58.601Z",
+      "status": "running",
+      "updated_at": "2026-09-04T00:48:11.186Z"
     }
   },
   "agent": "atlas"
