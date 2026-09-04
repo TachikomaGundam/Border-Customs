@@ -8,12 +8,16 @@
       "plan_name": "border-push-gate",
       "status": "active",
       "started_at": "2026-09-03T17:34:25.613Z",
-      "updated_at": "2026-09-04T04:51:32.161Z",
+      "updated_at": "2026-09-04T08:46:58.058Z",
       "session_ids": [
-        "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
+        "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7",
+        "opencode:ses_f948987d6ffeP3GOKynabdCMYq",
+        "opencode:ses_f948687ceffele2bB5hsTlLDDS"
       ],
       "session_origins": {
-        "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7": "direct"
+        "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7": "direct",
+        "opencode:ses_f948987d6ffeP3GOKynabdCMYq": "appended",
+        "opencode:ses_f948687ceffele2bB5hsTlLDDS": "appended"
       },
       "agent": "atlas",
       "task_sessions": {
@@ -122,6 +126,17 @@
           "status": "completed",
           "ended_at": "2026-09-04T04:51:32.161Z",
           "elapsed_ms": 9953510
+        },
+        "todo:15": {
+          "task_key": "todo:15",
+          "task_label": "15",
+          "task_title": "Per-target push state machine",
+          "session_id": "opencode:ses_f948987d6ffeP3GOKynabdCMYq",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "started_at": "2026-09-04T05:36:31.530Z",
+          "status": "running",
+          "updated_at": "2026-09-04T08:46:58.058Z"
         }
       }
     }
@@ -129,12 +144,16 @@
   "active_plan": "/home/lab/workspace/harness/border/.omo/plans/border-push-gate.md",
   "started_at": "2026-09-03T17:34:25.613Z",
   "status": "active",
-  "updated_at": "2026-09-04T04:51:32.161Z",
+  "updated_at": "2026-09-04T08:46:58.058Z",
   "session_ids": [
-    "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
+    "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7",
+    "opencode:ses_f948987d6ffeP3GOKynabdCMYq",
+    "opencode:ses_f948687ceffele2bB5hsTlLDDS"
   ],
   "session_origins": {
-    "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7": "direct"
+    "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7": "direct",
+    "opencode:ses_f948987d6ffeP3GOKynabdCMYq": "appended",
+    "opencode:ses_f948687ceffele2bB5hsTlLDDS": "appended"
   },
   "plan_name": "border-push-gate",
   "task_sessions": {
@@ -243,6 +262,17 @@
       "status": "completed",
       "ended_at": "2026-09-04T04:51:32.161Z",
       "elapsed_ms": 9953510
+    },
+    "todo:15": {
+      "task_key": "todo:15",
+      "task_label": "15",
+      "task_title": "Per-target push state machine",
+      "session_id": "opencode:ses_f948987d6ffeP3GOKynabdCMYq",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "started_at": "2026-09-04T05:36:31.530Z",
+      "status": "running",
+      "updated_at": "2026-09-04T08:46:58.058Z"
     }
   },
   "agent": "atlas"
