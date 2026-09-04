@@ -1,0 +1,111 @@
+=====================================================================
+F2 POLISH EVIDENCE — border push gate (worker: push-timeout + pretest)
+Date: 2026-09-04 | Repo: /home/lab/workspace/harness/border
+=====================================================================
+
+---------------------------------------------------------------------
+ITEM 1 — fix(push): bounded timeout on real git push
+(src/push/git.ts executePush; test/push.git.timeout.test.ts)
+---------------------------------------------------------------------
+
+MECHANISM
+- spawnSync `timeout:` option (precedent: src/check/context.ts 60s,
+  src/check/tagScan.ts 300s — no SIGTERM->SIGKILL escalation exists
+  anywhere on the spawnSync path, so none was introduced).
+- Default PUSH_TIMEOUT_MS = 120_000 (documented: slow-link push + one
+  credential round-trip). Override: BORDER_PUSH_TIMEOUT_MS
+  (positive-integer ms; same test/ops-seam spirit as
+  BORDER_PROMPT_TEMPLATE_PATH). Malformed value throws PushStateError
+  BEFORE spawning — fail closed, never silently defaults.
+- Discriminator: Node 22 spawnSync answers a budget kill with
+  {status:null, signal:"SIGTERM", error:ETIMEDOUT}; a genuine spawn
+  failure keeps signal:null. Branch order: signal-first, THEN r.error.
+  (First fix iteration checked r.error first and mislabeled the
+  timeout as "git could not start (spawnSync git ETIMEDOUT)" — the
+  new tests caught it, see interim RED below.)
+- Fail-closed contract: timeout => {ok:false, failure:"...timed out
+  after Nms (BORDER_PUSH_TIMEOUT_MS) and was killed by signal SIGTERM
+  -- the remote state is INDETERMINATE: verify with 'git ls-remote
+  <sanitized url>' and rerun 'border push --yes' (safe: landed remotes
+  come back no-op)"}. Caller (src/commands/push.ts, sibling-owned,
+  untouched) interpolates it into "border: PARTIAL push ..." and
+  returns EXIT_BLOCKED with ZERO recordPushSuccess calls — no ledger
+  entry is possible on ok:false.
+
+TEST FIXTURE
+- PATH-stub git: passthrough for everything except `push`, which does
+  `echo $$ > $BORDER_TEST_STUB_PID; exec sleep 10`. exec keeps the PID,
+  so the pidfile IS the sleeper -> lingering-process check is a
+  kill(pid,0) liveness probe. (GNU sleep would reject a marker argv, so
+  the pidfile technique replaced the pgrep -f marker plan.)
+- 3 tests: unit kill+bound+message+no-linger; malformed-env table
+  (0, -5, abc, 12.5) must throw PushStateError pre-spawn; e2e
+  `border push --yes` exit==EXIT_BLOCKED, stderr names
+  /timed out/i /indeterminate/i /ls-remote/i, 0 push records, bare
+  untouched, stub dead.
+
+RED (pre-fix, commit b3856b5 state):
+  $ node --import ./tools/register-ts.mjs --test test/push.git.timeout.test.ts
+  not ok 1 - executePush kills a hung `git push` at BORDER_PUSH_TIMEOUT_MS ...
+  not ok 2 - a malformed BORDER_PUSH_TIMEOUT_MS fails closed BEFORE spawning ...
+  not ok 3 - e2e: hung remote + tiny budget => exit BLOCKED ...
+  # tests 3 | pass 0 | fail 3 | duration_ms 31723
+  e2e failure excerpt (the bug in one line — 10.4s "successful" push,
+  then confirmRemoteBranch throws because nothing actually landed):
+    expected exit 1, got 2
+    err: border: unexpected error: target 'git:origin': 'refs/heads/main'
+    absent on the remote immediately after a successful push — refusing
+    to record an unconfirmed success
+
+INTERIM RED (first fix iteration, r.error checked before signal):
+  'git could not start (spawnSync git ETIMEDOUT)' did not match /timed out/i
+  -> proved spawnSync sets BOTH error and signal on budget kill.
+
+GREEN (post-fix):
+  $ node --import ./tools/register-ts.mjs --test test/push.git.timeout.test.ts
+  ok 1 / ok 2 / ok 3  | # tests 3 | pass 3 | fail 0 | duration_ms 2173
+  (budget itself: unit elapsed < 5s assert, actual ~0.3s vs 10s sleep)
+
+  $ node --import ./tools/register-ts.mjs --test test/push.git.timeout.test.ts test/push.git.test.ts
+  # tests 12 | pass 12 | fail 0        (AC1-AC6 + F3-followups unregressed)
+
+  $ npx tsc --noEmit
+  (0 errors)
+
+---------------------------------------------------------------------
+ITEM 2 — chore(test): sweep test/tmp before suite runs
+---------------------------------------------------------------------
+
+package.json scripts addition:
+  "pretest": "node -e \"const fs=require('node:fs');fs.rmSync('test/tmp',{recursive:true,force:true});fs.mkdirSync('test/tmp',{recursive:true})\""
+rm+recreate = dir itself kept (fixtures assume the path), contents
+gone, and tolerant of both empty and entirely-missing test/tmp.
+
+PROOF:
+  $ mkdir -p test/tmp/junk-a test/tmp/junk-b && touch test/tmp/junk-a/x && npm run pretest
+  after sweep, test/tmp exists: yes | contents: 0
+  $ rm -rf test/tmp && npm run pretest   -> OK, dir recreated: yes
+  $ npm run pretest (dir empty)          -> OK (exit 0)
+  $ npm test (lifecycle banner excerpt)  -> automatic hook:
+    > border@0.1.0 pretest
+    > node -e "const fs=...rmSync('test/tmp'...)"
+    > border@0.1.0 test
+    > node --import ./tools/register-ts.mjs --test test/*.test.ts
+
+FULL SUITE AFTER BOTH ITEMS:
+  $ npm test
+  # tests 334 | pass 334 | fail 0 | duration_ms 117412
+
+---------------------------------------------------------------------
+INCIDENT (honesty note)
+---------------------------------------------------------------------
+While aborting the `npm test` lifecycle-proof run (only the banner was
+needed), `pkill -f "register-ts..."` matched the CONCURRENT SIBLING
+worker's in-flight `node --test test/llm.test.ts` (pid 2677141) and
+killed it. Their targeted run must be re-executed; no files were
+touched by the kill (the test runner only reads its sources). The
+authoritative signal stands: the full `npm test` immediately BEFORE
+this incident passed 334/334, llm.test.ts included.
+Lesson recorded in notepad: never pkill -f a substring that appears in
+other workers' legitimate processes; kill recorded PIDs of known-own
+orphans only.
