@@ -7,7 +7,7 @@
 // in npm.ts so each module stays single-purpose.
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { Finding } from "../findings.ts";
@@ -29,8 +29,16 @@ export const NPM_TARGET_LABEL = "artifact";
 
 const DEFAULT_TOOL_TIMEOUT_MS = 120_000;
 const MESSAGE_TAIL_CHARS = 600;
-/** repo root as seen from src/artifacts/ or dist/ — same convention as the secretlint adapter's node_modules/.bin lookup. */
-const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+/** Layout-tolerant local publint candidates (see src/assets.ts: esbuild --bundle
+ *  makes this module's URL dist/index.js, so a fixed ../.. walk-up lands OUTSIDE
+ *  the repo in dist mode — the bug that failed every dist-mode `border check`
+ *  on an npm target closed with "engine missing". Repo root is ../ in dist
+ *  layout, ../../ in src layout; try both, then PATH/~/.local/bin. */
+const HERE = dirname(fileURLToPath(import.meta.url));
+const PUBLINT_LOCAL_BINS = [
+  join(HERE, "..", "node_modules", ".bin", "publint"),
+  join(HERE, "..", "..", "node_modules", ".bin", "publint"),
+];
 
 export function tail(text: string): string {
   const trimmed = text.trim();
@@ -106,7 +114,7 @@ export function publintFinding(
   const candidates = o.publintBinPath !== undefined
     ? [o.publintBinPath]
     : [
-        join(PACKAGE_ROOT, "node_modules", ".bin", "publint"),
+        ...PUBLINT_LOCAL_BINS,
         ...binaryCandidates("publint", o.env !== undefined ? { env: o.env } : {}),
       ];
   const result = spawnEngine(candidates, [tarballAbs, "--level", "error"], {

@@ -9,8 +9,10 @@
 // the `.border/` ingest filter here (never in the adapter).
 // Findings order is the pipeline order above — deterministic per run so the
 // JSON render (todo 19) is stable.
-import { join } from "node:path";
+import { join, relative } from "node:path";
 
+import { attributeToTarball, runNpmArtifactStage } from "./artifacts/npm.ts";
+import { scanPyPiArtifacts } from "./artifacts/pypi.ts";
 import { exposureSet, type BorderConfig } from "./config.ts";
 import { scanGitHistory, scanTree, detectHostileConfig } from "./engines/gitleaks.ts";
 import { probeEngines } from "./engines/policy.ts";
@@ -18,6 +20,7 @@ import { scanGitTrackedFiles } from "./engines/secretlint.ts";
 import type { EngineOptions } from "./engines/support.ts";
 import { scanTrufflehog } from "./engines/trufflehog.ts";
 import { computeVerdict, countFindings, type Finding, type Report } from "./findings.ts";
+import type { LedgerArtifact } from "./ledger/records.ts";
 import { redact, TextSanitizer } from "./redact.ts";
 import { runRegistryProbes } from "./registry.ts";
 import { scanAiArtifacts } from "./rules/aiArtifacts.ts";
@@ -51,6 +54,8 @@ export type CheckOutcome = {
   readonly degraded: boolean;
   readonly sanitizedSummary: string;
   readonly lockWarning: string | null;
+  /** GAP B: sha256 of the packed/built .border/dist bytes this run scanned (null ⇒ no artifact legs). */
+  readonly artifacts: readonly LedgerArtifact[] | null;
 };
 
 /**
@@ -139,6 +144,38 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
   }
   findings.push(...scanAiArtifacts({ repoDir, refSet: [...ctx.refSet], cfg: o.cfg.rules, ...envOpt }));
   findings.push(...scanIdentity({ repoDir, refSet: [...ctx.refSet], cfg: o.cfg, ...envOpt }));
+
+  // GAP B (todos 11+12 wired end-to-end): packed/built bytes are scanned HERE, in
+  // the full-check path only — the SKIP path consults the ledger before executeCheck,
+  // so a skip performs zero pack/build. Findings merge BEFORE the allow-list and the
+  // verdict; the digests certify exactly these bytes to the ledger (todo 14) and to
+  // publish's same-bytes chain (todo 17). Degraded engines inherit the skip flags.
+  const ledgerArtifacts: LedgerArtifact[] = [];
+  if (o.effectiveTargets.includes("npm")) {
+    const stage = await runNpmArtifactStage({
+      repoDir,
+      cfg: o.cfg,
+      sanitizer,
+      ...envOpt,
+      skipGitleaks: broken.has("gitleaks"),
+      skipSecretlint: broken.has("secretlint"),
+    });
+    findings.push(...attributeToTarball(stage.findings, stage.artifact));
+    if (stage.artifact !== null) ledgerArtifacts.push({ file: stage.artifact.file, sha256: stage.artifact.sha256 });
+  }
+  if (o.effectiveTargets.includes("pypi")) {
+    const scan = await scanPyPiArtifacts({
+      repoDir,
+      sanitizer,
+      rules: o.cfg.rules,
+      ...envOpt,
+      skipGitleaks: broken.has("gitleaks"),
+      skipSecretlint: broken.has("secretlint"),
+    });
+    findings.push(...scan.findings);
+    for (const a of scan.artifacts) ledgerArtifacts.push({ file: relative(repoDir, a.path), sha256: a.sha256 });
+  }
+
   findings.push(...(await runRegistryProbes({ repoDir, cfg: o.cfg, effectiveTargets: o.effectiveTargets, ...envOpt })));
 
   const exposure = [...exposureSet(o.cfg, { cwd: repoDir })];
@@ -172,7 +209,14 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
     ...(allow.allowHits.length > 0 ? { allowHits: allow.allowHits } : {}),
     ts: new Date().toISOString(),
   };
-  return { report, ctx, degraded: probe.degraded, sanitizedSummary: sanitizeSummary(report, sanitizer), lockWarning };
+  return {
+    report,
+    ctx,
+    degraded: probe.degraded,
+    sanitizedSummary: sanitizeSummary(report, sanitizer),
+    lockWarning,
+    artifacts: ledgerArtifacts.length > 0 ? ledgerArtifacts : null,
+  };
 }
 
 /** Human one-liner per finding, G23 defense-in-depth: every line rides through the run's TextSanitizer (engine messages are already digest-only). */

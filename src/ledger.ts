@@ -28,6 +28,7 @@ import {
   lookupSkipRecord,
   readLedger,
   type CheckRecord,
+  type LedgerArtifact,
   type LedgerRead,
 } from "./ledger/records.ts";
 import { ensureRunDir, pruneRunDirs, reportRelPath, uniqueRunDirName } from "./ledger/retention.ts";
@@ -139,14 +140,17 @@ export type RecordInput = {
   readonly ctx: CheckContext;
   readonly effectiveTargets: readonly string[];
   readonly llm: boolean;
+  /** sha256 of the packed/built .border/dist bytes THIS run scanned (CheckOutcome.artifacts). Omitted (non-check writers) ⇒ legacy PASS+clean+npm tmp-repack. */
+  readonly artifacts?: readonly LedgerArtifact[] | null;
   readonly env?: EngineOptions["env"];
 };
 
 /**
  * Archive + append one check record. NEVER call for a NO-OP or degraded run —
  * the throw here is the backstop, the caller's degraded gate is the front door.
- * Artifact digests are captured only for a clean-tree PASS that includes npm,
- * so the future SKIP on that key can repack-and-compare (round-1 M8).
+ * Artifact digests ride in from the pipeline's own pack/build (GAP B: one pack
+ * per full check, FAIL records included); writers outside the check pipeline
+ * (llm ingest) omit them and get the legacy clean-PASS tmp-repack fallback.
  */
 export function recordCheckRun(i: RecordInput): CheckRecord {
   if (i.report.verdict === "NO-OP") {
@@ -157,14 +161,17 @@ export function recordCheckRun(i: RecordInput): CheckRecord {
   const dirName = uniqueRunDirName(i.repoDir, key8, ts);
   ensureRunDir(i.repoDir, dirName);
   const relReport = reportRelPath(dirName);
-  writeFileSync(join(i.repoDir, BORDER_STATE_DIR, relReport), `${JSON.stringify(i.report, null, 2)}\n`, "utf8");
-  // todo 19: additive human artifact beside the canonical json — json bytes above are unchanged.
-  writeFileSync(join(i.repoDir, BORDER_STATE_DIR, relReport.replace("report.json", "report.md")), renderReportMd(i.report), "utf8");
   const envOpt = i.env !== undefined ? { env: i.env } : {};
   const artifacts =
-    i.report.verdict === "PASS" && !i.ctx.dirty && i.effectiveTargets.includes("npm")
+    i.artifacts ??
+    (i.report.verdict === "PASS" && !i.ctx.dirty && i.effectiveTargets.includes("npm")
       ? packNpmArtifacts(i.repoDir, envOpt)
-      : null;
+      : null);
+  const persisted: Report | (Report & { artifacts: readonly LedgerArtifact[] }) =
+    artifacts !== null ? { ...i.report, artifacts } : i.report;
+  writeFileSync(join(i.repoDir, BORDER_STATE_DIR, relReport), `${JSON.stringify(persisted, null, 2)}\n`, "utf8");
+  // todo 19: additive human artifact beside the canonical json — json bytes above are unchanged.
+  writeFileSync(join(i.repoDir, BORDER_STATE_DIR, relReport.replace("report.json", "report.md")), renderReportMd(i.report), "utf8");
   const record: CheckRecord = {
     t: "check",
     key: i.report.key,
