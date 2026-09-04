@@ -137,3 +137,59 @@ test("unreadable ledger fails honestly: exit 2 naming the path", async () => {
     chmodSync(ledger, 0o644);
   }
 });
+
+// ---------------------------------------------------------------------------
+// F3 blocker: push records are keyed `git:<name-or-sanitized-url>` (pushstate
+// gitLegs), never the bare kind 'git' stored in effectiveTargets. These pin
+// status-after-git-push: before the fix all three print the false-pending
+// symptom ('git pending — no push record') despite matching records.
+
+function remoteCfg(remotes: string): string {
+  return `version: 1\ntargets:\n  git:\n    remotes:\n${remotes}\nrules:\n  authors:\n    emails: []\n    names: []\n  hosts: []\n  ips: []\n  pathPatterns: []\n`;
+}
+
+function pushedRepo(name: string, remotes: string, pushed: readonly string[]): { dir: string; key8: string } {
+  const dir = cleanRepo(name);
+  writeRel(dir, "border.yaml", remoteCfg(remotes));
+  const ctx = gatherContext(dir, {});
+  const rec = recordCheckRun({ repoDir: dir, report: passReport(ctx.headSha), ctx, effectiveTargets: ["git"], llm: false });
+  for (const id of pushed) {
+    const remoteName = id.slice("git:".length);
+    appendRecord(dir, buildPushRecord({ key: rec.key, target: id, remoteName, url: `origin.example:${remoteName}.git`, localSha: ctx.headSha, remoteSha: ctx.headSha, confirmedVia: "ls-remote" }));
+  }
+  return { dir, key8: rec.key8 };
+}
+
+const ONE_REMOTE = `      - { name: origin, url: "origin.example:widgets.git" }\n`;
+const TWO_REMOTES = `${ONE_REMOTE}      - { name: upstream, url: "upstream.example:widgets.git" }\n`;
+
+test("F3: git-only config with named remote + git:origin push record => row shows pushed, never pending", async () => {
+  const { dir, key8 } = pushedRepo("f3-pushed", ONE_REMOTE, ["git:origin"]);
+  const r = await status(dir);
+  assert.equal(r.code, EXIT_PASS);
+  const row = r.out.split("\n").find((l) => l.trim().startsWith("git:origin"));
+  assert.ok(row !== undefined && /pushed/.test(row), `git:origin must be PUSHED for key ${key8}:\n${r.out}`);
+  assert.ok(!/no push record/.test(r.out), `false pending must be gone:\n${r.out}`);
+});
+
+test("F3: two named remotes both pushed => both rows pushed (no substring sloppiness)", async () => {
+  const { dir } = pushedRepo("f3-both", TWO_REMOTES, ["git:origin", "git:upstream"]);
+  const r = await status(dir);
+  assert.equal(r.code, EXIT_PASS);
+  for (const id of ["git:origin", "git:upstream"]) {
+    const row = r.out.split("\n").find((l) => l.trim().startsWith(id));
+    assert.ok(row !== undefined && /pushed/.test(row), `${id} must be PUSHED:\n${r.out}`);
+  }
+  assert.match(r.out, /all effective targets pushed/);
+});
+
+test("F3: one of two remotes pushed => per-remote pushed + pending split", async () => {
+  const { dir } = pushedRepo("f3-half", TWO_REMOTES, ["git:origin"]);
+  const r = await status(dir);
+  assert.equal(r.code, EXIT_PASS);
+  const originRow = r.out.split("\n").find((l) => l.trim().startsWith("git:origin"));
+  const upstreamRow = r.out.split("\n").find((l) => l.trim().startsWith("git:upstream"));
+  assert.ok(originRow !== undefined && /pushed/.test(originRow), `git:origin pushed: ${originRow}`);
+  assert.ok(upstreamRow !== undefined && /pending/.test(upstreamRow), `git:upstream pending: ${upstreamRow}`);
+  assert.match(r.out, /pending targets: git:upstream/);
+});
