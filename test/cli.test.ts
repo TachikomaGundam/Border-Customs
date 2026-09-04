@@ -330,11 +330,31 @@ test("push dry-run lists one plan line per git remote and zero-mutates on NO-OP 
   }
 });
 
-test("push --yes refuses to execute until todo 15/16 land (no mutation path today)", async () => {
-  const r = await runCli(["push", "--yes"]);
-  assert.equal(r.code, EXIT_ERROR);
-  assert.equal(r.out.length, 0, "refusal prints no success payload");
-  assert.match(r.err.join("\n"), /--yes.*not implemented/i);
+test("push --yes honors the todo-15 gate: no PASS ledger ⇒ BLOCKED, exit 1, remote untouched (todo 16)", async () => {
+  const root = makeFixtureDir("cli-yes-gate");
+  try {
+    gitIn(root, root, ["init", "-q", "-b", "main"]);
+    writeRel(root, "a.txt", "one\n");
+    gitIn(root, root, ["add", "-A"]);
+    gitIn(root, root, ["-c", "user.name=Wiki.js", "-c", "user.email=wiki@sumteclab.com", "commit", "-q", "-m", "init"]);
+    gitIn(root, root, ["init", "-q", "--bare", "-b", "main", "remote.git"]);
+    writeRel(root, "border.yaml", borderYaml([{ name: "origin", url: `file://${root}/remote.git` }]));
+    writeRel(root, "b.txt", "unpushed\n"); // real content behind ⇒ PENDING would need a PASS gate
+    gitIn(root, root, ["add", "-A"]);
+    gitIn(root, root, ["-c", "user.name=Wiki.js", "-c", "user.email=wiki@sumteclab.com", "commit", "-q", "-m", "next"]);
+    const r = await runCli(["push", "--yes"], { cwd: root });
+    assert.equal(r.code, EXIT_BLOCKED);
+    assert.match(r.out.join("\n"), /git:origin\s+BLOCKED/);
+    assert.match(r.out.join("\n"), /run 'border check' first/);
+    assert.match(r.err.join("\n"), /refused/);
+    assert.equal(
+      gitIn(root, root, ["ls-remote", "--heads", `file://${root}/remote.git`]).trim(),
+      "",
+      "a BLOCKED run mutates nothing",
+    );
+  } finally {
+    removeDir(root);
+  }
 });
 
 test("push reports sanitized remote URLs in the dry-run plan", async () => {

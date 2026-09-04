@@ -1,0 +1,96 @@
+Task 16 — multi-remote git push executor (border-push-gate plan)
+Worker: todo-16 executor (src/push/git.ts + src/commands/push.ts rewire)
+Baseline: HEAD e9262faeacd50495bdb2dfd9d815891b0a6ad54c (≥ plan baseline 1a80307)
+Baseline proof: `git status --porcelain` at start = only ` M .omo/boulder.json` +
+`?? .omo/run-continuation/*` (clean otherwise; suite 301/301).
+
+=====================================================================
+RED-FIRST (before any production edit; src/push/git.ts did not exist)
+=====================================================================
+$ node --import ./tools/register-ts.mjs --test test/push.git.test.ts
+not ok 1 - test/push.git.test.ts
+  failureType: 'testCodeFailure'
+  exitCode: 1
+# Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/lab/workspace/harness/border/src/push/git.ts' imported from /home/lab/workspace/harness/border/test/push.git.test.ts
+#     at finalizeResolution (node:internal/modules/esm/resolve:275:11)
+#   code: 'ERR_MODULE_NOT_FOUND',
+#   url: 'file:///home/lab/workspace/harness/border/src/push/git.ts'
+# tests 1
+# pass 0
+# fail 1
+
+=====================================================================
+GREEN (after production edits)
+=====================================================================
+$ node --import ./tools/register-ts.mjs --test test/push.git.test.ts
+# tests 7
+# pass 7
+# fail 0
+# duration_ms 2852
+(AC1+AC4 multi-remote lands both bares + peeled tag + 2 push-records;
+ AC2 diverged backup ⇒ exit 1 exact message, origin ls-remote stays null,
+ 0 new records; AC2b moved-tag guard unit; AC3 dry-run 2 verbatim
+ `git push --dry-run` lines + zero sha changes; AC5 PATH-stub git fails the
+ 2nd push invocation ⇒ exit 1 PARTIAL, git:alpha record kept, bravo empty;
+ AC6 '--force' occurrence count in src/push/git.ts source == 0;
+ pushArgv argv shape pins.)
+
+$ node --import ./tools/register-ts.mjs --test test/cli.test.ts
+# tests 25
+# pass 25
+# fail 0
+(old `push --yes` stub-refusal test replaced by the gate-discipline test:
+ no PASS ledger ⇒ `git:origin  BLOCKED … run 'border check' first`,
+ exit 1, `ls-remote --heads` of the bare stays empty ⇒ zero mutation.)
+
+=====================================================================
+EXECUTOR DEMO — ls-remote before/after (src/push/git.ts driven directly)
+=====================================================================
+== argv: ["push","<url>","main","--follow-tags"]
+== ls-remote A BEFORE: ""
+== ls-remote B BEFORE: ""
+== guard on empty remotes: {"ok":true}
+== push git:a: {"ok":true} confirmed: e9e790ea4a83cb66d2597232f3a73c1d6ead4222
+== push git:b: {"ok":true} confirmed: e9e790ea4a83cb66d2597232f3a73c1d6ead4222
+== ls-remote A AFTER:
+e9e790ea4a83cb66d2597232f3a73c1d6ead4222  HEAD
+e9e790ea4a83cb66d2597232f3a73c1d6ead4222  refs/heads/main
+174d61b680e9a68ac0c17a7ac2cda3560dc57e39  refs/tags/v1
+e9e790ea4a83cb66d2597232f3a73c1d6ead4222  refs/tags/v1^{}
+== local head: e9e790ea4a83cb66d2597232f3a73c1d6ead4222 tag peeled: e9e790ea4a83cb66d2597232f3a73c1d6ead4222
+(diverge B: clone→commit→push-back, local advances independently)
+== guard after B diverged:
+{"ok":false,"divergences":[{"target":"git:b","ref":"refs/heads/main",
+ "remoteSha":"14849b1e1a6b897245c486f15ea6d88c3fd44d62",
+ "localSha":"7393464d5c40aba27461c8c7e796d52750c0c7ce"}]}
+== DIVERGED_MESSAGE: history diverged; border never force-pushes; resolve manually
+Note A is untouched (branch ancestor ⇒ ff-ok, tag unchanged ⇒ equal); ONLY git:b
+is listed, and the caller therefore pushes NOTHING anywhere (all-or-nothing).
+
+=====================================================================
+FORCE-FLAG ABSENCE GUARD (plan literal grep)
+=====================================================================
+$ grep -c -- '--force' src/push/git.ts
+0
+(exit code 1 = zero matching lines; AC6 additionally asserts split-count==0 on
+ the file content — the substring never occurs, not even in comments.)
+
+=====================================================================
+FULL SUITE + TYPECHECK
+=====================================================================
+$ npm test   # at HEAD e9262fa with sibling WIP present
+1..309
+# pass 308
+# fail 1
+The single failure is FILE-LEVEL: test/push.registries.test.ts — sibling worker's
+in-flight todo (imports ../src/push/npm.ts + ../src/push/pypi.ts which the
+sibling has not written to disk yet: ERR_MODULE_NOT_FOUND). Zero failures in
+any other file; baseline 301 all pass + this task's 7 new pass (301+7+1
+file-level sibling stub entry = 309). Sibling files never touched/staged by me.
+
+$ npx tsc --noEmit
+test/push.registries.test.ts(45,48): error TS2307: Cannot find module '../src/push/npm.ts' …
+test/push.registries.test.ts(46,32): error TS2307: Cannot find module '../src/push/pypi.ts' …
+test/push.registries.test.ts(98,57): error TS2304: Cannot find name 'digest'.
+— all confined to the sibling's untracked WIP file; src/push/git.ts,
+src/commands/push.ts, test/push.git.test.ts, test/cli.test.ts: zero errors.
