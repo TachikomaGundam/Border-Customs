@@ -139,16 +139,57 @@ export type PushExecInput = {
 export type PushExecResult = { readonly ok: true } | { readonly ok: false; readonly failure: string };
 
 /**
+ * Bounded budget for the real `git push` (F2): stdio stays inherited so auth
+ * prompts reach the TTY, but a hung remote (frozen transport, dead link) must
+ * not wedge `border push` forever. 120s is generous enough for a legitimate
+ * push over a slow link plus one credential round-trip. Precedent for the
+ * mechanism: spawnSync `timeout` in src/check/context.ts (60s) and
+ * src/check/tagScan.ts (300s). Kill signal: spawnSync's default SIGTERM, which
+ * git and `git-remote-*`/ssh children handle with their own teardown; the code
+ * base escalates nowhere on the spawnSync path, and we do not start here.
+ */
+export const PUSH_TIMEOUT_MS = 120_000;
+
+/** Override seam (test/ops), same spirit as BORDER_PROMPT_TEMPLATE_PATH
+ *  (src/check/rulesHash.ts): positive-integer milliseconds. */
+export const PUSH_TIMEOUT_ENV = "BORDER_PUSH_TIMEOUT_MS";
+
+function pushTimeoutMs(env: NodeJS.ProcessEnv): number {
+  const raw = env[PUSH_TIMEOUT_ENV];
+  if (raw === undefined || raw.trim() === "") return PUSH_TIMEOUT_MS;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n <= 0) {
+    throw new PushStateError(`${PUSH_TIMEOUT_ENV}='${raw}' is not a positive integer number of milliseconds — refusing to guess a push timeout`);
+  }
+  return n;
+}
+
+/**
  * Real push, stdio inherit: credential prompts (ssh-agent, askpass, PAT) pass
  * straight through to the user's TTY — border touches no creds and captures no
- * output. No timeout: an interactive auth prompt may legitimately outlive any
- * fixed budget.
+ * output. Bounded by pushTimeoutMs (default 120s); a killed push is reported
+ * as a plain ok:false failure so the caller records NOTHING (fail closed) —
+ * after SIGTERM the remote may or may not have received objects, so its state
+ * is INDETERMINATE and the failure message owns the verification advice.
  */
 export function executePush(i: PushExecInput): PushExecResult {
+  const timeoutMs = pushTimeoutMs(i.env); // throws BEFORE spawning on a malformed budget
   const r = spawnSync("git", ["-C", i.repoDir, ...pushArgv(i.remote.url, i.branch, "execute")], {
     stdio: "inherit",
     env: i.env,
+    timeout: timeoutMs,
   });
+  // spawnSync answers a budget kill with {status:null, signal:SIGTERM, error:ETIMEDOUT};
+  // a genuine spawn failure keeps signal:null — so signal is the discriminator.
+  if (r.status === null && r.signal !== null) {
+    return {
+      ok: false,
+      failure:
+        `git push to '${i.remote.target}' timed out after ${String(timeoutMs)}ms (${PUSH_TIMEOUT_ENV}) ` +
+        `and was killed by signal ${String(r.signal)} — the remote state is INDETERMINATE: ` +
+        `verify with 'git ls-remote ${sanitizeUrl(i.remote.url)}' and rerun 'border push --yes' (safe: landed remotes come back no-op)`,
+    };
+  }
   if (r.error !== undefined) return { ok: false, failure: `git could not start (${r.error.message})` };
   if (r.status !== 0) return { ok: false, failure: `git exited ${String(r.status)}` };
   return { ok: true };
