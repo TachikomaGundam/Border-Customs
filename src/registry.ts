@@ -130,7 +130,7 @@ function regFinding(target: "npm" | "pypi", rule: string, severity: Severity, me
 export function normalizeGitLocation(url: string): string {
   return url
     .trim()
-    .replace(/^[a-z][a-z0-9+.-]*\/\//i, "") // https:// git+ssh:// ssh:// git://
+    .replace(/^[a-z][a-z0-9+.-]*:\/\//i, "") // https:// git+https:// git+ssh:// ssh:// git://
     .replace(/^ssh:\/\//i, "")
     .replace(/^[^@/]+@([^:]+):/i, "$1/") // git@host:group/ → host/group/
     .replace(/^([^/]+):/u, "$1/") // host:path (no user) → host/path
