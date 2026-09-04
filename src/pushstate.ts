@@ -19,10 +19,14 @@
 //     CURRENT fingerprint key — computeFingerprint re-derives it, and the key
 //     already binds refSet/exposure, so a stale PASS cannot gate). A target
 //     neither PASSED nor live-PUSHED is BLOCKED with an `unchecked` reason:
-//     pushstate never runs checks itself — the gate lives in todos 10-14.
+//     pushstate runs no todo-10..14 engines itself — EXCEPT the identity rule
+//     on git legs about to transmit objects (PENDING): a ledger PASS cannot
+//     vouch for identities in objects the remote has never had (first push /
+//     restored tag), so scanIdentity gates the transmit set directly here.
 import { gatherContext, runGitChecked } from "./check/context.ts";
 import type { BorderConfig } from "./config.ts";
 import type { Finding } from "./findings.ts";
+import { scanIdentity } from "./rules/identity.ts";
 import { computeFingerprint } from "./ledger.ts";
 import {
   appendRecord,
@@ -136,6 +140,22 @@ function uncheckedReason(id: string): string {
   return `unchecked: no PASS record for '${id}' under the current fingerprint key — run 'border check' first`;
 }
 
+/**
+ * PENDING means this push WILL upload refSet objects the remote lacks; the
+ * identity allowlist must gate that transmit set even when the todo-14
+ * ledger says PASSED (the PASS predates or cannot express first-push
+ * content). PUSHED legs upload nothing and never reach this.
+ */
+function gateTransmitIdentities(t: TargetResult, identities: readonly Finding[]): TargetResult {
+  if (t.status !== "PENDING" || identities.length === 0) return t;
+  return {
+    ...t,
+    status: "BLOCKED",
+    reason: `${t.reason ?? ""} — ${String(identities.length)} identity finding(s) on objects this push would transmit`,
+    findings: identities,
+  };
+}
+
 function gitState(o: PushStateOptions, id: string, url: string, refSet: readonly string[], locals: ReadonlyMap<string, string>, gate: TargetGate): TargetResult {
   let text: string;
   try {
@@ -199,9 +219,13 @@ export async function derivePushState(o: PushStateOptions): Promise<PushStateRes
   if (want("git")) {
     const gate = gateFor(records, fp.key, "git");
     const locals = localRefCommits(o.repoDir, ctx.refSet, env);
+    let identities: readonly Finding[] | null = null;
+    const transmittedIdentities = (): readonly Finding[] =>
+      (identities ??= scanIdentity({ repoDir: o.repoDir, refSet: [...ctx.refSet], cfg: o.cfg }));
     for (const remote of o.cfg.targets.git.remotes) {
       const name = remote.name ?? sanitizeUrl(remote.url);
-      targets.push(gitState(o, `git:${name}`, remote.url, ctx.refSet, locals, gate));
+      const t = gitState(o, `git:${name}`, remote.url, ctx.refSet, locals, gate);
+      targets.push(t.status === "PENDING" ? gateTransmitIdentities(t, transmittedIdentities()) : t);
     }
   }
 
