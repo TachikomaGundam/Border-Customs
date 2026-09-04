@@ -21,6 +21,7 @@ import { probeEngines } from "./engines/policy.ts";
 import { BORDER_STATE_DIR } from "./check/lock.ts";
 import type { EngineOptions } from "./engines/support.ts";
 import type { Report } from "./findings.ts";
+import { renderReportMd } from "./report.ts";
 import { packNpmArtifacts, verifyArtifactFreshness } from "./ledger/freshness.ts";
 import {
   appendRecord,
@@ -157,6 +158,8 @@ export function recordCheckRun(i: RecordInput): CheckRecord {
   ensureRunDir(i.repoDir, dirName);
   const relReport = reportRelPath(dirName);
   writeFileSync(join(i.repoDir, BORDER_STATE_DIR, relReport), `${JSON.stringify(i.report, null, 2)}\n`, "utf8");
+  // todo 19: additive human artifact beside the canonical json — json bytes above are unchanged.
+  writeFileSync(join(i.repoDir, BORDER_STATE_DIR, relReport.replace("report.json", "report.md")), renderReportMd(i.report), "utf8");
   const envOpt = i.env !== undefined ? { env: i.env } : {};
   const artifacts =
     i.report.verdict === "PASS" && !i.ctx.dirty && i.effectiveTargets.includes("npm")

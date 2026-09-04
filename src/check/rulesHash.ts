@@ -16,10 +16,9 @@
 // missing template simply stays out of the fingerprint there until todos
 // 20/21 fix asset packaging (documented gap; llm-request itself fails closed
 // because the bundle embeds the template digest).
+import { resolveAsset } from "../assets.ts";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import type { LoadResult } from "../config.ts";
 import { GITLEAKS_VENDORED_CONFIG } from "../engines/gitleaks.ts";
@@ -34,7 +33,7 @@ export type LoadedConfig = Extract<LoadResult, { kind: "loaded" }>;
  * review template edits without touching the shipped asset.
  */
 export function resolvePromptTemplatePath(env: Readonly<Record<string, string | undefined>> = process.env): string {
-  return env.BORDER_PROMPT_TEMPLATE_PATH ?? resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "assets", "prompts", "llm-review.md");
+  return env.BORDER_PROMPT_TEMPLATE_PATH ?? resolveAsset(import.meta.url, ["prompts", "llm-review.md"]);
 }
 
 function sha256(text: string): string {

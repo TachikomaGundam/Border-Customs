@@ -23,6 +23,7 @@ import { runRegistryProbes } from "./registry.ts";
 import { scanAiArtifacts } from "./rules/aiArtifacts.ts";
 import { scanIdentity } from "./rules/identity.ts";
 import { gatherContext, runGitChecked, type CheckContext } from "./check/context.ts";
+import { applyAllowList } from "./check/allow.ts";
 import { filterBorderStateFindings } from "./check/exclusions.ts";
 import { acquireLock, BORDER_STATE_DIR, releaseLock } from "./check/lock.ts";
 import { computeCheckKey, computeCheckRulesHash } from "./check/rulesHash.ts";
@@ -141,6 +142,10 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
   findings.push(...(await runRegistryProbes({ repoDir, cfg: o.cfg, effectiveTargets: o.effectiveTargets, ...envOpt })));
 
   const exposure = [...exposureSet(o.cfg, { cwd: repoDir })];
+  // G14 post-filter (todo 19): last gate before the verdict. Suppressed
+  // findings never count/never block, but every suppression is enumerated in
+  // report.allowHits — exit 0 must never hide what it hid.
+  const allow = applyAllowList(findings, o.cfg.allow, repoDir);
   const rulesHash = await computeCheckRulesHash({
     engineVersions: probe.engineVersions,
     configDigest: o.configDigest,
@@ -161,9 +166,10 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
     exposureSet: exposure,
     refSet: ctx.refSet,
     rulesHash,
-    verdict: computeVerdict(findings),
-    counts: countFindings(findings),
-    findings,
+    verdict: computeVerdict(allow.kept),
+    counts: countFindings(allow.kept),
+    findings: allow.kept,
+    ...(allow.allowHits.length > 0 ? { allowHits: allow.allowHits } : {}),
     ts: new Date().toISOString(),
   };
   return { report, ctx, degraded: probe.degraded, sanitizedSummary: sanitizeSummary(report, sanitizer), lockWarning };

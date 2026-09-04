@@ -21,6 +21,7 @@
 // in-memory source, routed through redact(), registered with the optional
 // TextSanitizer, and stripped out of Finding.message before return. Nothing
 // engine-shaped ever touches disk.
+import { resolvePackageFile } from "../assets.ts";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -415,7 +416,7 @@ export async function scanGitTrackedFiles(o: TrackedScanOptions): Promise<Findin
  * family instead. Deterministic sha256 over sorted `name@version` lines.
  */
 export async function secretlintVersionFingerprint(o?: { lockPath?: string }): Promise<string> {
-  const lockPath = o?.lockPath ?? join(packageRoot, "package-lock.json");
+  const lockPath = o?.lockPath ?? resolvePackageFile(import.meta.url, "package-lock.json");
   let raw: string;
   try {
     raw = readFileSync(lockPath, "utf8");
