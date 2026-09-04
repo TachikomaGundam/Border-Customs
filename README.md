@@ -117,10 +117,11 @@ it, and the two registry-facing legs (pre-flight and publish) both have to agree
 8. **Artifact stage.** If npm/PyPI targets are configured, packages are built **once** into
    `.border/dist/` (`npm pack --ignore-scripts`, `python -m build --no-isolation`), that
    exact byte-stream is scanned (gitleaks + secretlint over the extracted contents),
-   manifest-diffed (lifecycle `preinstall`/`postinstall` hooks are CRITICAL; entries
-   outside the `files` whitelist are HIGH; PyPI sdists get a `sdist-unexpected-file` HIGH
-   because setuptools builds from the working tree and is `.gitignore`-blind), checked with
-   `publint` / `twine check --strict`, and recorded as `{file, sha256, bytes}` in the ledger.
+   manifest-diffed (lifecycle `preinstall`/`install`/`postinstall`/`prepare` hooks are
+   CRITICAL; entries outside the `files` whitelist are HIGH; PyPI sdists get a
+   `sdist-unexpected-file` HIGH because setuptools builds from the working tree and is
+   `.gitignore`-blind), checked with `publint` / `twine check --strict`, and recorded as
+   `{file, sha256, bytes}` in the ledger.
    At publish time the *same bytes* are re-hashed: any mismatch is exit 2, before the wire.
 9. **Report.** Findings carry `valueDigest` (sha256 of the matched value) and a masked
    snippet: fully blocked for short values, else `first4…last4`. Raw secret bytes never
@@ -256,7 +257,16 @@ targets:
     remotes:
       - name: origin
         url: git@github.com:acme/widgets.git
+rules:
+  authors:
+    emails: [devs@acme.example]   # identity allow-list: commits authored by
+    names: [Acme Dev]             # anyone else are CRITICAL findings
+  hosts: []                       # extra detection patterns (internal hostnames…)
+  ips: []
+  pathPatterns: []
 ```
+
+`rules` is required by design: a gate with silent defaults is a gate you did not ask for.
 
 A repo that publishes a package, with the full surface:
 
