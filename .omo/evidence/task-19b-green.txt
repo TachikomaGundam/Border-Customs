@@ -1,0 +1,27 @@
+Task 19b — green capture (verify at HEAD bf49adc, allow fix committed)
+2026-09-04T16:15:28+08:00
+
+$ npm run build && node dist/index.js check --force   # AFTER fix, HEAD bf49adc
+EXIT=0  (see run id below)
+run: f55674f7-2026-09-04T08-15-34-928Z
+
+border: working tree is dirty — findings may reference uncommitted files
+border: border check PASS: 0 finding(s), 0 blocking
+
+--- allow-hits section of newest report.md ---
+## allow-hits (530 suppressed)
+
+Findings suppressed by `border.yaml` `allow` entries (G14). The entry index resolves the pattern and its justification comment in border.yaml.
+
+| rule | count | sample | entry |
+| --- | --- | --- | --- |
+| * | 243 | .omo/start-work/ledger.jsonl | entry #6 |
+| * | 54 | test/report.test.ts | entry #1 |
+| * | 158 | assets/gitleaks-defaults-v8.30.1.toml | entry #2 |
+| path-pattern:/home/lab/workspace/harness/border | 32 | .omo/boulder.json | entry #0 |
+| path-pattern:* | 1 | assets/prompts/llm-review.md | entry #3 |
+| @secretlint/secretlint-rule-no-homedir/* | 2 | border.yaml | entry #7 |
+| path-pattern:* | 2 | border.yaml | entry #8 |
+| path-pattern:* | 26 | src/artifacts/manifestDiff.ts | entry #4 |
+| path-pattern:* | 12 | tools/spike-secretlint.mjs | entry #5 |
+
