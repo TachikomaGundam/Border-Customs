@@ -57,8 +57,22 @@ export function packNpmArtifacts(repoDir: string, o: FreshnessOptions = {}): rea
   }
 }
 
+/**
+ * Compare the npm tarball digests only. Records list repo-relative .border/dist
+ * paths (GAP B: the pipeline's own pack) while the freshness repack yields bare
+ * tarball names from a deleted tmp dir — basenames are the shared identity. The
+ * .tgz subset excludes built wheels/sdists, whose digests are not reproducible
+ * (round-2 LOW: pypi freshness rides the key match).
+ */
 function sameArtifacts(a: readonly LedgerArtifact[], b: readonly LedgerArtifact[]): boolean {
-  return a.length === b.length && a.every((x, i) => x.file === b[i]?.file && x.sha256 === b[i]?.sha256);
+  const npmDigests = (xs: readonly LedgerArtifact[]): string[] =>
+    xs
+      .filter((x) => x.file.slice(x.file.lastIndexOf("/") + 1).endsWith(".tgz"))
+      .map((x) => `${x.file.slice(x.file.lastIndexOf("/") + 1)}\u0000${x.sha256}`)
+      .sort();
+  const ka = npmDigests(a);
+  const kb = npmDigests(b);
+  return ka.length === kb.length && ka.every((x, i) => x === kb[i]);
 }
 
 /**

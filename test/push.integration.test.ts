@@ -307,10 +307,11 @@ test("I1 git+npm PENDING: push --yes lands the bare, publishes to verdaccio, and
   runningVerdaccios.push(v);
   const f = npmRepoFixture(scratch("i1"), v);
 
-  // FINDING (§2 NOTE): check --force records digests but leaves .border/dist
-  // unpopulated — packNpmArtifacts packs into a deleted tmp dir; the todo-11
-  // stage (runNpmArtifactStage) is the unwired writer of .border/dist.
-  assert.equal(existsSync(join(f.repo, ".border", "dist", "widgets-1.0.0.tgz")), false, "pre-stage: check --force does NOT populate .border/dist");
+  // GAP B closed the §2 FINDING: `check --force` now populates .border/dist
+  // itself via the wired todo-11 stage. The pre-stage absence below still
+  // holds (the fixture only builds sources, never packs), and the manual
+  // stage call in checkForceAndPack stays as a same-bytes equivalence guard.
+  assert.equal(existsSync(join(f.repo, ".border", "dist", "widgets-1.0.0.tgz")), false, "pre-check: dist starts empty (fixture packs nothing)");
   const passRec = await checkForceAndPack(f);
   const distFile = join(f.repo, ".border", "dist", "widgets-1.0.0.tgz");
   assert.ok(existsSync(distFile), "the real pack stage materialized .border/dist");
@@ -419,8 +420,12 @@ test("I4 dry-run registry lines: no-record honesty, then missing-bytes exit 2, t
   );
   assert.ok(a.out.some((l) => l.includes("git push --dry-run") && l.includes("origin")), "git plan line intact");
 
-  // (b) PASS record exists (appended by (a)'s gate) but .border/dist has no
-  //     bytes — the re-hash gate prints its message and its exit, no network.
+  // (b) PASS record exists (appended by (a)'s gate) but the certified bytes
+  //     are gone from .border/dist — GAP B makes check materialize them, so
+  //     the missing-bytes state is constructed explicitly (post-certification
+  //     loss: crash, hand-cleaned state dir, tamper). The re-hash gate prints
+  //     its message and its exit, no network.
+  rmSync(join(f.repo, ".border", "dist", "widgets-1.0.0.tgz"));
   const b = await runBorder(["push", "--config", f.cfgPath], f.repo, f.env);
   assert.equal(b.code, EXIT_ERROR, dump(b));
   assert.ok(b.err.some((l) => l.includes("artifact changed since check") && l.includes("missing")), `re-hash mismatch surfaced:\n${b.err.join("\n")}`);

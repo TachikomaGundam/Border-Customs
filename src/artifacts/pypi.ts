@@ -64,6 +64,9 @@ export type PypiInput = EngineOptions & {
   readonly sanitizer?: TextSanitizer;
   readonly rules?: SecretlintRulesInput;
   readonly target?: string;
+  /** degraded-engine inheritance (todo 10 policy): the check pipeline skips the leg whose engine failed its probe. */
+  readonly skipGitleaks?: boolean;
+  readonly skipSecretlint?: boolean;
 };
 export type PypiScanResult = { readonly artifacts: readonly PypiArtifact[]; readonly findings: readonly Finding[] };
 
@@ -288,8 +291,12 @@ export async function scanPyPiArtifacts(o: PypiInput): Promise<PypiScanResult> {
         const { root, rest } = artifact.kind === "sdist" ? stripWrapper(walkFilesRel(sandbox)) : { root: "", rest: walkFilesRel(sandbox) };
         const scanRoot = join(sandbox, root);
         const scanOpts = { ...o, target };
-        for (const f of scanTree({ ...scanOpts, dir: scanRoot, stateDir })) absorb(f, toInner(f.path, scanRoot));
-        for (const f of await scanPaths({ ...scanOpts, ...(o.sanitizer !== undefined ? { sanitizer: o.sanitizer } : {}), ...(o.rules !== undefined ? { rules: o.rules } : {}), dir: scanRoot, files: rest })) absorb(f, f.path ?? "");
+        if (o.skipGitleaks !== true) {
+          for (const f of scanTree({ ...scanOpts, dir: scanRoot, stateDir })) absorb(f, toInner(f.path, scanRoot));
+        }
+        if (o.skipSecretlint !== true) {
+          for (const f of await scanPaths({ ...scanOpts, ...(o.sanitizer !== undefined ? { sanitizer: o.sanitizer } : {}), ...(o.rules !== undefined ? { rules: o.rules } : {}), dir: scanRoot, files: rest })) absorb(f, f.path ?? "");
+        }
         if (artifact.kind === "sdist") for (const f of manifestFindings(o, rest, target)) absorb(f, f.path ?? "");
       } finally {
         removeSandbox(sandbox);
