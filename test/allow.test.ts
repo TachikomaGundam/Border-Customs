@@ -261,3 +261,25 @@ test("live pipeline: explicit-empty config RUNS repo-local scans (never the vacu
   assert.equal(raw.verdict, "PASS");
   assert.ok(existsSync(join(dir, rec.reportPath)));
 });
+
+test("border.yaml self suppresses the todo-19b config-path findings, never another file", () => {
+  const cfg = parseConfig(readFileSync(new URL("../border.yaml", import.meta.url), "utf8"));
+  const mk = (rule: string, path: string): Finding => finding({ rule, path });
+  const selfTriggers = [
+    mk("@secretlint/secretlint-rule-no-homedir/HOMEDIR", "border.yaml"),
+    mk("path-pattern:/home/[a-z]+/", "border.yaml"),
+  ];
+  const elsewhere = [
+    mk("@secretlint/secretlint-rule-no-homedir/HOMEDIR", "notes.md"),
+    mk("path-pattern:/home/[a-z]+/", "notes.md"),
+  ];
+  const { kept, allowHits } = applyAllowList([...selfTriggers, ...elsewhere], cfg.allow, "/repo");
+  assert.deepEqual(kept.map((f) => f.path), ["notes.md", "notes.md"]);
+  assert.deepEqual(
+    allowHits.map((h) => [h.rule, h.count, h.sample]),
+    [
+      ["@secretlint/secretlint-rule-no-homedir/*", 1, "border.yaml"],
+      ["path-pattern:*", 1, "border.yaml"],
+    ],
+  );
+});
