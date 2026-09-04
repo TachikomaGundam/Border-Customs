@@ -10,15 +10,32 @@
 // config directly is its strict superset and works for the inferred fallback
 // (no file exists at all).
 // bundledRulePaths currently = the vendored gitleaks config; promptTemplatePaths
-// is empty until todo 18 ships assets/prompts (computeRulesHash fails closed on
-// missing files, so only existing inputs may be listed).
+// lists assets/prompts/llm-review.md once it exists (todo 18) — computeRulesHash
+// fails closed on missing files, so only existing inputs may be listed. The
+// esbuild dist bundle cannot resolve `../..` walk-ups from dist/index.js, so a
+// missing template simply stays out of the fingerprint there until todos
+// 20/21 fix asset packaging (documented gap; llm-request itself fails closed
+// because the bundle embeds the template digest).
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import type { LoadResult } from "../config.ts";
 import { GITLEAKS_VENDORED_CONFIG } from "../engines/gitleaks.ts";
 import { computeRulesHash } from "../redact.ts";
 
 export type LoadedConfig = Extract<LoadResult, { kind: "loaded" }>;
+
+/**
+ * The llm review template whose bytes are part of the rules fingerprint.
+ * BORDER_PROMPT_TEMPLATE_PATH is the test/ops seam (same spirit as engine
+ * binary candidates): pointing it at a copy lets an operator — or the suite —
+ * review template edits without touching the shipped asset.
+ */
+export function resolvePromptTemplatePath(env: Readonly<Record<string, string | undefined>> = process.env): string {
+  return env.BORDER_PROMPT_TEMPLATE_PATH ?? resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "assets", "prompts", "llm-review.md");
+}
 
 function sha256(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
@@ -40,12 +57,14 @@ export function computeConfigDigest(load: LoadedConfig): string {
 export async function computeCheckRulesHash(input: {
   readonly engineVersions: Readonly<Record<string, string>>;
   readonly configDigest: string;
+  readonly env?: Readonly<Record<string, string | undefined>>;
 }): Promise<string> {
+  const template = resolvePromptTemplatePath(input.env ?? process.env);
   return computeRulesHash({
     bundledRulePaths: [GITLEAKS_VENDORED_CONFIG],
     configDigest: input.configDigest,
     engineVersions: input.engineVersions,
-    promptTemplatePaths: [],
+    promptTemplatePaths: existsSync(template) ? [template] : [],
   });
 }
 
