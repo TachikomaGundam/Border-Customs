@@ -226,3 +226,14 @@ consumers see scp-form output '<host>/<path>' (no scheme) — exposureSet entrie
   staging, and stage ONLY your files (git add <list>, never -A).
 - retention pruning is dir-slice math when dir names embed a sanitized ISO ts (lexicographic ==
   chronological): pruneRunDirs = filter `${key8}-` prefix, sort, drop head. Ledger lines never pruned.
+
+## todo 14 fix (G33 repack parity)
+- Every pack of the target repo inside border must pass `--ignore-scripts` (packOnce in
+  src/artifacts/npmPack.ts and packNpmArtifacts in src/ledger/freshness.ts — two pack call-sites,
+  one invariant). Beyond the supply-chain angle, flag divergence is a CORRECTNESS bug: a
+  script-bearing repo's certified pack (script-free) vs ledger repack (with scripts) would never
+  digest-match ⇒ permanent false re-checks, SKIP silently dead for exactly those repos.
+- Regression-fixture placement gotcha proven live: an absolute in-repo marker path written into
+  package.json trips border's own /home/[a-z]+/ path-pattern rule (run1 FAILs the gate — wrong
+  red); an in-repo marker file dirties porcelain and masks skip assertions. Marker belongs in
+  /tmp with a pid+ts-unique name, rm'd in finally.

@@ -30,13 +30,19 @@ function sha256File(path: string): string {
 
 let packSeq = 0;
 
-/** Re-pack via `npm pack`; null ⇒ packing unavailable, which can never justify a skip. */
+/**
+ * Re-pack via `npm pack --ignore-scripts`; null ⇒ packing unavailable, which can
+ * never justify a skip. --ignore-scripts is the G33 guard (target-repo lifecycle
+ * hooks must never execute inside border check — same defense as packOnce in
+ * src/artifacts/npmPack.ts) AND the digest-parity requirement: the certified
+ * pack is script-free, so the freshness repack must be too.
+ */
 export function packNpmArtifacts(repoDir: string, o: FreshnessOptions = {}): readonly LedgerArtifact[] | null {
   packSeq += 1;
   const dest = join(repoDir, BORDER_STATE_DIR, "tmp", `pack-${String(process.pid)}-${String(packSeq)}`);
   mkdirSync(dest, { recursive: true });
   try {
-    const r = spawnSync("npm", ["pack", "--silent", `--pack-destination=${dest}`], {
+    const r = spawnSync("npm", ["pack", "--ignore-scripts", "--silent", `--pack-destination=${dest}`], {
       cwd: repoDir,
       encoding: "utf8",
       env: { ...(o.env ?? process.env) },
