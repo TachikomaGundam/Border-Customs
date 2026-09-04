@@ -290,3 +290,40 @@ test("CLI M8: gitignored-but-packed dist change defeats SKIP despite unchanged h
 
   assert.notEqual(skipLine(await cli(dir)), undefined, "fresh certificate ⇒ skip again");
 });
+
+test("CLI G33: ledger repack must never execute the target repo's prepack script", { timeout: 120_000 }, async () => {
+  // Root-cause regression: packNpmArtifacts ran bare `npm pack`, so a checked
+  // repo's prepack lifecycle hook executed during BOTH ledger phases — the
+  // record phase (recordCheckRun) and every skip-consult (verifyArtifactFreshness).
+  // todo 11's certified pack (src/artifacts/npmPack.ts packOnce) passes
+  // --ignore-scripts for exactly this; the ledger path must not contradict it.
+  const dir = fixture("g33");
+  gitInit(dir);
+  // Marker lives in /tmp: an absolute in-repo path in package.json trips border's
+  // own /home/… path-pattern rule, and an in-repo file would dirty the porcelain
+  // digest and mask the skip-behaviour assertions below.
+  const marker = `/tmp/led-g33-${String(process.pid)}-${String(Date.now())}.marker`;
+  writeRel(dir, "package.json", JSON.stringify({
+    name: "widgets",
+    version: "1.0.0",
+    files: ["dist/"],
+    scripts: { prepack: `touch ${marker}` },
+  }) + "\n");
+  writeRel(dir, "dist/index.js", "export const w = 1;\n");
+  writeRel(dir, "border.yaml", borderYaml("origin.example:widgets.git", true));
+  gitAddCommit(dir, "init");
+
+  try {
+    const r1 = await cli(dir);
+    assert.equal(r1.code, EXIT_PASS, `run1 must pass: ${r1.out.join(" | ")} ${r1.err.join(" | ")}`);
+    assert.ok(!existsSync(marker), "G33: record-phase repack must not run the repo's prepack script");
+    const rec = nthCheck(dir, -1);
+    assert.ok(rec.artifacts !== null && rec.artifacts.length >= 1, "pack genuinely produced a tarball (guard against vacuous green)");
+
+    const r2 = await cli(dir);
+    assert.notEqual(skipLine(r2), undefined, "--ignore-scripts on both phases keeps digests equal ⇒ SKIP still honored");
+    assert.ok(!existsSync(marker), "G33: consult-phase repack must not run the repo's prepack script either");
+  } finally {
+    rmSync(marker, { force: true });
+  }
+});
