@@ -20,6 +20,7 @@ import {
   NAME_AVAILABLE_RULE,
   VERSION_EXISTS_RULE,
   classifyNpmVersionView,
+  normalizeGitLocation,
   runRegistryProbes,
 } from "../src/registry.ts";
 import { EngineRunError } from "../src/engines/support.ts";
@@ -170,6 +171,28 @@ test("npm claimed by FOREIGN owner ⇒ CRITICAL name-foreign-owner", async () =>
   const ff = findings.filter((f) => f.rule === FOREIGN_OWNER_RULE);
   assert.equal(ff.length, 1);
   assert.equal(ff[0]?.severity, "CRITICAL");
+});
+
+test("npm claimed + only repo-URL proves ownership (git+https scheme, foreign email) ⇒ silent", async () => {
+  // Regression: normalizeGitLocation must strip `git+https://` (colon before //).
+  // A live CLI run caught this: config remote origin.example:widgets.git vs packument
+  // git+https://origin.example/widgets.git were normalized to different strings and a
+  // self-owned name surfaced as CRITICAL name-foreign-owner.
+  const s = await stub([{ path: "/widgets", body: { ...PACKUMENT_WIDGETS_100, "dist-tags": { latest: "0.9.0" }, versions: { "0.9.0": { name: "widgets", version: "0.9.0" } } } }]);
+  const dir = trackedRepo("urlmatch", { "package.json": PKG_JSON });
+  const findings = await runRegistryProbes({
+    repoDir: dir,
+    cfg: cfgFor({ npmRegistry: s.url, emails: [] }), // NO email overlap — repo URL is the only self-signal
+    effectiveTargets: [...GIT_TARGETS, "npm"],
+  });
+  assert.deepEqual(findings, [], "repository.url matching a configured git remote ⇒ self-owned, silent");
+});
+
+test("normalizeGitLocation: scheme + scp + colon paths collapse to host/path", () => {
+  assert.equal(normalizeGitLocation("git+https://origin.example/widgets.git"), "origin.example/widgets");
+  assert.equal(normalizeGitLocation("https://origin.example/widgets.git"), "origin.example/widgets");
+  assert.equal(normalizeGitLocation("origin.example:widgets.git"), "origin.example/widgets");
+  assert.equal(normalizeGitLocation("git@github.com:acme/widgets.git"), "github.com/acme/widgets");
 });
 
 test("npm claimed but ZERO owner signals (empty-stdout field query) ⇒ FAIL loud, never absent", async () => {
