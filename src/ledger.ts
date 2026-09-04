@@ -62,7 +62,11 @@ export async function computeFingerprint(
     ...envOpt,
     ...(o.requireOverride !== undefined ? { requireOverride: o.requireOverride } : {}),
   });
-  const rulesHash = await computeCheckRulesHash({ engineVersions: probe.engineVersions, configDigest });
+  const rulesHash = await computeCheckRulesHash({
+    engineVersions: probe.engineVersions,
+    configDigest,
+    ...envOpt,
+  });
   const fp: LedgerFingerprint = {
     key: computeCheckKey({
       headSha: ctx.headSha,
