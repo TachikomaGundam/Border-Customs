@@ -31,7 +31,7 @@ import { EXIT_BLOCKED, EXIT_ERROR, EXIT_PASS } from "../src/cli/exit.ts";
 import { executeCheck } from "../src/check.ts";
 import { requireGitleaks } from "./helpers/require-engines.ts";
 import { gitAddCommit, gitInit, makeFixtureDir, removeDir, writeRel } from "./helpers/fixtures.ts";
-import { PACKUMENT_WIDGETS_100, closedEphemeralPort, startHangingStub, startRegistryStub, type RegistryStub } from "./helpers/registry-stub.ts";
+import { PACKUMENT_WIDGETS_100, refusedEndpoint, startHangingStub, startRegistryStub, type RegistryStub } from "./helpers/registry-stub.ts";
 
 const openStubs: RegistryStub[] = [];
 const fixtureRoots: string[] = [];
@@ -212,10 +212,11 @@ test("npm claimed but ZERO owner signals (empty-stdout field query) ⇒ FAIL lou
 
 test("npm registry REFUSED port ⇒ EngineRunError (plan AC: unreachable ⇒ exit 2)", async () => {
   await stub([]);
-  const refused = `http://127.0.0.1:${String(await closedEphemeralPort())}`;
+  const refused = await refusedEndpoint();
+  openStubs.push(refused);
   const dir = trackedRepo("refused", { "package.json": PKG_JSON });
   await assert.rejects(
-    runRegistryProbes({ repoDir: dir, cfg: cfgFor({ npmRegistry: refused }), effectiveTargets: [...GIT_TARGETS, "npm"] }),
+    runRegistryProbes({ repoDir: dir, cfg: cfgFor({ npmRegistry: refused.url }), effectiveTargets: [...GIT_TARGETS, "npm"] }),
     EngineRunError,
   );
 });
@@ -387,7 +388,9 @@ test("CLI AC: present version on stub ⇒ CRITICAL bump + exit 1 (gate blocked, 
 });
 
 test("CLI AC: refused registry port ⇒ exit 2 with engine-run-error line, never exit 0/1", async () => {
-  const dir = trackedRepo("cli-refused", { "package.json": PKG_JSON, "border.yaml": cliYaml(`http://127.0.0.1:${String(await closedEphemeralPort())}`) });
+  const refused = await refusedEndpoint();
+  openStubs.push(refused);
+  const dir = trackedRepo("cli-refused", { "package.json": PKG_JSON, "border.yaml": cliYaml(refused.url) });
   const r = await cliCheck(dir);
   assert.equal(r.code, EXIT_ERROR, `stdout=${r.out.join("|")}`);
   assert.match(r.err.join("|"), /engine run error/i);

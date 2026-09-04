@@ -37,7 +37,7 @@ import {
   type PushStateResult,
 } from "../src/pushstate.ts";
 import { gitAddCommit, gitInit, gitRevParseHead, makeFixtureDir, removeDir, writeRel } from "./helpers/fixtures.ts";
-import { PACKUMENT_WIDGETS_100, closedEphemeralPort, startRegistryStub, type RegistryStub } from "./helpers/registry-stub.ts";
+import { PACKUMENT_WIDGETS_100, refusedEndpoint, startRegistryStub, type RegistryStub } from "./helpers/registry-stub.ts";
 
 const fixtureRoots: string[] = [];
 const openStubs: RegistryStub[] = [];
@@ -286,7 +286,9 @@ test("registry answers 404 (nothing published) ⇒ PENDING when PASSED, BLOCKED-
 
 test("unreachable npm registry (closed port) ⇒ EngineRunError propagates, fail-closed", async () => {
   const { repo } = npmFixture("deadreg");
-  const cfg = fileCfg([], `http://127.0.0.1:${String(await closedEphemeralPort())}`);
+  const refused = await refusedEndpoint();
+  openStubs.push(refused);
+  const cfg = fileCfg([], refused.url);
   await passLedgerFor(repo, cfg, ["npm"]);
   await assert.rejects(
     derivePushState({ repoDir: repo, cfg, configDigest: stableStringify(cfg), effectiveTargets: ["npm"] }),
