@@ -12,7 +12,7 @@ import { EXIT_ERROR, EXIT_PASS, type BorderExit } from "../cli/exit.ts";
 import type { Ctx } from "../cli/types.ts";
 import { loadConfig } from "../config.ts";
 import { type CheckRecord, type PushRecord, readLedger } from "../ledger.ts";
-import { sanitizeUrl } from "../redact.ts";
+import { gitTargetId } from "../gitTargetId.ts";
 
 function oneInertLine(value: string): string {
   return value.replace(/[\x00-\x1f\x7f]+/g, " ").trim();
@@ -20,8 +20,8 @@ function oneInertLine(value: string): string {
 
 /**
  * Per-remote git push-record ids, derived EXACTLY as pushstate's gitLegs keys
- * them (`git:${name ?? sanitizeUrl(url)}` — the same expression src/push.ts
- * gitLegs re-derives). A git push-record is keyed git:<name-or-url>; the bare
+ * them (the shared gitTargetId helper — `git:<name>`, or `git:#<index>` for
+ * unnamed remotes). A git push-record is keyed git:<name-or-index>; the bare
  * 'git' in effectiveTargets is a kind and never matches one. Empty result
  * (unusable/absent config, or remotes []) degrades the table to the legacy
  * bare-kind match instead of printing a false pending.
@@ -34,7 +34,7 @@ function gitRemoteIds(ctx: Ctx, repoDir: string): string[] {
       env: ctx.env,
     });
     const cfg = load.kind === "loaded" ? load.config : load.explicit?.config;
-    return (cfg?.targets.git.remotes ?? []).map((r) => `git:${r.name ?? sanitizeUrl(r.url)}`);
+    return (cfg?.targets.git.remotes ?? []).map((r, index) => gitTargetId(r, index));
   } catch {
     return [];
   }
