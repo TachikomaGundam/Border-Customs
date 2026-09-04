@@ -32,6 +32,22 @@ export type RegistryStub = {
   close(): Promise<void>;
 };
 
+/** Header forced on EVERY stub response — see startRegistryStub docs for why. */
+const NO_STORE = { "cache-control": "no-store" } as const;
+
+/**
+ * Scripted loopback packument stub. EVERY response it writes (200 packument,
+ * 404, malformed raw) carries `cache-control: no-store` — a non-negotiable
+ * test invariant. Without cache headers, make-fetch-happen (npm's fetcher)
+ * HEURISTICALLY caches loopback responses into ~/.npm/_cacache keyed by URL,
+ * and Linux recycles just-closed ephemeral ports LIFO: when a later test's
+ * `listen(0)` lands on a port that previously served `/widgets`, npm REPLAYS
+ * THE CACHED PACKUMENT with zero network — the request never reaches the new
+ * listener, so refused/RST probes silently see stale 200s (measured flake:
+ * 3/10 on the registry+pushstate pair even with held listeners). no-store
+ * keeps every scenario genuinely on the wire and stops cache cross-talk
+ * between stub-to-stub transitions.
+ */
 export async function startRegistryStub(routes: readonly StubRoute[]): Promise<RegistryStub> {
   const hits: string[] = [];
   const sockets: import("node:net").Socket[] = [];
@@ -43,17 +59,17 @@ export async function startRegistryStub(routes: readonly StubRoute[]): Promise<R
       routes.find((r) => (r.prefix === true ? path.startsWith(r.path) : path === r.path)) ??
       routes.find((r) => r.prefix === true && r.path === "*");
     if (route === undefined) {
-      res.writeHead(404, { "content-type": "application/json" });
+      res.writeHead(404, { "content-type": "application/json", ...NO_STORE });
       res.end(JSON.stringify({ error: "Not found" }));
       return;
     }
     const status = route.status ?? 200;
     if (route.raw !== undefined) {
-      res.writeHead(status, { "content-type": "application/json", ...route.headers });
+      res.writeHead(status, { "content-type": "application/json", ...route.headers, ...NO_STORE });
       res.end(route.raw);
       return;
     }
-    res.writeHead(status, { "content-type": "application/json", ...route.headers });
+    res.writeHead(status, { "content-type": "application/json", ...route.headers, ...NO_STORE });
     res.end(JSON.stringify(route.body ?? {}));
   });
   await new Promise<void>((ok) => server.listen(0, "127.0.0.1", ok));
@@ -87,8 +103,12 @@ export async function startRegistryStub(routes: readonly StubRoute[]): Promise<R
  * concurrent `node --test` sibling calling listen(0) can rebind the SAME
  * port in the window before npm connects — the probe then hits a live stub,
  * gets an answer, and the expected EngineRunError never fires (flake seen on
- * test 197). A held listener removes the window entirely: the kernel cannot
- * hand out a port that is still bound. A plain listening-never-accepting
+ * test 197). A held listener closes that window (the kernel cannot hand out a
+ * port that is still bound) — but it was NOT sufficient alone: recycled ports
+ * also collide with npm's ~/.npm/_cacache (header-less stub answers are
+ * cached by URL and replayed offline, never reaching this socket), so the
+ * no-store invariant on startRegistryStub is the other half of the fix.
+ * A plain listening-never-accepting
  * socket is NOT equivalent — connect() would SUCCEED off the accept backlog
  * and npm would hang until the 15s timeout instead of failing on transport.
  *
