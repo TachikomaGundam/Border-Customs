@@ -89,3 +89,18 @@ _Auto-scaffolded by /start-work. Append new entries below - never overwrite._
   can assert full llm-request behavior instead of honest-failure behavior.
 - BORDER_PROMPT_TEMPLATE_PATH env seam exists for hermetic template-digest tests; keep it
   documented if the registry/packaging story changes the resolution order.
+
+## todo 13 — briefing/plan conflicts + phantom artifacts (resolved per plan)
+- Briefing scope (probeAvailable ⇒ WARNING 'registry-probe-unavailable' verdict stays PASS,
+  3-retry backoff+jitter, 4-file src/registry/ split) contradicts plan L188-194
+  (fail-closed exit 2 on ANY probe failure, single src/registry.ts, no retries beyond 1).
+  Briefing defers to plan ("the plan text is authoritative") ⇒ plan implemented; commit
+  message uses the plan-pinned string, not the briefing variant.
+- Phantom claims verified FALSE and ignored: stash@{0} 'todo-13 partial attempt' does not
+  exist (stash list empty), src/registry/ absent, and the push.ts placeholder line
+  'registry pre-flight wired in todo 13' appears nowhere in src/ ⇒ push.ts untouched
+  (todo 17 owns pre-flight assembly per plan).
+- Sibling contamination in flight: check.ts worktree carried an uncommitted rulesHash hunk
+  and ledger.check.test.ts fixtures would have probed REAL registry.npmjs.org ('widgets'
+  is a live package ⇒ instant CRITICAL). Fixed both fixtures to a loopback 404 stub;
+  staged my check.ts hunk only (hash-object + update-index), never their hunks.
