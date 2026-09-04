@@ -8,7 +8,7 @@
       "plan_name": "border-push-gate",
       "status": "active",
       "started_at": "2026-09-03T17:34:25.613Z",
-      "updated_at": "2026-09-04T00:48:11.185Z",
+      "updated_at": "2026-09-04T04:51:32.161Z",
       "session_ids": [
         "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
       ],
@@ -109,6 +109,19 @@
           "started_at": "2026-09-04T00:29:58.601Z",
           "status": "running",
           "updated_at": "2026-09-04T00:48:11.186Z"
+        },
+        "todo:13": {
+          "task_key": "todo:13",
+          "task_label": "13",
+          "task_title": "Registry pre-flight: immutability + squat probe",
+          "session_id": "opencode:ses_f9617b183ffetT43CKAQWxKDU8",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-09-04T04:51:32.161Z",
+          "started_at": "2026-09-04T02:05:38.651Z",
+          "status": "completed",
+          "ended_at": "2026-09-04T04:51:32.161Z",
+          "elapsed_ms": 9953510
         }
       }
     }
@@ -116,7 +129,7 @@
   "active_plan": "/home/lab/workspace/harness/border/.omo/plans/border-push-gate.md",
   "started_at": "2026-09-03T17:34:25.613Z",
   "status": "active",
-  "updated_at": "2026-09-04T00:48:11.185Z",
+  "updated_at": "2026-09-04T04:51:32.161Z",
   "session_ids": [
     "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7"
   ],
@@ -217,6 +230,19 @@
       "started_at": "2026-09-04T00:29:58.601Z",
       "status": "running",
       "updated_at": "2026-09-04T00:48:11.186Z"
+    },
+    "todo:13": {
+      "task_key": "todo:13",
+      "task_label": "13",
+      "task_title": "Registry pre-flight: immutability + squat probe",
+      "session_id": "opencode:ses_f9617b183ffetT43CKAQWxKDU8",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-09-04T04:51:32.161Z",
+      "started_at": "2026-09-04T02:05:38.651Z",
+      "status": "completed",
+      "ended_at": "2026-09-04T04:51:32.161Z",
+      "elapsed_ms": 9953510
     }
   },
   "agent": "atlas"
