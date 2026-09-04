@@ -6,9 +6,9 @@
       "work_id": "border-push-gate-f0f760b0",
       "active_plan": "/home/lab/workspace/harness/border/.omo/plans/border-push-gate.md",
       "plan_name": "border-push-gate",
-      "status": "active",
+      "status": "completed",
       "started_at": "2026-09-03T17:34:25.613Z",
-      "updated_at": "2026-09-04T12:57:15.151Z",
+      "updated_at": "2026-09-04T15:29:25.374Z",
       "session_ids": [
         "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7",
         "opencode:ses_f948987d6ffeP3GOKynabdCMYq",
@@ -18,7 +18,14 @@
         "opencode:ses_f9420c3b0ffeDxFt9BB6GCfcdU",
         "opencode:ses_f93ee0095ffe25oP1XENUCQ3DB",
         "opencode:ses_f9396f5aaffeTD2PHvwpMuHxaM",
-        "opencode:ses_f93815c28ffeONYeOSZeiAJbls"
+        "opencode:ses_f93815c28ffeONYeOSZeiAJbls",
+        "opencode:ses_f936298b1ffekTikCzvBNXnfvn",
+        "opencode:ses_f93624ae4ffeaCDrwAg2KDQ5mV",
+        "opencode:ses_f9361c7c6ffeur3rapr9Vep7B6",
+        "opencode:ses_f936166eaffevWlGFBVnh9EknG",
+        "opencode:ses_f9327af17ffezcZnz80QS8Ena7",
+        "opencode:ses_f9326a680ffeJILeXf9hXg6gDn",
+        "opencode:ses_f92f609b4ffeKBFxJxYyAeGqsc"
       ],
       "session_origins": {
         "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7": "direct",
@@ -29,7 +36,14 @@
         "opencode:ses_f9420c3b0ffeDxFt9BB6GCfcdU": "appended",
         "opencode:ses_f93ee0095ffe25oP1XENUCQ3DB": "appended",
         "opencode:ses_f9396f5aaffeTD2PHvwpMuHxaM": "appended",
-        "opencode:ses_f93815c28ffeONYeOSZeiAJbls": "appended"
+        "opencode:ses_f93815c28ffeONYeOSZeiAJbls": "appended",
+        "opencode:ses_f936298b1ffekTikCzvBNXnfvn": "appended",
+        "opencode:ses_f93624ae4ffeaCDrwAg2KDQ5mV": "appended",
+        "opencode:ses_f9361c7c6ffeur3rapr9Vep7B6": "appended",
+        "opencode:ses_f936166eaffevWlGFBVnh9EknG": "appended",
+        "opencode:ses_f9327af17ffezcZnz80QS8Ena7": "appended",
+        "opencode:ses_f9326a680ffeJILeXf9hXg6gDn": "appended",
+        "opencode:ses_f92f609b4ffeKBFxJxYyAeGqsc": "appended"
       },
       "agent": "atlas",
       "task_sessions": {
@@ -169,14 +183,26 @@
           "agent": "Sisyphus-Junior",
           "category": "deep",
           "updated_at": "2026-09-04T12:57:15.151Z"
+        },
+        "final-wave:f1": {
+          "task_key": "final-wave:f1",
+          "task_label": "F1",
+          "task_title": "Plan compliance audit",
+          "session_id": "opencode:ses_f9361c7c6ffeur3rapr9Vep7B6",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-09-04T13:54:18.223Z",
+          "status": "running",
+          "updated_at": "2026-09-04T14:22:54.750Z"
         }
-      }
+      },
+      "ended_at": "2026-09-04T14:25:50.257Z",
+      "elapsed_ms": 75084644
     }
   },
   "active_plan": "/home/lab/workspace/harness/border/.omo/plans/border-push-gate.md",
   "started_at": "2026-09-03T17:34:25.613Z",
-  "status": "active",
-  "updated_at": "2026-09-04T12:57:15.151Z",
+  "status": "completed",
+  "updated_at": "2026-09-04T15:29:25.374Z",
   "session_ids": [
     "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7",
     "opencode:ses_f948987d6ffeP3GOKynabdCMYq",
@@ -186,7 +212,14 @@
     "opencode:ses_f9420c3b0ffeDxFt9BB6GCfcdU",
     "opencode:ses_f93ee0095ffe25oP1XENUCQ3DB",
     "opencode:ses_f9396f5aaffeTD2PHvwpMuHxaM",
-    "opencode:ses_f93815c28ffeONYeOSZeiAJbls"
+    "opencode:ses_f93815c28ffeONYeOSZeiAJbls",
+    "opencode:ses_f936298b1ffekTikCzvBNXnfvn",
+    "opencode:ses_f93624ae4ffeaCDrwAg2KDQ5mV",
+    "opencode:ses_f9361c7c6ffeur3rapr9Vep7B6",
+    "opencode:ses_f936166eaffevWlGFBVnh9EknG",
+    "opencode:ses_f9327af17ffezcZnz80QS8Ena7",
+    "opencode:ses_f9326a680ffeJILeXf9hXg6gDn",
+    "opencode:ses_f92f609b4ffeKBFxJxYyAeGqsc"
   ],
   "session_origins": {
     "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7": "direct",
@@ -197,7 +230,14 @@
     "opencode:ses_f9420c3b0ffeDxFt9BB6GCfcdU": "appended",
     "opencode:ses_f93ee0095ffe25oP1XENUCQ3DB": "appended",
     "opencode:ses_f9396f5aaffeTD2PHvwpMuHxaM": "appended",
-    "opencode:ses_f93815c28ffeONYeOSZeiAJbls": "appended"
+    "opencode:ses_f93815c28ffeONYeOSZeiAJbls": "appended",
+    "opencode:ses_f936298b1ffekTikCzvBNXnfvn": "appended",
+    "opencode:ses_f93624ae4ffeaCDrwAg2KDQ5mV": "appended",
+    "opencode:ses_f9361c7c6ffeur3rapr9Vep7B6": "appended",
+    "opencode:ses_f936166eaffevWlGFBVnh9EknG": "appended",
+    "opencode:ses_f9327af17ffezcZnz80QS8Ena7": "appended",
+    "opencode:ses_f9326a680ffeJILeXf9hXg6gDn": "appended",
+    "opencode:ses_f92f609b4ffeKBFxJxYyAeGqsc": "appended"
   },
   "plan_name": "border-push-gate",
   "task_sessions": {
@@ -337,7 +377,19 @@
       "agent": "Sisyphus-Junior",
       "category": "deep",
       "updated_at": "2026-09-04T12:57:15.151Z"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "Plan compliance audit",
+      "session_id": "opencode:ses_f9361c7c6ffeur3rapr9Vep7B6",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-09-04T13:54:18.223Z",
+      "status": "running",
+      "updated_at": "2026-09-04T14:22:54.750Z"
     }
   },
-  "agent": "atlas"
+  "agent": "atlas",
+  "ended_at": "2026-09-04T14:25:50.257Z",
+  "elapsed_ms": 75084644
 }
