@@ -302,3 +302,6 @@ consumers see scp-form output '<host>/<path>' (no scheme) — exposureSet entrie
 >> gitleaks tree leg emits ABSOLUTE paths — allow file-scoping normalizes via toRepoRelative + strips '<archive>!' prefix; pin preserved.
 >> cli/exit.ts EACCES label widened to 'permission denied' (fs writes now share the errno funnel).
 >> dogfood: 497 suppressed across 7 entries (a .omo/** 228, b test/** 46 + self-corpus 158+27+25+12+1 incl c abs-path 27); exit 0; zero raw fixture literals in .border/.
+
+## [2026-09-04T22:10:48+08:00] Task: F3-fix status
+>> push records key git legs as `git:${name ?? sanitizeUrl(url)}` (pushstate.ts:226) — any consumer matching effectiveTargets kinds MUST re-derive ids (push.ts gitLegs + status gitRemoteIds) or stay on bare-fallback.

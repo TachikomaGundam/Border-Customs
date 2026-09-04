@@ -1,0 +1,46 @@
+F3 fix — status false-pending after confirmed git push (blocker), 2026-09-04
+Baseline HEAD: 7429623 (bf49adc todo-19b fix verified ancestor). Workdir
+/home/lab/workspace/harness/border.
+
+DEFECT (F3 reviewer, S8): `border status` compared the bare kind 'git' from
+newest.effectiveTargets against push records keyed `git:<name-or-url>`
+(pushstate.ts:226-227 `git:${remote.name ?? sanitizeUrl(remote.url)}`, re-derived
+in push.ts gitLegs l.135) => PUSHED unreachable for every git config;
+'git push --yes' PUSHED yet status said 'git pending — no push record for key'.
+
+RED-FIRST (test/status.test.ts, 3 new F3 tests):
+  before fix: ok 1-6, not ok 7/8/9 — symptom verbatim in failure output:
+    git      pending  no push record for key eeeeeeee
+  (A) named remote + git:origin record must show pushed; (B) two remotes both
+  pushed (anti-substring-slop); (C) one pushed/one not => per-remote split.
+
+FIX (src/commands/status.ts only): gitRemoteIds(ctx, repoDir) loads config
+(same options as commands/check.ts: cwd=repoDir, --config honored) and maps
+remotes through the EXACT pushstate id expression `git:${r.name ??
+sanitizeUrl(r.url)}` (copied, like push.ts gitLegs — pushstate.ts untouched).
+Table loop expands the bare 'git' row into per-remote id rows when ids exist;
+pushesFor stays pure id-existence (no sync check). Unusable/absent config
+(loadConfig throws — ConfigError swallowed by design, status is informational
+and must not exit 2 on a broken yaml) or zero remotes => gitIds [] => legacy
+bare-kind match, never a fabricated pending. npm/pypi arms untouched (verified
+their records ARE bare: src/push/npm.ts:214 target:"npm", pypi.ts:128
+target:"pypi"). report.json bytes, ledger schema, exit codes: untouched.
+
+GREEN: test/status.test.ts 9/9. Full suite: 329/329 pass TWICE (326 baseline +
+3). npx tsc --noEmit clean. npm run build clean. Dogfood `node dist/index.js
+check --force` exit 0 unchanged (repo has no remotes => empty-footer path).
+
+LIVE DIST E2E (real binary, /tmp fixture, named remote 'origin'): check exit 0
+(record effectiveTargets ['git']), hand-appended git:origin push record for
+the ledger key => `node dist/index.js status` prints
+  git:origin pushed   ls-remote origin origin.example:widgets.git @ 1ba47999358f (…)
+  all effective targets pushed for key edf9a752
+(status exit 0; pre-fix this printed 'git pending' — F3 S8 resolved).
+
+§4b nit n1 (unnamed local-path remote => `git:[invalid-url-redacted]`): NOT
+attempted. The collision lives inside sanitizeUrl (src/redact.ts) and flows
+through push display + ledger url + fingerprints; any real fix is multi-file
+shared-derivation surgery, violating "1-3 lines in a SINGLE shared helper" —
+my status fix derives ids from the same sanitizeUrl, so status and push stay
+consistent whichever way n1 is later resolved. Left per instruction (F3 marked
+non-blocking).
