@@ -1,11 +1,12 @@
-// provenance: original clean-room implementation per .omo/plans/border-push-gate.md todo 7
+// provenance: stub from plan todo 7, wired by plan todo 18 (ingest contract in src/llm.ts)
 //
-// `border llm-ingest <findings.json>` — stub until plan todo 18; malformed
-// input will map to exit 2 via translateError(InvalidFindingError) once wired.
-import { EXIT_ERROR, type BorderExit } from "../cli/exit.ts";
+// `border llm-ingest <findings.json>` — thin CLI seam over runLlmIngestCore.
+// cli.ts and the commands/index.ts registry are frozen; only this handler body
+// changed.
+import type { BorderExit } from "../cli/exit.ts";
 import type { Ctx } from "../cli/types.ts";
+import { runLlmIngestCore } from "../llm.ts";
 
-export function runLlmIngest(ctx: Ctx): BorderExit {
-  ctx.stderr("border: 'llm-ingest' is not implemented yet (plan todo 18 wires the ingest contract)");
-  return EXIT_ERROR;
+export async function runLlmIngest(ctx: Ctx): Promise<BorderExit> {
+  return runLlmIngestCore(ctx);
 }

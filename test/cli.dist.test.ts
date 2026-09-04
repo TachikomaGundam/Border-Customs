@@ -164,10 +164,17 @@ test("clean gate (findings spy over a leak-free repo): dry-run exits 0, sha unch
   }
 });
 
-test("dist status/llm stubs exit 2 without touching the repo", () => {
-  for (const cmd of ["status", "llm-request", "llm-ingest"] as const) {
-    const r = runDist([cmd], BORDER_ROOT);
-    assert.equal(r.code, EXIT_ERROR, cmd);
-    assert.match(r.stderr, /not implemented/i, cmd);
-  }
+// Deliberate todo-18 update (mirrors cli.test.ts): llm commands are wired now;
+// over border's own repo (no border.yaml until todo 19) they must still exit 2
+// with no stdout — honest precondition failures from the esbuild bundle too.
+test("dist status stub + wired llm commands exit 2 without touching the repo", () => {
+  const status = runDist(["status"], BORDER_ROOT);
+  assert.equal(status.code, EXIT_ERROR);
+  assert.match(status.stderr, /not implemented/i);
+  const req = runDist(["llm-request"], BORDER_ROOT);
+  assert.equal(req.code, EXIT_ERROR);
+  assert.match(req.stderr, /no scan targets|run 'border check' first/i);
+  const ing = runDist(["llm-ingest"], BORDER_ROOT);
+  assert.equal(ing.code, EXIT_ERROR);
+  assert.match(ing.stderr, /usage: border llm-ingest/i);
 });
