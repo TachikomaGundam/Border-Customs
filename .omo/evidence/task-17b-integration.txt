@@ -1,0 +1,78 @@
+Task 17b — GAP A integration: wire same-bytes registry legs into `border push` — border
+Date: 2026-09-04
+Branch: main (border repo /home/lab/workspace/harness/border)
+Baseline commit: d322abb5e0a1d09e6ec7f031fbc0bcf4deb2cab7 ("feat(push): same-bytes publish executors + policy note verified")
+
+DELIVERABLES
+- src/commands/push.ts: pending-loop in executeYesPush replaced by the real npm→pypi leg
+  execution (registryRunner + fixed ["npm","pypi"] iteration; failing leg returns its exit
+  immediately, later legs never attempted; key = state.key — never recomputed).
+  dryRunPush: stale "publishers arrive with plan todo 17" line removed; new
+  dryRunRegistryLegs() prints, per configured npm/pypi target, what --yes would do:
+  PASS record ⇒ delegate to the real executor with yes:false (ledger gate + same-bytes
+  re-hash run locally, prints the exact `npm publish ...` / `twine upload ...` line, the
+  probe stage is never reached ⇒ zero network); no PASS record ⇒ honest
+  "registry leg: run 'border check --force' first — dry-run cannot list artifacts".
+  Fingerprint key derived exactly like derivePushState's (computeFingerprint with
+  computeConfigDigest(loaded) + computeEffectiveTargets — configDigest discipline).
+- test/push.integration.test.ts (new, 4 tests I1–I4): real CLI run() seam + real verdaccio 6
+  (replicated minimal anonymous config — registries.test.ts exports no helpers) + real
+  `border check --force` + real todo-11 pack stage (runNpmArtifactStage).
+  verdaccio helpers SIGTERM + bounded port-release poll; no blind sleeps.
+
+RED (baseline d322abb, before implementation): 4/4 fail. Excerpt I1:
+  out: border: git:origin  PENDING / border: npm  PENDING
+       border: pushed git:origin — 1c88d264 confirmed via ls-remote
+  err: border: npm: executor pending (todo 17) — no registry mutation attempted
+       2 !== 0
+(I4 failed on the missing honesty line; I2 failed only on an assertion regex artifact;
+full log captured /tmp/opencode/red-baseline.txt.)
+GREEN: node --import ./tools/register-ts.mjs --test test/push.integration.test.ts → 4/4.
+FULL: npm test → tests 321, pass 321, fail 0 (317 baseline + 4 new). npx tsc --noEmit clean.
+
+MUST-ANSWER FINDINGS
+1) npm→pypi order enforced at src/commands/push.ts — executeYesPush: the literal
+   `for (const kind of ["npm", "pypi"] as const)` loop (loop header line 231, body
+   231-243), positioned after the entire git block (L181-224 git legs) and returning
+   immediately on any non-PASS (L242 `if (code !== EXIT_PASS) return code;`).
+   Dry-run mirrors the same fixed order in dryRunRegistryLegs (kinds filter, L86-88,
+   early-return at L110).
+2) After I1: ledger = 1 check-PASS record + 2 t:"push" records ([git:origin, npm]), both
+   push-records carry the SAME fingerprint key as the PASS record (asserted).
+   verdaccio GET /widgets → versions map contains "1.0.0"; server log shows
+   `requested 'PUT /widgets'` + `http <-- 201 ... 'PUT /widgets'`; push-record npm:
+   version "widgets@1.0.0", confirmedVia "npm-view", url the verdaccio registry.
+3) I3 outcome (documented deviation): the task's "pre-seed the version" tamper CANNOT
+   reach the executor via the CLI — derivePushState pre-probes the SAME registry and maps
+   an existing version to PUSHED(no-op) (ours-record or owner==self, pushstate.ts:187-191)
+   or BLOCKED-before-anything (foreign/ambiguous owner, :193-194); the executor re-probe
+   only fires on a genuine race. The cross-target partial is therefore reproduced with the
+   AC5-precedent seam: a PATH-stub npm that forwards reads (probes pass → npm stays
+   PENDING) and exits 1 on `publish`. Result: push --yes exit 1 (EXIT_BLOCKED), git
+   ALREADY landed (ls-remote sha == HEAD, push-record git:origin), executor err
+   "npm publish failed for .border/dist/widgets-1.0.0.tgz (exit 1) — no retry loop...",
+   ledger carries the git record ONLY, verdaccio putCount 0 (refused client-side).
+4) Dry-run avoids re-probing by construction: runNpmPublish/runPypiPublish short-circuit
+   at `if (!i.yes)` immediately AFTER the two local-only gates (requirePassedRecord =
+   ledger read; rehashRecordedArtifacts = sha256 of .border/dist bytes) and BEFORE
+   blockingProbeFindings — zero argv reach npm/twine. I4(c) pins it: verdaccio
+   requestCount delta == 0 across the whole dry-run.
+5) check --force does NOT populate .border/dist for npm targets (NO). Code path:
+   runCheck → recordCheckRun (src/ledger.ts:151,164-167) → packNpmArtifacts
+   (src/ledger/freshness.ts:40) packs into .border/tmp/pack-<pid>-<seq> with
+   `npm pack --ignore-scripts --silent --pack-destination=...` and rmSync-DELETEs the tmp
+   root in finally — digests land in the record, bytes never persist. The todo-11 stage
+   that writes .border/dist is runNpmArtifactStage (src/artifacts/npm.ts:123 → packOnce
+   src/artifacts/npmPack.ts:64) and is currently UNWIRED from every pipeline (grep: no
+   importers). Fixtures therefore run the real pack stage explicitly; the two argv
+   families were empirically verified byte-identical (both pack the same tree with
+   normalized dates; probe sha 7397b959476b9b6af94e73c66da14311972327c748197ccde6e92c6340968fe6
+   equal), and I1 asserts record-digest == materialized-bytes before push.
+
+TEST-FIX NOTE: verdaccio putCount filter must be `requested 'PUT` (no closing quote) —
+the info line renders "requested 'PUT /widgets'"; registries.test.ts:283 gets this right;
+an over-quoted replica silently made every zero-PUT assertion vacuous (caught by I1's
+positive putCount>=1 assertion failing despite npm publishing "to port 35889" successfully).
+
+SCOPE: touched ONLY src/commands/push.ts, test/push.integration.test.ts (new), this file.
+src/push/*, src/pushstate.ts, other tests untouched.
