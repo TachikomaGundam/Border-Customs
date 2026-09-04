@@ -17,12 +17,17 @@ import { EXIT_BLOCKED, EXIT_ERROR, EXIT_PASS } from "../src/cli/exit.ts";
 import { readLedger, type CheckRecord } from "../src/ledger.ts";
 import { requireGitleaks } from "./helpers/require-engines.ts";
 import { gitAddCommit, gitInit, makeFixtureDir, randAwsPair, removeDir, writeRel } from "./helpers/fixtures.ts";
+import { startRegistryStub, type RegistryStub } from "./helpers/registry-stub.ts";
 
 requireGitleaks();
 
 const fixtureRoots: string[] = [];
-after(() => {
+// todo 13 wired registry probes into the check pipeline: every npm-target
+// fixture must point at the loopback 404 stub (plan: no real network in suite).
+const npmStub: RegistryStub = await startRegistryStub([]);
+after(async () => {
   for (const d of fixtureRoots) removeDir(d);
+  await npmStub.close();
 });
 
 function fixture(name: string): string {
@@ -39,7 +44,7 @@ function borderYaml(remoteUrl = "origin.example:widgets.git", withNpm = false): 
     "    remotes:",
     "      - name: origin",
     `        url: ${remoteUrl}`,
-    ...(withNpm ? ["  npm: {}"] : []),
+    ...(withNpm ? ["  npm:", `    registry: ${npmStub.url}`] : []),
     "rules:",
     "  authors:",
     "    emails:",
@@ -263,7 +268,8 @@ test("CLI M8: gitignored-but-packed dist change defeats SKIP despite unchanged h
     "    remotes:",
     "      - name: origin",
     "        url: origin.example:widgets.git",
-    "  npm: {}",
+    "  npm:",
+    `    registry: ${npmStub.url}`,
     "rules:",
     "  authors:",
     "    emails:",

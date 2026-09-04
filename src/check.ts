@@ -19,6 +19,7 @@ import type { EngineOptions } from "./engines/support.ts";
 import { scanTrufflehog } from "./engines/trufflehog.ts";
 import { computeVerdict, countFindings, type Finding, type Report } from "./findings.ts";
 import { redact, TextSanitizer } from "./redact.ts";
+import { runRegistryProbes } from "./registry.ts";
 import { scanAiArtifacts } from "./rules/aiArtifacts.ts";
 import { scanIdentity } from "./rules/identity.ts";
 import { gatherContext, runGitChecked, type CheckContext } from "./check/context.ts";
@@ -137,6 +138,7 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
   }
   findings.push(...scanAiArtifacts({ repoDir, refSet: [...ctx.refSet], cfg: o.cfg.rules, ...envOpt }));
   findings.push(...scanIdentity({ repoDir, refSet: [...ctx.refSet], cfg: o.cfg, ...envOpt }));
+  findings.push(...(await runRegistryProbes({ repoDir, cfg: o.cfg, effectiveTargets: o.effectiveTargets, ...envOpt })));
 
   const exposure = [...exposureSet(o.cfg, { cwd: repoDir })];
   const rulesHash = await computeCheckRulesHash({ engineVersions: probe.engineVersions, configDigest: o.configDigest });
