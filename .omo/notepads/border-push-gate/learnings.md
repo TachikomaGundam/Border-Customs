@@ -161,3 +161,24 @@ consumers see scp-form output '<host>/<path>' (no scheme) — exposureSet entrie
   Release packaging (todo 20/21) must ship assets/ + resolve paths from the package root.
 - CLI test culture: todo 7's "check stub" expectations (loop entry + push-unwired 2)
   were the canary that the stub was replaced — reworked, cli.ts itself untouched.
+
+## todo-12 (PyPI pipeline) — 2026-09-04
+- twine check renders via rich: with narrow/no TTY it WRAPS long abs paths mid-token, so the
+  `Checking <path>: FAILED` line can be split across lines. Pass env COLUMNS=100000 NO_COLOR=1
+  when parsing twine output.
+- cli.dist.test.ts rebuilds dist from the LIVE tree (test/cli.dist.test.ts:24 `npm run build`).
+  With 3 concurrent workers, a sibling's uncommitted check.ts wiring flips the pinned fail-closed
+  message => shared-tree `npm test` redness is NOT yours. Authoritative check: `git worktree add
+  <tmp> <base>` + copy ONLY your files + node_modules symlink + run suite there (194/194 here).
+- engines.gitleaks.test.ts AC2b (.tgz native-archive dir leg) flakes under 3x parallel suite
+  load; green 11/11 standalone. Attribute before touching anything.
+- gitleaks dir-mode does NOT honor a PARENT .gitignore: secrets inside <repo>/.border/tmp/ ARE
+  found even when .border is ignored by the repo. The false-green trap is purely
+  filterBorderStateFindings dropping findings whose path contains a `.border` segment — scope
+  finding paths to the extraction root (strip wrapper, rewrite abs->rel).
+- sdist is .gitignore-blind two ways (G17): setuptools package-walk ships untracked package-dir
+  .py AND MANIFEST.in-declared untracked files. Wheel bytes are not bit-stable across runs
+  (zip mtimes) — build-once idempotence must be asserted on per-run name-sets + sha-vs-file
+  self-consistency, never byte-equality across runs.
+- `python3 -m build --no-isolation` is mandatory for offline + no-venv (plan Must-NOT);
+  binaryCandidates' ~/.local/bin fallback means PATH-stub tests must stub HOME too.

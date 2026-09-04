@@ -1,0 +1,101 @@
+TASK 12 — PyPI artifact pipeline (build-once, extract, scan, twine check)
+Date: 2026-09-04 | Baseline: 1b3d1c5 (verified via git log --oneline -3; real files on disk;
+context-injected "prior completed work" for todo-12 was a phantom — pypi.ts/test/evidence did NOT
+exist; implemented FRESH).
+
+== WHAT WAS BUILT ==
+src/artifacts/pypi.ts (248 pure LOC, awk-measured, <=250 ceiling):
+- buildPypiArtifacts(o): prereq `python3 -m build --version` + `python3 -m twine --version`
+  (ENOENT / nonzero => PypiPrerequisiteError with readonly exitCode=2 naming the exact module,
+  per plan "exit 2 naming it"); requires pyproject.toml (no poetry/flit special-casing —
+  backend comes from pyproject itself); wipes + recreates <repo>/.border/dist (build-once G38,
+  stale-state class); `python3 -m build --no-isolation --outdir <dist> <repoDir>` — NO venv
+  creation and NO network (plan Must-NOT + offline tests; setuptools 78.1.1 present in image);
+  build crash => EngineRunError; records sha256 of every produced .tar.gz/.whl sorted.
+- scanPyPiArtifacts(o): per-artifact mkdtemp sandbox under <repo>/.border/tmp/;
+  wheel = `python3 -m zipfile -e`, sdist = extractArchive (tar -xzf); sandbox removed in a
+  finally-block via removeSandbox (round-2 m3 contract).
+  * gitleaks scanTree + secretlint scanPaths on the EXTRACTION ROOT; finding paths rewritten to
+    artifact-inner relpaths (sdist wrapper `<name>-<ver>/` stripped) => NO `.border` segment and
+    no absolute paths survive, so filterBorderStateFindings(findings, repoDir) CANNOT false-green
+    them (CRITICAL trap acknowledged in task brief; verified empirically that gitleaks dir-mode
+    does not honor a PARENT .gitignore — secret inside .border/tmp still found).
+  * dedupe across sdist+wheel and engines on key rule\0relpath\0digest (test 2 asserts exactly
+    1 gitleaks + 1 secretlint finding for a file identical in both artifacts).
+  * manifest-diff (sdist): entries explained = git-tracked (ls-files, GIT_CEILING_DIRECTORIES)
+    U MANIFEST.in globs (include/recursive-include/graft with prune/global-exclude handling)
+    U pyproject readme/license/license-files/package-data/data-files globs U build-generated
+    metadata (PKG-INFO, setup.cfg stub, SOURCES.txt, *.egg-info/, *.dist-info/). Unexplained =>
+    HIGH `sdist-unexpected-file` (engine pypi-manifest). Probe-proven G17 gitignore-blindness:
+    untracked package-dir .py AND untracked MANIFEST.in files land in the sdist.
+  * `python3 -m twine check --strict <dist files>` (env COLUMNS=100000 NO_COLOR=1 — rich wraps
+    long abs paths mid-token otherwise); fail => HIGH `twine-check` per failed artifact
+    (basename path), NOT a crash; unparseable output => EngineRunError (fail-closed).
+- G23: every finding flows through redact()/TextSanitizer; test asserts raw key absent from
+  JSON.stringify(findings).
+
+test/artifacts.pypi.test.ts (196 pure LOC, 7 tests): fixtures are real git repos in unique
+mkdtemp under gitignored test/tmp/, REAL python3 -m build executed (no mocks, no network).
+1. AC1 happy: src/secrets_in_data.py planted (AKIAI4Q3EXAMPL3K7X2Q = AKIA+16, not a
+   secretlint builtin-example) untracked + MANIFEST.in pulls it in => CRITICAL gitleaks
+   'aws-access-token' + secretlint at path src/secrets_in_data.py (no .border segment;
+   filterBorderStateFindings drops NOTHING), untracked ghost.py => exactly 1 HIGH
+   sdist-unexpected-file, verdict FAIL, no /home paths in any finding, sanitization holds,
+   sandboxes cleaned.
+2. Dedupe: flat-layout single-file package fresh key in both artifacts => exactly 1 gitleaks +
+   1 secretlint finding per path, unique rule\0path\0digest triples.
+3. Build-once/stale-state: stale .border/dist/stale-junk-0.0.1.tar.gz wiped; clean fixture =>
+   PASS, 0 findings, artifact sha256s match files on disk, rerun idempotent (same artifact
+   names, dist readdir == artifact set; NOTE: wheel/sdist bytes are not bit-stable across runs
+   (zip/gzip mtimes), so idempotence is asserted on per-run name-set + hash self-consistency).
+4. twine gate: broken README.rst (bad directive + short underline, no MANIFEST.in) => README not
+   in sdist (itself proof of manifest blindness), HIGH twine-check for BOTH artifacts, verdict
+   FAIL, zero CRITICALs.
+5. Manifest-diff scope: MANIFEST.in-declared untracked files produce zero unexpected-file rows
+   while secret scan still fires.
+6. PATH-stub failure (HOME stubbed too — binaryCandidates ~/.local/bin fallback): missing
+   python3 => PypiPrerequisiteError exitCode 2 naming 'python3 -m build', for both
+   scanPyPiArtifacts and buildPypiArtifacts.
+7. Malformed pyproject (adversarial: broken toml) => clean EngineRunError naming build, no
+   hang (spawnEngine timeoutMs honored).
+
+== TDD RECORD ==
+RED: node --import ./tools/register-ts.mjs --test test/artifacts.pypi.test.ts =>
+  ERR_MODULE_NOT_FOUND .../src/artifacts/pypi.ts (module absent) — right reason.
+GREEN after minimal implementation + 3 fix iterations:
+  a) twine FAILED-line absent: twine's rich progress wrapped long abs dist paths across lines =>
+     parse env COLUMNS=100000 NO_COLOR=1.
+  b) exactOptionalPropertyTypes: `binPath?: string | undefined` broke EngineOptions spread =>
+     optional fields without `| undefined` (erasableSyntaxOnly also forbade `private readonly c?`
+     ctor params => plain function).
+  c) stale-dist idempotence: wheel bytes differ per build (mtimes) => assert name-set stability.
+Final: test/artifacts.pypi.test.ts 7/7 pass; npm run typecheck clean; npm run build clean.
+
+== FULL SUITE ==
+Main tree `npm test` (3 concurrent workers sharing the tree): 204/205. Both non-mine failures
+attributed to external contamination, NOT to this task:
+ - test/cli.dist.test.ts:93 — the test REBUILDS dist from the live tree (cli.dist.test.ts:24);
+   sibling todo-14 worker's UNCOMMITTED `M src/commands/check.ts` (+52 lines wiring the real
+   pipeline) now hits the documented dist-bundle rules-gap => 'missing rules input file:
+   /home/lab/workspace/harness/assets/gitleaks-defaults-v8.30.1.toml' replaces the pinned
+   'unwired gate' fail-closed message.
+ - test/engines.gitleaks.test.ts:95 AC2b — load flake under 3x parallel suites; 11/11 green
+   standalone.
+ISOLATED PROOF (authoritative): git worktree at CLEAN 1b3d1c5 with ONLY this task's 2 files
+copied in => `npm test` = 194/194 pass, 0 fail (existing 187 + new 7), duration ~30s.
+(Command run from /home/lab/lab/fuzz-lab/border-verify-t12; worktree removed after.)
+
+== CLEANUP RECEIPT ==
+- test/tmp/pypi-* fixture roots (incl. their .border/dist + build/ dirs setuptools creates inside
+  the fixture repo) removed by the test's after() hook.
+- /home/lab/lab/fuzz-lab/pypi-probe{1..4} scratch repos removed.
+- /home/lab/lab/fuzz-lab/border-verify-t12 worktree removed (git worktree remove --force);
+  node_modules symlink dies with it. No residue in the real repo except committed files.
+
+== RISKS / NOTES ==
+- Manifest explanation of pyproject globs is line-oriented (no TOML dep allowed); exotic TOML
+  layouts may over-flag (fail-closed HIGH, never false-green) — acceptable per plan intent.
+- twine-check paths are artifact BASENAMES (not repo-rel): designed so the repoDir-scoped border
+  filter keeps them; orchestrator (todo 17) should render as <target>/<basename>.
+- Wheel contents are the built tree; secret bytes embedded by build hooks (rare) would evade the
+  extract scan exactly like npm pack does — noted for todo-13/17.
