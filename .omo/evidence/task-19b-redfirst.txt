@@ -1,0 +1,35 @@
+Task 19b — red-first capture (defect found by root dist QA at 366fd45)
+2026-09-04T15:56:33+08:00
+
+$ npm run build && node dist/index.js check --force   # BEFORE allow fix, HEAD 366fd45
+EXIT=1  run .border/runs/abfb2036-2026-09-04T07-55-33-974Z
+
+border: border check FAIL: 4 finding(s), 4 blocking
+border: CRITICAL @secretlint/secretlint-rule-no-homedir/HOMEDIR secretlint border.yaml found user's homedir path: ▮▮▮▮
+border: CRITICAL path-pattern:/home/[a-z]+/ secretlint border.yaml found matching path-pattern:/home/[a-z]+/: ▮▮▮▮
+border: CRITICAL @secretlint/secretlint-rule-no-homedir/HOMEDIR secretlint border.yaml found user's homedir path: ▮▮▮▮
+border: CRITICAL path-pattern:/home/[a-z]+/ secretlint border.yaml found matching path-pattern:/home/[a-z]+/: ▮▮▮▮
+
+findings (from report.json): all on border.yaml, engine secretlint —
+  @secretlint/secretlint-rule-no-homedir/HOMEDIR  border.yaml:31
+  path-pattern:/home/[a-z]+/                      border.yaml:31
+  @secretlint/secretlint-rule-no-homedir/HOMEDIR  border.yaml:44
+  path-pattern:/home/[a-z]+/                      border.yaml:44
+
+Root cause: committed border.yaml contains the literal /home/lab/workspace/harness/border
+(the pathPatterns value itself), so generic secretlint matchers self-fire. Allow entry #0
+(rule path-pattern:/home/lab/workspace/harness/border) names the CONFIG-GENERATED rule, not
+the bundled generic matcher rule path-pattern:/home/[a-z]+/. Fix = 2 file-scoped (c) entries.
+
+GREEN (after fix, same dist, HEAD 366fd45 + working border.yaml):
+2026-09-04T15:58:55+08:00
+$ node dist/index.js check --force  x2
+run1 exit 0  .border/runs/f69c3f4d-2026-09-04T07-56-40-137Z
+run2 exit 0  .border/runs/f69c3f4d-2026-09-04T07-57-03-729Z  (key f69c3f4d stable)
+stdout both: "border: border check PASS: 0 finding(s), 0 blocking"
+allow-hits new rows: entry #7 '@secretlint/secretlint-rule-no-homedir/*' count 2 sample border.yaml; entry #8 'path-pattern:*' count 2 sample border.yaml (total 516 suppressed, 9 rows)
+grep -c AKIAI4Q3EXAMPL3K7X2Q over both runs json+md + ledger + both stdouts => all 0; grep -rl over .border/ => 0 files
+border status => exit 0, "key f69c3f4d — verdict PASS — head 366fd45ba492", repo-local footer
+
+NEGATIVE CONTROL (unit, test/allow.test.ts): same two rules at notes.md are NOT suppressed by the
+border.yaml-pinned entries — file-scoping holds against the committed border.yaml itself.

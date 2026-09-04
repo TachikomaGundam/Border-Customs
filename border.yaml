@@ -63,6 +63,16 @@ allow:
   # evidence intentionally quote leak-hunting literals at absolute /home paths.
   # Everything not caught by (c) above and still inside the planning tree.
   - { rule: "*", match: "*", file: ".omo/**" }
+  # (c) border.yaml's own content self-triggers generic detectors: the
+  # pathPatterns value above is a literal /home/... string on disk, so
+  # secretlint's built-in no-homedir rule and the generic path-pattern
+  # matcher (/home/[a-z]+/ from the bundled defaults) both fire ON THIS FILE
+  # only. Narrowest sanctioned scope: rule-family glob + file pinned to
+  # border.yaml — other files carrying a /home/ path are NOT widened here
+  # (they fall under (a)/(b) or stay findings), and hostile-config detection
+  # (repo-self-ignores-findings) still guards this file independently.
+  - { rule: "@secretlint/secretlint-rule-no-homedir/*", match: "*", file: "border.yaml" }
+  - { rule: "path-pattern:*", match: "*", file: "border.yaml" }
 
 engines:
   require:
