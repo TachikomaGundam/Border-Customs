@@ -1,0 +1,82 @@
+=== task-11 npm artifact pipeline — evidence log (worker: sisyphus-junior, 2026-09-03T23:40:25Z) ===
+--- BASELINE ---
+/home/lab/workspace/harness/border
+1b3d1c5 chore(state): todo 10 ledgered+checkboxed (10/24); phantom-sandbox mitigation protocol
+e6141e0 docs(evidence): task-10 AC proofs, manual QA, pipeline deviations; learnings append
+c72db95 feat(check): ctx gathering, .border discipline, engine+rule pipeline
+?? .omo/evidence/task-11-border-push-gate.txt
+--- SPIKE (empirical contract, pre-code) ---
+npm 11.19.1 / node v22.22.1; publint 0.3.24 (node_modules/.bin/publint, exit 0 clean / 1 error-level messages / else fail-closed)
+npm pack --json => [{id,name,version,size,unpackedSize,shasum(sha1),integrity,filename,files:[{path,size,mode}],entryCount,bundled}]
+scoped @spike/priv -> filename "spike-priv-0.1.0.tgz"; tar root prefix "package/"; private packs fine exit 0
+npm pack DETERMINISTIC: repack same tree => identical sha256 (pack-once + re-pack digest proof viable)
+npm pack <folder> works from foreign cwd (spawnEngine has no cwd) AND --ignore-scripts suppresses target-repo lifecycle scripts (prepack/prepare execution prevention)
+publint <abs.tarball> --level error: "All good!" exit 0; missing main file => "pkg.main is ... does not exist" exit 1
+--- RED RUN (modules absent, expected ERR_MODULE_NOT_FOUND) ---
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 479.740036
+# Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/lab/workspace/harness/border/src/artifacts/npm.ts' imported from /home/lab/workspace/harness/border/test/artifacts.npm.test.ts
+--- GREEN RUN (task-11 suite) 2026-09-03T23:56:54Z ---
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12360.787901
+--- support.ts Node22 timeout fix: spawnSync timeout surfaces error=ETIMEDOUT+status=null; spawnEngine now maps to EngineRunError 'killed by signal timeout' (was untyped Error) ---
+--- FULL SUITE ---
+  ...
+1..205
+# tests 205
+# suites 0
+# pass 201
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 29682.009945
+--- TYPECHECK ---
+> border@0.1.0 typecheck
+> tsc --noEmit
+
+--- BUILD ---
+  dist/index.js  1.4mb ⚠️
+
+⚡ Done in 54ms
+--- LOC ---
+src/artifacts/npm.ts: 277
+src/artifacts/manifestDiff.ts: 111
+test/artifacts.npm.test.ts: 206
+--- SPLIT (250-LOC ceiling): npm.ts orchestration + npmPack.ts tool-invocation layer, manifestDiff.ts pure ---
+src/artifacts/npm.ts LOC: 216
+src/artifacts/npmPack.ts LOC: 115
+src/artifacts/manifestDiff.ts LOC: 111
+test/artifacts.npm.test.ts LOC: 206
+--- TYPECHECK FULL ---
+> tsc --noEmit
+
+--- BUILD ---
+
+⚡ Done in 70ms
+--- FULL SUITE ---
+not ok 49 - push on a clean fixture: stdout carries DRY-RUN + git push --dry-run, bare sha unchanged
+# tests 216
+# pass 215
+# fail 1
+--- FULL SUITE 215/216; sole failure test/cli.dist.test.ts:93 attribution ---
+cause: MissingRulesInputError (src/redact.ts:150) thrown by G21 rulesHash when the todo-14 in-progress check wiring (working-tree-modified src/commands/check.ts, imported by the bundle via cli registry) resolves GITLEAKS_VENDORED_CONFIG from the esbuild bundle root (dist/../.. => harness/assets, outside border/) — the documented dist-bundle asset gap. Not my code: nothing imports src/artifacts/npm*.{ts} yet (todo 14/15 wires the stage); my support.ts edit adds a branch ONLY for spawnSync error=ETIMEDOUT+status=null (unreachable here — the throw precedes any spawn). cli.dist.test.ts before() rebuilds dist from the SHARED working tree, so any full-suite run after todo-14 lands their check wiring is red until the asset-path fix (their file ownership).

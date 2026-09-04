@@ -77,6 +77,14 @@ export function spawnEngine(
         lastError = r.error;
         continue;
       }
+      // Node >=22 reports a spawnSync timeout as error=ETIMEDOUT with
+      // status=null — same "killed, never trust the silence" contract below.
+      if (r.status === null) {
+        throw new EngineRunError(
+          `${bin} was killed by signal timeout (${(r.error as NodeJS.ErrnoException).code})`,
+          null,
+        );
+      }
       throw engineErrorFromSpawn(r.error, bin);
     }
     if (r.status === null) {
