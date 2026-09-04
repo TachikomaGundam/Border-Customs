@@ -1,0 +1,83 @@
+task 17 — same-bytes npm/PyPI publish executors (border-push-gate plan)
+=======================================================================
+
+baseline_proof
+--------------
+$ pwd && git rev-parse HEAD
+/home/lab/workspace/harness/border
+e9262faeacd50495bdb2dfd9d815891b0a6ad54c   (>= 1a80307 required)
+$ git status --porcelain | grep -vE '^\?\? \.omo/run-continuation'
+ M .omo/boulder.json          (state file; never staged)
+
+Sibling work landed mid-session (17b27eb "feat(push): multi-remote executor
+with all-or-nothing ff guard" — src/commands/push.ts, src/push/git.ts,
+test/cli.test.ts, test/push.git.test.ts, task-16 evidence). Zero overlap with
+this task's owned files; worked around, never touched/staged by me.
+
+RED excerpt (TDD red-first, before src/push existed)
+---------------------------------------------------
+$ node --import ./tools/register-ts.mjs --test test/push.registries.test.ts
+not ok 1 - test/push.registries.test.ts
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module
+  '/home/lab/workspace/harness/border/src/push/npm.ts'
+  imported from /home/lab/workspace/harness/border/test/push.registries.test.ts
+
+GREEN (targeted suite, 9/9)
+---------------------------
+$ node --import ./tools/register-ts.mjs --test test/push.registries.test.ts
+ok 1 - AC1 npm E2E: dry-run prints exact command with ZERO verdaccio hits; --yes publishes with warning-before-spawn, visible version, push-record
+ok 2 - AC2 npm tamper: one flipped byte in .border/dist after the PASS => exit 2 before ANY registry hit
+ok 3 - AC3 npm double-publish: second --yes attempt re-probes, hard-FAILs with bump message, issues no PUT
+ok 4 - AC4 pypi dry-run: exact twine upload line with repository-url, ZERO probe requests
+ok 5 - AC4 pypi tamper: flipped byte in the wheel => exit 2 `artifact changed since check`, zero network
+ok 6 - AC4 pypi version-exists re-probe => exit 1 citing bump; twine never spawned
+ok 7 - AC4 pypi twine absent (TWINE_BIN seam) => clean exit 2 before any network, no partial
+ok 8 - AC5 missing / key-mismatched / superseded-by-FAIL record => exit 1 `run border check first`, zero network
+ok 9 - G28: executor sources never construct or forward credential material
+# pass 9
+# fail 0
+
+AC1 note: real pinned verdaccio 6.10.2 (node_modules/.bin/verdaccio), ephemeral
+loopback port, anonymous $all publish config; publish PUT visible in its log,
+published version confirmed through the todo-13 GET probe (runRegistryProbes),
+push-record confirmedVia npm-view. No stub substitution on the npm leg.
+
+FULL SUITE
+----------
+$ npm test
+# tests 317
+# suites 0
+# pass 317
+# fail 0
+# cancelled 0
+# skipped 0
+# duration_ms 113929.882691
+
+$ npx tsc --noEmit
+(no output, rc 0)
+
+Policy verification (G37 close-out, OFFICIAL docs, accessed 2026-09-04, <15min)
+-------------------------------------------------------------------------------
+1. https://docs.npmjs.com/policies/unpublish/
+   "Registry data is immutable, meaning once published, a package cannot
+   change. [...] Once `package@version` has been used, you can never use it
+   again. You must publish a new version even if you unpublished the old one."
+   Unpublish window 72h; 24h republish lock on the same version.
+2. https://docs.pypi.org/project-management/yanking/
+   "PyPI currently only supports yanking of entire releases, not individual
+   files" — yank is a non-destructive alternative to deletion; re-upload of the
+   exact same version is still refused.
+Both quoted verbatim in src/push/npm.ts header; PUBLISH_WARNING paraphrases them.
+
+Debug trail (resolved, artifacts cleaned)
+-----------------------------------------
+AC3 initially failed `0 !== 1` on the publish-PUT assertion: verdaccio flushes
+its stdout->file log asynchronously (PUT lines land after npm publish exits) and
+emits 3 log lines per PUT (1x "requested 'PUT /widgets'" + 2x http status). Fix:
+putCount() counts only the unique "requested 'PUT" marker line; positive-count
+assertions go through waitUntil() (deadline poll, no bare sleep) per plan todo-1
+e2e-honesty rule. Negative assertions (zero hits) stay immediate since the
+exit code already proves the short-circuit.
+
+Ownership proof: commit contains exactly src/push/npm.ts, src/push/pypi.ts,
+test/push.registries.test.ts, this evidence file (see git show --stat below).
