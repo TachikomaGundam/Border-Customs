@@ -80,9 +80,9 @@ function seedRepo(top: string): string {
  * allow the fixture identity; engines.require [] keeps the probe env-invariant
  * (the AC5 PATH stub must not shift the fingerprint key).
  */
-function writeCfg(top: string, remotes: readonly { name: string; url: string }[]): string {
+function writeCfg(top: string, remotes: readonly { name?: string; url: string }[]): string {
   const path = join(top, "border.yaml");
-  const lines = remotes.map((r) => `      - name: ${r.name}\n        url: ${r.url}`);
+  const lines = remotes.map((r) => (r.name === undefined ? `      - url: ${r.url}` : `      - name: ${r.name}\n        url: ${r.url}`));
   writeFileSync(
     path,
     [
@@ -394,4 +394,71 @@ test("pushArgv builds exactly the plan command lines, dry and execute, with no e
     ["--follow-tags"],
   );
   assert.ok(![...pushArgv("u", "b", "dry-run"), ...pushArgv("u", "b", "execute")].some((a) => a.toLowerCase().includes("force")), "no history-rewrite override may ride the argv");
+});
+
+// ---------------------------------------------------------------------------
+// FOLLOW-UP regression: TWO unnamed remotes with local-path urls. Pre-fix both
+// ids collapsed to `git:[invalid-url-redacted]` (sanitizeUrl eats local paths)
+// ⇒ first-match double-pushed a.git, b.git NEVER pushed, ledger records with
+// identical targets. Post-fix ids are index-keyed `git:#0` / `git:#1`.
+
+test("F3-followup: two unnamed local-path remotes — --yes lands BOTH bares, 2 DISTINCT records, status shows both pushed", async () => {
+  const top = scratch("unnamed");
+  const repo = seedRepo(top);
+  const a = addBare(top, "a");
+  const b = addBare(top, "b");
+  const cfgPath = writeCfg(top, [{ url: a }, { url: b }]); // local-path urls, no name:
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  const key = await seedPass(repo, cfgPath, env);
+
+  const r = await runBorder(["push", "--yes", "--config", cfgPath], repo, env);
+  assert.equal(r.code, EXIT_PASS, `expected exit 0, got ${String(r.code)}\nout: ${r.out.join("\n")}\nerr: ${r.err.join("\n")}`);
+
+  const head = gitRevParseHead(repo);
+  for (const [bare, label] of [
+    [a, "a.git"],
+    [b, "b.git"],
+  ] as const) {
+    assert.equal(lsRemote(bare, "refs/heads/main"), head, `${label}: branch tip must equal local HEAD — every unnamed remote gets its own push leg`);
+  }
+
+  const recs = pushRecords(readLedger(repo).records, key);
+  assert.equal(recs.length, 2, `exactly two push records, got ${String(recs.length)}`);
+  assert.equal(new Set(recs.map((x) => x.target)).size, 2, "targets must be DISTINCT — pre-fix both were the identical 'git:[invalid-url-redacted]'");
+  assert.deepEqual(recs.map((x) => x.target).sort(), ["git:#0", "git:#1"]);
+  for (const rec of recs) assert.equal(rec.remoteName, rec.target.replace("git:", ""), "remoteName is the id suffix (#0 / #1) for unnamed remotes");
+
+  const s = await runBorder(["status", "--config", cfgPath], repo, env);
+  assert.equal(s.code, EXIT_PASS, s.err.join("\n"));
+  for (const id of ["git:#0", "git:#1"]) {
+    const row = s.out.find((l) => l.trim().startsWith(id));
+    assert.ok(row !== undefined && /pushed/.test(row), `${id} must be pushed:\n${s.out.join("\n")}`);
+  }
+  assert.ok(!s.out.some((l) => /no push record/.test(l)), `no false pending:\n${s.out.join("\n")}`);
+});
+
+test("F3-followup: named + unnamed mix — named keeps git:origin ledger shape, unnamed is git:#1, both land", async () => {
+  const top = scratch("mix");
+  const repo = seedRepo(top);
+  const origin = addBare(top, "origin");
+  const bare = addBare(top, "bare");
+  const cfgPath = writeCfg(top, [{ name: "origin", url: `file://${origin}` }, { url: bare }]);
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  const key = await seedPass(repo, cfgPath, env);
+
+  const r = await runBorder(["push", "--yes", "--config", cfgPath], repo, env);
+  assert.equal(r.code, EXIT_PASS, `expected exit 0, got ${String(r.code)}\nout: ${r.out.join("\n")}\nerr: ${r.err.join("\n")}`);
+
+  const head = gitRevParseHead(repo);
+  assert.equal(lsRemote(origin, "refs/heads/main"), head);
+  assert.equal(lsRemote(bare, "refs/heads/main"), head);
+
+  const recs = pushRecords(readLedger(repo).records, key);
+  assert.deepEqual(recs.map((x) => x.target).sort(), ["git:#1", "git:origin"]);
+  for (const rec of recs) assert.equal(rec.remoteName, rec.target.replace("git:", ""), "remoteName is the id suffix");
+
+  const originRecord = recs.find((x) => x.target === "git:origin");
+  assert.ok(originRecord !== undefined);
+  assert.equal(originRecord.remoteName, "origin", "named-remote record shape unchanged (backward compat)");
+  assert.ok(originRecord.url.startsWith("file://"), "url still passes through buildPushRecord (sanitizeUrl) exactly as before");
 });
