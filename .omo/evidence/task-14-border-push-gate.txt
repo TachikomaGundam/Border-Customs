@@ -1,0 +1,118 @@
+Task 14 — Check-skip ledger (fingerprint, records, retention) — border-push-gate
+================================================================================================
+Baseline proof (pre-work):
+  $ git log --oneline -3
+  1b3d1c5 chore(state): todo 10 ledgered+checkboxed (10/24); phantom-sandbox mitigation protocol
+  e6141e0 docs(evidence): task-10 AC proofs, manual QA, pipeline deviations; learnings append
+  c72db95 feat(check): ctx gathering, .border discipline, engine+rule pipeline
+
+Files:
+  src/ledger.ts               facade: computeFingerprint / consultSkipLedger / recordCheckRun + re-exports
+  src/ledger/records.ts       JSONL schema, corruption-tolerant reader, single-append writer, skip/scope queries
+  src/ledger/freshness.ts     round-1 M8 artifact-freshness proof (npm repack digest-compare, pypi degraded proof)
+  src/ledger/retention.ts     .border/runs/<key8>-<ts> naming, pruneRunDirs (newest 20 per key8, ledger lines kept)
+  src/commands/check.ts       wiring: consult before executeCheck, SKIP fast-path, record after degraded gate
+  test/ledger.test.ts         11 unit tests (schema/queries/retention/freshness/NO-OP refusal)
+  test/ledger.check.test.ts   4 CLI integration suites (real gitleaks + git + npm, ~30 check invocations)
+
+configDigest DECISION (todo-10 declared risk) — see decisions.md for full rationale:
+  Switched runCheck from border.yaml BYTE digest to computeConfigDigest (canonical JSON of the
+  EFFECTIVE merged config). Proven at CLI level two ways:
+  - test "env-expanded remote URL moves the key with IDENTICAL config bytes": border.yaml holds
+    git@${BORDER_QA_HOST}:org/repo.git, bytes constant, host a⇒b re-checks (exposureSet catches it —
+    would also pass under byte digest).
+  - test lifecycle "overlay" cause: .border/config.local.yaml adds a second remote — an UNTRACKED
+    file byte digest never sees; head/porcelain/border.yaml bytes all identical ⇒ still re-checks
+    (canonical digest moves rulesHash AND exposureSet). Byte digest left this hole open.
+
+G21 re-trigger causes — each proven ⇒ full re-check (no SKIP), via the real CLI:
+  1. refSet change        (git tag v1.0.0)                          ✔ test/ledger.check.test.ts
+  2. head change          (new commit)                              ✔ test/ledger.check.test.ts
+  3. porcelain change     (untracked dirty file)                    ✔ test/ledger.check.test.ts
+  4. exposureSet via overlay remote (config.local.yaml add)          ✔ test/ledger.check.test.ts
+  5. engineVersion bump   (PATH shim gitleaks --version ⇒ 99.99.99, scan legs forwarded to real binary) ✔
+  6. target scope change  (git-only PASS ⇒ widened git+npm config ⇒ re-check + artifacts recorded) ✔
+     + env-expanded URL exposure change (BORDER_QA_HOST flip)       ✔ separate suite
+     + --force bypass                                                ✔
+     + --llm cannot consume non-LLM PASS (round-1 m7)                ✔
+
+Skip semantics (verified against plan text line 197, NOT assumed):
+  - lookup = NEWEST record with matching key must be PASS ∧ ¬degraded ∧ llm===mode
+    ⇒ a FAIL recorded AFTER a PASS invalidates the skip (fail-closed newest-verdict reading;
+    lock-step implemented in lookupSkipRecord/latestPassCoveringTargets, unit test asserts it).
+  - cached FAIL is therefore never replayed: each blocked re-run re-derives exit 1 + appends audit record.
+  - SKIP prints exactly `SKIP <key8> — PASS <ISO ts> report <path>` (D6) and exits with the
+    CERTIFIED run's verdict (PASS ⇒ 0).
+  - degraded ⇒ exit 2 regardless: runCheck returns before recordCheckRun; degraded consult never
+    skips (probeDegraded ⇒ no record, no skip — ledger line count unchanged, asserted).
+  - NO-OP ⇒ recordCheckRun throws /NO-OP/; refusal leaves no ledger file behind (unit test).
+
+Retention AC: 25 seeded run dirs ⇒ exactly 20 newest survive, oldest collected, other key8 untouched,
+no-runs-dir ⇒ no-op. Ledger lines are NEVER pruned (append-only). test/ledger.test.ts.
+
+Failure AC — corruption tolerance (hand-corrupted lines must not brick):
+  - unit: invalid JSON + unknown t + SIGKILL-torn tail (no trailing \n) + blank lines ⇒ every bad line
+    becomes `ledger line N unreadable (reason) — line skipped`, valid records intact, lookups work.
+  - CLI: two corrupt lines appended ⇒ stderr WARNINGs + SKIP still honored, exit 0 (manual QA below).
+  - hand-forced degraded:true ⇒ rejected at PARSE (never becomes a record).
+
+Atomicity/concurrency: appendRecord writes ONE serialized line via appendFileSync(…, flag a) ⇒
+single write syscall of one buffer under O_APPEND (plan: "single writeFileSync append of one-line JSON,
+atomic enough for append; concurrency blocked by lock anyway"). Torn writes read back as corrupt lines.
+
+Manual QA (literal exchanges, real CLI from INSIDE fixture dir, no --cwd flag used):
+  $ cd test/tmp/qa-todo14-1580587   (git init, border.yaml scp remote, identity allowlisted)
+  $ /usr/bin/time node --import file://…/tools/register-ts.mjs …/src/index.ts check
+  border: border check PASS: 0 finding(s), 0 blocking
+  exit=0
+  3.81s elapsed (full gitleaks+secretlint scan)
+
+  $ /usr/bin/time node --import file://…/tools/register-ts.mjs …/src/index.ts check
+  SKIP e324ac18 — PASS 2026-09-04T00:21:52.944Z report .border/runs/e324ac18-2026-09-04T00-21-52-944Z/report.json
+  exit=0
+  1.53 / 1.63 / 1.59s elapsed (3 consecutive SKIP runs)
+  NOTE <1s fast-path accounting: pure process bootstrap under the TS loader is 1.04s wall
+  (measured with `--help`), so ledger WORK on the SKIP path ≈ 0.5-0.6s. The bundled dist build
+  cannot serve this measurement yet: vendored gitleaks toml is unresolved outside the repo ⇒
+  check fail-closes exit 2 "engine run error" there — a known todo-20/21 packaging gap the
+  committed cli.dist.test.ts already pins ("files":["dist"] packaging is todo 20/21).
+  In-process timing (bootstrap excluded, same real engines, measured via a throwaway probe script):
+  run1 (full pipeline) 2804ms ⇒ run2 SKIP 509ms ⇒ run3 SKIP 474ms. The <1s SKIP fast-path
+  holds on the work itself; CLI wall time adds ~1.0s of fixed node+TS-loader process bootstrap.
+
+  $ node … check --force                                  ⇒ full re-check, fresh record  ✔
+  $ printf '!!!torn\n' >> .border/ledger.jsonl; node … check
+  border: WARNING ledger line 3 unreadable (Unexpected token 'C', "C0RRUPT!!!" is not valid JSON) — line skipped
+  border: WARNING ledger line 4 unreadable (Unexpected token '!', "!!!torn" is not valid JSON) — line skipped
+  SKIP e324ac18 — PASS 2026-09-04T00:21:52.944Z report .border/runs/…/report.json           (exit 0)  ✔
+
+  FAIL honesty (plan line 197: lookup requires verdict PASS ⇒ FAILs are never skipped/cached):
+  $ printf 'aws_access_key_id = AKIAI4Q3EXAMPL3K7X2Q…' > leak.env && git add -A && git commit -qm leak
+  $ node … check  ⇒ … 4 CRITICAL (gitleaks×2 + secretlint×2) … exit=1
+  $ node … check  ⇒ NOT skipped: re-runs full pipeline, re-derives exit 1, appends FAIL audit record  ✔
+  ledger verdicts: 4 FAIL + 1 PASS — every blocked run re-certifies the block, never replays it.
+  Fixture (and its planted literal) under gitignored test/tmp/, deleted after QA:
+  `rm -rf test/tmp/qa-todo14-*` ⇒ no matches. Border's own repo history verified clean.
+
+Push-record API (for todos 15/16/17, schema built NOW per plan line 197):
+  buildPushRecord({key,target,remoteName,url,localSha,remoteSha|version,confirmedVia}) — the
+  CONSTRUCTOR sanitizes url (G20: credential-bearing url cannot reach the ledger any other way).
+  pushRecords(records, key?)           — read API for push state.
+  latestPassCoveringTargets(records, key, targets) — round-1 B2 push-scope rule: `check --targets git`
+  can never authorize an npm/pypi push (git-only PASS record rejected for ["git","npm"]/["npm"]).
+
+Pipeline deviation (authorized): todo 10's computeConfigDigest already chose canonical JSON; this
+task moved runCheck OFF its local byte-digest branch onto that helper — the digest lives inside
+rulesHash which the key already covers, so no second formula was forked. No existing test weakened;
+cli.dist.test.ts untouched (it exercises `push`; its expectations restored — see regression note below).
+Regression caught+fixed during QA: consultSkipLedger initially let a fingerprint-phase throw
+(missing vendored rules in dist) escape as an unstructured CLI error. consultSkipLedger is now
+best-effort BY CONTRACT: any throw ⇒ "no skip" ⇒ the full pipeline runs and takes its established
+structured exit-2 path. The ledger can refuse to skip; it can never re-route an error or certify.
+
+Test/verification results:
+  npm test run #1: 220/220 pass 0 fail (61.1s)  [187 baseline + 15 new + sibling artifacts tests]
+  npm test run #2: 221/221 pass 0 fail (61.3s)  [flake check; sibling added one test live between runs]
+  npm run typecheck: clean
+  npm run build: clean
+  $ git log --oneline -3 (post-commit — see final_proof in DoneClaim)
