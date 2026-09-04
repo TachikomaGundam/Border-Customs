@@ -15,6 +15,7 @@
 //   * publint --level error ⇒ HIGH publint-fail; private:true + npm target ⇒
 //     CRITICAL npm-target-but-private; npm missing on PATH ⇒ clean error.
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, chmodSync } from "node:fs";
 import { join } from "node:path";
@@ -92,7 +93,7 @@ test("files-whitelist vs packed main: separate HIGH artifact-unexpected-file AND
 
   // (2) content scans ran on the PACKED bytes and attribute to the same file
   const gk = r.findings.filter((f) => f.engine === "gitleaks");
-  assert.ok(gk.length >= 1, "gitleaks must find the planted AWS pair inside the pack");
+  assert.ok(gk.some((f) => f.rule === "aws-access-token"), `aws rule must fire deterministically — randAwsPair key must satisfy the vendored [A-Z2-7]{16} base32 window, got ${JSON.stringify(gk.map((f) => f.rule))}`);
   assert.ok(gk.some((f) => f.severity === "CRITICAL" && f.path === "package/dist/leaked-build.js"));
   const sl = r.findings.filter((f) => f.engine === "secretlint");
   assert.ok(sl.some((f) => f.severity === "CRITICAL"), "secretlint must independently flag the AWS key");
@@ -118,6 +119,30 @@ test("files-whitelist vs packed main: separate HIGH artifact-unexpected-file AND
   // (5) G23: raw secret material never enters a finding
   const blob = JSON.stringify(r.findings);
   assert.ok(!blob.includes(pair.key) && !blob.includes(pair.secret), "raw secret leaked into findings");
+});
+
+// --------------------------------------------------------------- AC: secret nested TWO levels deep (secret inside a .tgz inside the pack)
+test("secret inside a packed .tgz: scanTree reattribution survives artifact-root scoping and .border filtering", async () => {
+  const repo = fixture("nested");
+  writeRel(repo, "package.json", JSON.stringify({ name: "nestpkg", version: "2.0.0", files: ["src", "dist"], main: "src/index.js" }));
+  writeRel(repo, "src/index.js", "module.exports = 1;\n");
+  mkdirSync(join(repo, "vendor"), { recursive: true });
+  mkdirSync(join(repo, "dist"), { recursive: true });
+  const pair = randAwsPair();
+  writeRel(repo, "vendor/secret.js", `const cfg = ${JSON.stringify({ aws_access_key_id: pair.key, aws_secret_access_key: pair.secret })};\n`);
+  const tar = spawnSync("tar", ["-czf", join(repo, "dist", "bundle.tgz"), "-C", join(repo, "vendor"), "secret.js"]);
+  assert.equal(tar.status, 0, `tar fixture failed: ${tar.stderr}`);
+  gitAddCommit(repo, "init");
+
+  const r = await runNpmArtifactStage({ repoDir: repo, cfg: CFG });
+  const nested = r.findings.filter((f) => f.engine === "gitleaks" && (f.path ?? "").includes("bundle.tgz!"));
+  assert.ok(nested.some((f) => f.rule === "aws-access-token" && f.severity === "CRITICAL" && f.path === "package/dist/bundle.tgz!secret.js"),
+    `nested-archive secret must be reattributed artifact-root-relative, got ${JSON.stringify(r.findings.map((f) => `${f.engine} ${f.path}`))}`);
+  assert.equal(filterBorderStateFindings(r.findings, repo).length, r.findings.length, "nested finding must survive .border filtering");
+  assert.equal(computeVerdict(r.findings), "FAIL");
+  const blob = JSON.stringify(r.findings);
+  assert.ok(!blob.includes(pair.key) && !blob.includes(pair.secret), "raw secret leaked into findings");
+  assert.deepEqual(seededTmp(repo), [], "archive + extraction sandboxes must both be gone");
 });
 
 // --------------------------------------------------------------- AC: clean package passes, pack-once idempotent
