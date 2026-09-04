@@ -1,0 +1,84 @@
+GAP B — artifact pipelines wired INTO `border check` (end-to-end packed-byte scanning)
+Date: 2026-09-04  |  Repo: /home/lab/workspace/harness/border
+
+== §0 BASELINE PROOF (literal) ==
+$ cd /home/lab/workspace/harness/border && pwd && git rev-parse HEAD && git status --porcelain | grep -v run-continuation
+/home/lab/workspace/harness/border
+0af66e97cd27d43915eaeccf5694ed4371968e7c
+ M .omo/boulder.json                      (harness state — ignored per protocol)
+?? .omo/evidence/task-gapB-artifact-wiring.txt
+
+== GAP (root-confirmed at baseline) ==
+No src/ module imported runNpmArtifactStage / buildPypiArtifacts / scanPyPiArtifacts.
+`border check` never packed, never scanned tarball/wheel CONTENTS, CheckRecord.artifacts
+was null for FAIL records, and .border/dist stayed empty outside manual test calls.
+
+== RED — baseline behavior of test/check.artifacts.test.ts @ HEAD 0af66e97 ==
+$ node --import ./tools/register-ts.mjs --test test/check.artifacts.test.ts
+# tests 4  # pass 0  # fail 4   (condensed excerpt — assertion expressions verbatim from the test file)$
+not ok 1 - E1+E4 npm ...
+  error: "ENOENT: no such file or directory, open '…/gapb-npm-*/.border/dist/gapb-e1-1.0.0.tgz'"
+not ok 3 - E3 pypi ...
+  error: "The expression evaluated to a falsy value: assert.ok(rec !== undefined && rec.artifacts !== null)"
+not ok 4 - E3b pypi planted ...
+  error: falsy — rec.artifacts !== null
+
+PREMISE CORRECTION (captured honestly): the task's "AT BASELINE check --force
+exits 0" holds only for byte-classes invisible to ALL pre-fix legs. For the E1
+AWS-key class the baseline exit was ALREADY 1: gitleaks dir-mode over the packed
+tree leg scans gitignored working-tree files too. What the baseline provably did
+NOT do: scan the actual PACKED BYTES (a mutated-at-pack-time file, e.g. a
+pack-time codegen, or wheel-only members absent from the working tree), attribute
+findings to '<tarball>!<member>', populate .border/dist unprompted (E4), or
+certify CheckRecord.artifacts digests of the shipped bytes (success criterion 3's
+"publishes EXACT scanned bytes" chain). The wiring closes exactly that delta.
+
+== GREEN-ATTEMPT REDS (TDD iterations, all fixed) ==
+1) E3 pypi clean fixture exit 1: "HIGH twine-check … FAILED due to warnings
+   WARNING `long_description_content_type` missing … WARNING `long_description`
+   missing"  -> fixture lacked readme metadata; added [project] readme + README.md.
+2) E3b "PyPI probe network failure: TypeError: fetch failed for http://127.0.0.1:<port>/pypi/…"
+   -> undici pooled keep-alive socket dies ~5s between tests on a SHARED stub;
+   per-pypi-test fresh stubs (push-style) fixed it.
+3) E1 dist-mtime assertion was wrong-by-design: a FAIL rerun is a FULL check, which
+   legitimately re-packs .border/dist; determinism => bytes identical, mtime moves.
+   Replaced with sha256-equality; zero-repack proof lives on SKIP paths (E2/E3).
+4) LATENT DIST-MODE BUG EXPOSED BY THIS WIRING (fixed, src/artifacts/npmPack.ts):
+   first ever dist-mode `border check` on an npm target failed closed —
+   "engine missing: engine binary '/home/lab/workspace/harness/node_modules/.bin/publint'
+   not found; border fails closed — install it or pass binPath"
+   because esbuild --bundle puts every module at dist/index.js, so the fixed
+   ../.. PACKAGE_ROOT walk-up escaped the repo. Replaced with layout-tolerant
+   candidates ([../node_modules/.bin, ../../node_modules/.bin, PATH, ~/.local/bin]),
+   mirroring the documented layout dance in src/assets.ts. src-mode tests were
+   blind to this (loader keeps src/artifacts layout).
+
+== VERDICT (measured, dist-mode probe = compiled CLI, loopback registry stubs) ==
+full  exit=0  6307ms   (pack -> extract -> scan -> publint -> record artifacts)
+skip1 exit=0  1782ms   line=SKIP d3aa4716 — PASS … report .border/runs/d3aa4716-…/report.json
+skip2 exit=0  1747ms
+dist tarball stamp after 2 skips (mtime size ino): 1788522873 200 1235063 — IDENTICAL across
+both consults => ZERO repack on SKIP. (freshness re-pack runs to .border/tmp only.)
+NOTE on the plan's "<1s" twice-SKIP criterion: for NPM-target repos every consult now
+pays todo-14's M8 freshness `npm pack` (~0.8-1s) + node startup; the SKIP path remains
+sub-2s here and does ZERO work in .border/dist. Border-repo dogfood (no npm target):
+see suite tail below.
+
+== GREEN ==
+full suite @ final sources:
+# tests 325
+# pass 325
+# fail 0
+# cancelled 0
+SUITE_EXIT=0
+
+dogfood: $ node dist/index.js check --force  -> exit 0
+border: border check PASS: 0 finding(s), 0 blocking
+(border repo declares no npm/pypi targets => consult/pipeline artifact legs are inert here, by design)
+
+new tests green in-suite:
+ok 33 - E1+E4 npm: gitignored-but-packed secret fails end-to-end; artifacts == dist bytes; FAIL never skips
+ok 34 - E2 npm clean twin: PASS records dist digests; SKIP sub-3s ZERO re-pack; mutation defeats it
+ok 35 - E3 pypi: build once, record dist digests; unchanged rerun SKIPs zero rebuild
+ok 36 - E3b pypi planted: gitignored packed _version.py secret blocked via built wheel
+ok 204 - I4 dry-run registry lines (adapted: missing-bytes state now constructed via rm post-certification)
