@@ -1,0 +1,33 @@
+# Evidence: reject duplicate git remote names (fail-open silent target-drop fix)
+Date: 2026-09-04  Repo: /home/lab/workspace/harness/border  Base HEAD: 9e27ce3
+
+## RED (before fix) — node --import ./tools/register-ts.mjs --test test/config.test.ts
+# Subtest: duplicate git remote names rejected: names the dup, kind invalid-value, exit 2
+not ok 8 - duplicate git remote names rejected: names the dup, kind invalid-value, exit 2
+# Subtest: multiple unnamed remotes stay valid (index-keyed git:#N ids, no dup to compare)
+ok 9 - multiple unnamed remotes stay valid (index-keyed git:#N ids, no dup to compare)
+# pass 25
+# fail 1
+Symptom: dup `name: origin` config was ACCEPTED by parseConfig (no ConfigError thrown).
+
+## FIX
+src/config.ts: new `gitRemotesSchema = z.array(gitRemoteSchema).superRefine(...)` —
+exact-string duplicate named remotes rejected via ctx.addIssue({code:"custom"});
+unnamed remotes exempt (index-keyed git:#N ids per src/gitTargetId.ts). Wired into
+borderConfigSchema: `git: z.object({ remotes: gitRemotesSchema }).strict()`.
+Rides existing zodToConfigError ⇒ ConfigError kind=invalid-value, exitCode=2.
+
+## GREEN (after fix) — same command
+ok 8 - duplicate git remote names rejected: names the dup, kind invalid-value, exit 2
+ok 9 - multiple unnamed remotes stay valid (index-keyed git:#N ids, no dup to compare)
+# pass 26
+# fail 0
+
+## Gates
+- npx tsc --noEmit: zero errors
+- npm run build: exit 0
+- Full `npm test` NOT run (sibling background suite2 in progress, per instructions)
+
+## Live CLI proof (dist/index.js, temp repo with two `name: origin` remotes)
+border: config error: invalid config at 'targets.git.remotes' in /tmp/tmp.D2PtHQ2gkW/border.yaml: duplicate git remote name(s) 'origin' in targets.git.remotes: push-target ids 'git:<name>' must be unique
+CLI_EXIT=2
