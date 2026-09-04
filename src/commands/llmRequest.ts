@@ -1,10 +1,11 @@
-// provenance: original clean-room implementation per .omo/plans/border-push-gate.md todo 7
+// provenance: stub from plan todo 7, wired by plan todo 18 (bundle contract in src/llm.ts)
 //
-// `border llm-request` — stub until plan todo 18 (masked provenance bundle).
-import { EXIT_ERROR, type BorderExit } from "../cli/exit.ts";
+// `border llm-request` — thin CLI seam over runLlmRequestCore. cli.ts and the
+// commands/index.ts registry are frozen; only this handler body changed.
+import type { BorderExit } from "../cli/exit.ts";
 import type { Ctx } from "../cli/types.ts";
+import { runLlmRequestCore } from "../llm.ts";
 
-export function runLlmRequest(ctx: Ctx): BorderExit {
-  ctx.stderr("border: 'llm-request' is not implemented yet (plan todo 18 wires the bundle contract)");
-  return EXIT_ERROR;
+export async function runLlmRequest(ctx: Ctx): Promise<BorderExit> {
+  return runLlmRequestCore(ctx);
 }
