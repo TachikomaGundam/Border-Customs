@@ -10,10 +10,34 @@
 import { resolveRepoDir } from "../check/context.ts";
 import { EXIT_ERROR, EXIT_PASS, type BorderExit } from "../cli/exit.ts";
 import type { Ctx } from "../cli/types.ts";
+import { loadConfig } from "../config.ts";
 import { type CheckRecord, type PushRecord, readLedger } from "../ledger.ts";
+import { sanitizeUrl } from "../redact.ts";
 
 function oneInertLine(value: string): string {
   return value.replace(/[\x00-\x1f\x7f]+/g, " ").trim();
+}
+
+/**
+ * Per-remote git push-record ids, derived EXACTLY as pushstate's gitLegs keys
+ * them (`git:${name ?? sanitizeUrl(url)}` — the same expression src/push.ts
+ * gitLegs re-derives). A git push-record is keyed git:<name-or-url>; the bare
+ * 'git' in effectiveTargets is a kind and never matches one. Empty result
+ * (unusable/absent config, or remotes []) degrades the table to the legacy
+ * bare-kind match instead of printing a false pending.
+ */
+function gitRemoteIds(ctx: Ctx, repoDir: string): string[] {
+  try {
+    const load = loadConfig({
+      cwd: repoDir,
+      ...(ctx.flags.config !== undefined ? { configPath: ctx.flags.config } : {}),
+      env: ctx.env,
+    });
+    const cfg = load.kind === "loaded" ? load.config : load.explicit?.config;
+    return (cfg?.targets.git.remotes ?? []).map((r) => `git:${r.name ?? sanitizeUrl(r.url)}`);
+  } catch {
+    return [];
+  }
 }
 
 function describePush(p: PushRecord): string {
@@ -51,18 +75,22 @@ export function runStatus(ctx: Ctx): BorderExit {
     return found;
   };
 
+  const gitIds = gitRemoteIds(ctx, repoDir);
   ctx.stdout(
     `border status — key ${newest.key8} — verdict ${newest.verdict} — head ${newest.head.slice(0, 12)} — ${newest.ts}`,
   );
   ctx.stdout(`target   state    detail`);
   const pending: string[] = [];
   for (const target of newest.effectiveTargets) {
-    const push = pushesFor(target);
-    if (push !== undefined) {
-      ctx.stdout(`${target.padEnd(8)} ${"pushed".padEnd(8)} ${oneInertLine(describePush(push))}`);
-    } else {
-      pending.push(target);
-      ctx.stdout(`${target.padEnd(8)} ${"pending".padEnd(8)} no push record for key ${newest.key8}`);
+    const rows = target === "git" && gitIds.length > 0 ? gitIds : [target];
+    for (const row of rows) {
+      const push = pushesFor(row);
+      if (push !== undefined) {
+        ctx.stdout(`${row.padEnd(8)} ${"pushed".padEnd(8)} ${oneInertLine(describePush(push))}`);
+      } else {
+        pending.push(row);
+        ctx.stdout(`${row.padEnd(8)} ${"pending".padEnd(8)} no push record for key ${newest.key8}`);
+      }
     }
   }
   if (newest.effectiveTargets.length === 0) {
