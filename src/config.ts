@@ -25,12 +25,33 @@ const gitRemoteSchema = z
   .object({ name: z.string().min(1).optional(), url: z.string().min(1) })
   .strict();
 
+const gitRemotesSchema = z.array(gitRemoteSchema).superRefine((remotes, ctx) => {
+  // Push-target ids are `git:<name>` (src/gitTargetId.ts); a duplicated name
+  // collides, and the gitLegs Map in src/commands/push.ts keeps only the LAST
+  // entry — the earlier remote is silently dropped (fail-open, the exact
+  // accident class border exists to prevent). Reject at load instead.
+  // Unnamed remotes are exempt: their ids are index-keyed `git:#N`.
+  const seen = new Set<string>();
+  const dupes = new Set<string>();
+  for (const remote of remotes) {
+    if (remote.name === undefined) continue;
+    if (seen.has(remote.name)) dupes.add(remote.name);
+    seen.add(remote.name);
+  }
+  if (dupes.size > 0) {
+    ctx.addIssue({
+      code: "custom",
+      message: `duplicate git remote name(s) ${[...dupes].map((d) => `'${d}'`).join(", ")} in targets.git.remotes: push-target ids 'git:<name>' must be unique`,
+    });
+  }
+});
+
 const borderConfigSchema = z
   .object({
     version: z.literal(1),
     targets: z
       .object({
-        git: z.object({ remotes: z.array(gitRemoteSchema) }).strict(),
+        git: z.object({ remotes: gitRemotesSchema }).strict(),
         npm: z.object({ name: z.string().optional(), registry: z.string().optional() }).strict().optional(),
         pypi: z.object({ name: z.string().optional(), repository: z.string().optional() }).strict().optional(),
       })
