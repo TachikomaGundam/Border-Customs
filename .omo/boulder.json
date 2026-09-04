@@ -8,7 +8,7 @@
       "plan_name": "border-push-gate",
       "status": "active",
       "started_at": "2026-09-03T17:34:25.613Z",
-      "updated_at": "2026-09-04T10:58:34.696Z",
+      "updated_at": "2026-09-04T12:57:15.151Z",
       "session_ids": [
         "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7",
         "opencode:ses_f948987d6ffeP3GOKynabdCMYq",
@@ -16,7 +16,9 @@
         "opencode:ses_f9461b0d2ffeVc33JA6ElBYQwH",
         "opencode:ses_f94609b5fffeSndVvp0KO0bxyR",
         "opencode:ses_f9420c3b0ffeDxFt9BB6GCfcdU",
-        "opencode:ses_f93ee0095ffe25oP1XENUCQ3DB"
+        "opencode:ses_f93ee0095ffe25oP1XENUCQ3DB",
+        "opencode:ses_f9396f5aaffeTD2PHvwpMuHxaM",
+        "opencode:ses_f93815c28ffeONYeOSZeiAJbls"
       ],
       "session_origins": {
         "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7": "direct",
@@ -25,7 +27,9 @@
         "opencode:ses_f9461b0d2ffeVc33JA6ElBYQwH": "appended",
         "opencode:ses_f94609b5fffeSndVvp0KO0bxyR": "appended",
         "opencode:ses_f9420c3b0ffeDxFt9BB6GCfcdU": "appended",
-        "opencode:ses_f93ee0095ffe25oP1XENUCQ3DB": "appended"
+        "opencode:ses_f93ee0095ffe25oP1XENUCQ3DB": "appended",
+        "opencode:ses_f9396f5aaffeTD2PHvwpMuHxaM": "appended",
+        "opencode:ses_f93815c28ffeONYeOSZeiAJbls": "appended"
       },
       "agent": "atlas",
       "task_sessions": {
@@ -156,6 +160,15 @@
           "started_at": "2026-09-04T08:53:40.249Z",
           "status": "running",
           "updated_at": "2026-09-04T10:58:34.696Z"
+        },
+        "todo:20": {
+          "task_key": "todo:20",
+          "task_label": "20",
+          "task_title": "Honesty E2E suite + full regression",
+          "session_id": "opencode:ses_f93815c28ffeONYeOSZeiAJbls",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-09-04T12:57:15.151Z"
         }
       }
     }
@@ -163,7 +176,7 @@
   "active_plan": "/home/lab/workspace/harness/border/.omo/plans/border-push-gate.md",
   "started_at": "2026-09-03T17:34:25.613Z",
   "status": "active",
-  "updated_at": "2026-09-04T10:58:34.696Z",
+  "updated_at": "2026-09-04T12:57:15.151Z",
   "session_ids": [
     "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7",
     "opencode:ses_f948987d6ffeP3GOKynabdCMYq",
@@ -171,7 +184,9 @@
     "opencode:ses_f9461b0d2ffeVc33JA6ElBYQwH",
     "opencode:ses_f94609b5fffeSndVvp0KO0bxyR",
     "opencode:ses_f9420c3b0ffeDxFt9BB6GCfcdU",
-    "opencode:ses_f93ee0095ffe25oP1XENUCQ3DB"
+    "opencode:ses_f93ee0095ffe25oP1XENUCQ3DB",
+    "opencode:ses_f9396f5aaffeTD2PHvwpMuHxaM",
+    "opencode:ses_f93815c28ffeONYeOSZeiAJbls"
   ],
   "session_origins": {
     "opencode:ses_f97a9f0e9ffemmaCfL6vF9paa7": "direct",
@@ -180,7 +195,9 @@
     "opencode:ses_f9461b0d2ffeVc33JA6ElBYQwH": "appended",
     "opencode:ses_f94609b5fffeSndVvp0KO0bxyR": "appended",
     "opencode:ses_f9420c3b0ffeDxFt9BB6GCfcdU": "appended",
-    "opencode:ses_f93ee0095ffe25oP1XENUCQ3DB": "appended"
+    "opencode:ses_f93ee0095ffe25oP1XENUCQ3DB": "appended",
+    "opencode:ses_f9396f5aaffeTD2PHvwpMuHxaM": "appended",
+    "opencode:ses_f93815c28ffeONYeOSZeiAJbls": "appended"
   },
   "plan_name": "border-push-gate",
   "task_sessions": {
@@ -311,6 +328,15 @@
       "started_at": "2026-09-04T08:53:40.249Z",
       "status": "running",
       "updated_at": "2026-09-04T10:58:34.696Z"
+    },
+    "todo:20": {
+      "task_key": "todo:20",
+      "task_label": "20",
+      "task_title": "Honesty E2E suite + full regression",
+      "session_id": "opencode:ses_f93815c28ffeONYeOSZeiAJbls",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-09-04T12:57:15.151Z"
     }
   },
   "agent": "atlas"
