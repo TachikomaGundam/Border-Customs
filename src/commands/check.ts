@@ -122,6 +122,7 @@ export async function runCheck(ctx: Ctx): Promise<BorderExit> {
     ctx: outcome.ctx,
     effectiveTargets,
     llm: ctx.flags.llm,
+    artifacts: outcome.artifacts,
     ...(env !== undefined ? { env } : {}),
   });
   return exitCodeFromVerdict(outcome.report.verdict);

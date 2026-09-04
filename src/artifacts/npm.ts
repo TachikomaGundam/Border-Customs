@@ -89,6 +89,22 @@ function nativeFinding(
   };
 }
 
+/**
+ * GAP B (todo 11 wired into `border check`): re-attribute stage findings from
+ * artifact-root-relative (`package/<rel>`, publint's `package.json`) to the
+ * exact packed bytes: `<tarball>!<rel>`. The tarball basename never contains a
+ * `!` and carries no `.border` segment, so it survives the repo-scoped filter.
+ */
+export function attributeToTarball(findings: readonly Finding[], artifact: NpmArtifactRecord | null): readonly Finding[] {
+  if (artifact === null) return findings;
+  const name = artifact.file.slice(artifact.file.lastIndexOf("/") + 1);
+  return findings.map((f) => {
+    const p = f.path ?? "";
+    const rel = p === "package.json" ? p : p.startsWith("package/") ? p.slice("package/".length) : null;
+    return rel === null || rel === "" ? f : { ...f, path: `${name}!${rel}` };
+  });
+}
+
 /** Re-scope engine findings (absolute / `<abs>!<inner>` shapes) to artifact-root-relative. */
 function scopeFindingPath(f: Finding, extractDir: string): Finding {
   if (f.path === undefined) return f;
