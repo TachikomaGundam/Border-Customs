@@ -1,0 +1,127 @@
+================================================================================
+task 20 — test/e2e.honesty.test.ts + whole-repo regression (border-push-gate)
+date: 2026-09-04 | executor: sisyphus-junior | plan: .omo/plans/border-push-gate.md todo 20
+================================================================================
+
+baseline_proof (before any edit):
+  $ cd /home/lab/workspace/harness/border && pwd && git rev-parse HEAD \
+      && git status --porcelain | grep -v run-continuation
+  /home/lab/workspace/harness/border
+  0ced3aef8eb1f7781316f88a13ee349ea3db5793        (== expected 0ced3ae)
+   M .omo/boulder.json                              (harness file, allowed-dirty)
+  Suite at baseline: 325 tests / 325 pass (see final_proof — run as 326 with this task's test).
+
+NOTE: a previous session on this task was cancelled with zero commits; this run
+started fresh (no reuse of any prior work).
+
+--------------------------------------------------------------------------------
+1. WHAT THE SUITE IS
+--------------------------------------------------------------------------------
+Single fixture, the plan's 8-step sequence verbatim, driven in-process through
+the run() seam (src/cli.ts:133) with stdout+stderr captured as strings per step
+(same pattern as ledger.check.test.ts / check.orchestration.test.ts). Guarded by
+requireGitleaks() (todo 1) — runs against REAL gitleaks 8.30.1, stubs invalid.
+
+Fixture: test/tmp/e2e-honesty-XXXX (mkdtemp, removed in after()), empty local
+bare remote.git, border.yaml targets.git.remotes=[{origin, ../remote.git}],
+rules.authors allowlist Wiki.js / <wiki@sumteclab.com>, hosts/ips/pathPatterns [],
+NO npm/pypi targets => zero public-registry network anywhere. .gitignore covers
+.border/ so the fixture tree stays honestly clean between CLI runs.
+Planted secret: AKIAI4Q3EXAMPL3K7X2Q (exactly AKIA + 16 chars of [A-Z2-7] — the
+vendored aws-access-token regex; round-1 finding honored: entropy-rule-only keys
+could silently weaken the test).
+
+Per-step outcome (all asserts green, wall 10.4 s):
+  (1) check                                  => exit 0, "border check PASS: 0 finding(s)",
+      1 ledger check record PASS @ head sha0
+  (2) commit config/aws.conf with the AKIA key (leakSha), revert at HEAD
+      (headSha != leakSha) — leak lives only in history
+  (3) dirty worktree (scratch.txt, leak-free)
+  (4) stale PASS record appended for head=leakSha, key = computeCheckKey of that
+      head (well-formed: readLedger warnings [] , lookupSkipRecord(records,
+      staleKey, false) != null — it IS a live skip candidate under its own
+      fingerprint; the only refutation is the head/fingerprint mismatch)
+  (5) check --force                           => exit 1; stdout line:
+      "border: CRITICAL aws-access-token gitleaks config/aws.conf <leakSha 40-hex> detected a hardcoded AWS Access Token"
+      (naming the LEAK commit sha — history leg via gitleaks --log-opts=<refSet>)
+  (6) push --yes                              => exit 1
+      stdout "border: git:origin  BLOCKED  unchecked: no PASS record …"
+      stderr "border: push --yes refused — 1 BLOCKED target(s) above; nothing was pushed"
+      PROOF nothing touched: `git ls-remote ../remote.git` byte-identical
+      before==after (empty), and 0 push records appended.
+  (7) THE GREP over .border/** (every file: ledger.jsonl, runs/*/report.json,
+      runs/*/report.md, …) + captured stdout+stderr of EVERY step:
+        AKIAI4Q3 literal matches: 0
+        covered streams: 1 check PASS(out+err), 5 check --force FAIL(out+err),
+        6 push --yes blocked(out+err) + .border/** files
+      …while the redacted snippet form "AKIA…7X2Q" IS present (asserted >0) —
+      proves the finding really flowed through redact(), i.e. the 0 is earned,
+      not vacuous. Closes G22/G23 behaviorally incl. the gitleaks-stdout path.
+      Final sweep after step 8: "AKIAI4Q3 literal matches (final): 0".
+  (8) rm scratch.txt; git checkout -b clean <sha0> (refSet=[refs/heads/clean] =>
+      history leg no longer reaches the leak commit — leak removed for the
+      pushed-ref universe by new fixture branch)
+      check          => exit 0 FRESH PASS (4th check record; no SKIP line;
+                        key != step-1 key [refSet differs] != stale key)
+      push --yes     => exit 0, "border: pushed git:origin — <sha0-8> confirmed via ls-remote"
+                        push record: t=push target=git:origin remoteName=origin
+                        localSha==remoteSha==sha0 confirmedVia="ls-remote";
+                        remote bare now shows refs/heads/clean@sha0 (ls-verified)
+      rerun check    => exit 0 + SKIP line matching /^SKIP [0-9a-f]{8} — PASS … report .border/runs/…/report.json$/
+      rerun push     => exit 0 + "border: nothing pending — every target is already PUSHED (no-op)"
+                        ledger unchanged (4 check, 1 push) — SKIP/no-op append nothing.
+Zero sleeps (all steps deterministic; the only waits are real subprocess returns).
+
+--------------------------------------------------------------------------------
+2. QA FAILURE SCENARIO — mutation check (performed ONCE, reverted, both runs logged)
+--------------------------------------------------------------------------------
+Mutation: src/redact.ts redact() -> passthrough { valueDigest: value, snippet: value }
+(temporary working-tree edit; NEVER staged or committed).
+
+RED run (mutation applied):
+  node --import file://$PWD/tools/register-ts.mjs --test test/e2e.honesty.test.ts
+  # AKIAI4Q3 literal matches: 3
+  not ok 1 … error: "the planted literal must never surface — G22/G23 honesty violation
+            3 !== 0"   (ERR_ASSERTION strictEqual, expected 0)
+  first failing assertion: test/e2e.honesty.test.ts:205 — assert.equal(hits, 0, …)
+    (node's source-mapped stack frame reports test/e2e.honesty.test.ts:155:10 inside
+     the async test body; the failing statement is the step-7 grep assertion, line 205)
+  steps 5 and 6 still passed (blocking verdict/refusal are severity/gate logic and are
+  redaction-independent) — the suite trips exactly in the step-7 region, i.e. the grep
+  is the live wire that catches an unredacted leak. exit 1.
+
+GREEN re-run (git checkout src/redact.ts first):
+  git diff --stat verified to carry only .omo/boulder.json (harness) before commit —
+  src/redact.ts restored byte-identical (no src/ change ever committed).
+  ok 1 — pass 1 / fail 0; AKIAI4Q3 literal matches: 0 (both sweeps). exit 0.
+
+--------------------------------------------------------------------------------
+3. REGRESSION (whole repo, after revert, at the green test commit 2bf381e)
+--------------------------------------------------------------------------------
+$ npm run typecheck            -> exit 0 (tsc --noEmit, zero output)
+$ npm test   (run 1)           -> # tests 326  # pass 326  # fail 0  (112.2 s)
+$ npm test   (run 2)           -> # tests 326  # pass 326  # fail 0  (110.9 s)
+    (325 pre-existing at baseline + 1 honesty suite; run twice for flake check)
+$ npm run build                -> esbuild "⚡ Done in 54ms" + "assets staged into dist/assets/"  exit 0
+verdaccio devDep: node_modules/verdaccio present — asserted at suite start (existsSync),
+never installed by the test, required before step 8's executor path; no public-registry
+access anywhere in test/.
+
+final_proof (after work):
+  $ git log --oneline -3
+  2bf381e test(e2e): cross-cutting honesty + stale-ledger suite
+  0ced3ae chore(state): todos 16+17 (+GAP A/B) verified+ledgered (19/24)
+  6093b39 feat(check): scan packed/built bytes end-to-end — artifact legs wired into the pipeline (GAP B)
+  (this evidence file follows in its own docs commit; src/ untouched: git diff of the
+   test commit = test/e2e.honesty.test.ts only, 248 lines / 191 pure LOC)
+
+honesty suite wall time: 10.4 s (single run; plan budget < ~90 s) — well under.
+
+--------------------------------------------------------------------------------
+4. src/ BUGS EXPOSED: none.
+--------------------------------------------------------------------------------
+No production code changed. Every step of the plan sequence passed on the first
+green run; the only test-side fix was a fixture setup ordering issue in MY test
+work dir not existing before gitInit (pre-commit iteration, zero src/ impact).
+Mutation-proof (§2) shows the suite's grep assertion is the behavioral wire closing
+G22/G23 incl. the gitleaks-stdout ingestion path.
