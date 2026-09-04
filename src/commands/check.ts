@@ -9,11 +9,13 @@
 // bypasses the lookup, and every full non-degraded run appends a fresh record.
 // The ledger never sees a degraded or NO-OP run — those can certify nothing.
 import { loadConfig, NO_OP_MESSAGE, type BorderConfig } from "../config.ts";
+import type { LoadedConfig } from "../check/rulesHash.ts";
 import { EXIT_ERROR, EXIT_PASS, exitCodeFromVerdict, type BorderExit } from "../cli/exit.ts";
 import type { Ctx } from "../cli/types.ts";
 import { executeCheck, type CheckOutcome } from "../check.ts";
 import { BorderLockHeldError } from "../check/lock.ts";
 import { computeConfigDigest } from "../check/rulesHash.ts";
+import { renderReportJson } from "../report.ts";
 import { consultSkipLedger, formatSkipLine, recordCheckRun } from "../ledger.ts";
 import { resolveRepoDir, computeEffectiveTargets } from "../check/context.ts";
 import { probeEngines } from "../engines/policy.ts";
@@ -28,7 +30,16 @@ export async function runCheck(ctx: Ctx): Promise<BorderExit> {
   });
   for (const warning of load.warnings) ctx.stderr(`border: ${warning}`);
 
-  if (load.kind === "no-op") {
+  // G14/no-op contract (todo 19): an EXPLICIT border.yaml that declares zero
+  // targets is intent, not absence — promote it to a full repo-local run
+  // (history/tree/identity/artifacts legs execute; only exposureSet is empty).
+  // The undiscovered case keeps the todo-2 loud no-op.
+  let effective: LoadedConfig;
+  if (load.kind === "loaded") {
+    effective = load;
+  } else if (load.explicit !== undefined) {
+    effective = { kind: "loaded", config: load.explicit.config, warnings: [], source: load.explicit.source };
+  } else {
     // --require-engine upgrades the no-op into a health probe: an operator who
     // demanded a specific engine gets exit 2 when it is missing, even with zero
     // targets to scan. Without it: loud no-op, exit 0 (todo-2 contract).
@@ -50,15 +61,15 @@ export async function runCheck(ctx: Ctx): Promise<BorderExit> {
   // overlay-merge, post `${VAR}` expansion) — a border.yaml byte digest left
   // .border/config.local.yaml overlays and env-expanded remotes invisible to
   // the fingerprint. computeConfigDigest's header carries the full rationale.
-  const configDigest = computeConfigDigest(load);
+  const configDigest = computeConfigDigest(effective);
 
   const repoDir = resolveRepoDir(ctx.cwd, { env });
-  const effectiveTargets = computeEffectiveTargets(load.config, ctx.flags.targets);
+  const effectiveTargets = computeEffectiveTargets(effective.config, ctx.flags.targets);
 
   if (!ctx.flags.force) {
     const decision = await consultSkipLedger({
       repoDir,
-      cfg: load.config,
+      cfg: effective.config,
       configDigest,
       effectiveTargets,
       llm: ctx.flags.llm,
@@ -78,7 +89,7 @@ export async function runCheck(ctx: Ctx): Promise<BorderExit> {
   try {
     outcome = await executeCheck({
       repoDir,
-      cfg: load.config,
+      cfg: effective.config,
       configDigest,
       effectiveTargets,
       ...(env !== undefined ? { env } : {}),
@@ -96,7 +107,7 @@ export async function runCheck(ctx: Ctx): Promise<BorderExit> {
   if (outcome.lockWarning !== null) ctx.stderr(`border: WARNING ${outcome.lockWarning}`);
   if (outcome.ctx.dirty) ctx.stderr("border: working tree is dirty — findings may reference uncommitted files");
   if (ctx.flags.json) {
-    ctx.stdout(JSON.stringify(outcome.report, null, 2));
+    ctx.stdout(renderReportJson(outcome.report));
   } else {
     for (const line of outcome.sanitizedSummary.split("\n")) ctx.stdout(`border: ${line}`);
   }

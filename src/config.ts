@@ -51,7 +51,31 @@ const borderConfigSchema = z
       })
       .strict(),
     allow: z
-      .array(z.object({ rule: z.string(), match: z.string(), file: z.string().optional() }).strict())
+      .array(
+        z
+          .object({ rule: z.string().min(1), match: z.string().min(1), file: z.string().min(1).optional() })
+          .strict()
+          // G14: the plan's Must-NOT bans the blanket `allow: [{rule:"*"}]`
+          // SHAPE — an entry that suppresses by wildcard with NO scoping at
+          // all. rule/match wildcards are legitimate only when a concrete
+          // `file` scope pins the suppression to a location (the dogfood
+          // categories (a) .omo/** and (b) test/** are exactly that), so the
+          // combo is rejected only when `file` is absent. An absolute or
+          // escaping `file` glob can never match a repo-relative finding
+          // path — a typo posing as a rule — so it fails typed at LOAD too
+          // (kind invalid-value ⇒ exit 2) instead of silently no-op'ing.
+          .superRefine((entry, ctx) => {
+            if (entry.file === undefined && entry.rule === "*" && entry.match === "*") {
+              ctx.addIssue({ code: "custom", message: "blanket allow entry: '{rule:\"*\",match:\"*\"}' without a file scope is rejected — wildcards need a concrete file glob to bound them" });
+            }
+            if (entry.file !== undefined) {
+              const f = entry.file;
+              if (f.startsWith("/") || f.startsWith("~") || /^[A-Za-z]:[\\/]/.test(f) || f.split("/").includes("..")) {
+                ctx.addIssue({ code: "custom", message: `allow file glob must be repo-relative without '..' segments (got '${f}')` });
+              }
+            }
+          }),
+      )
       .default([]),
     engines: z
       .object({
@@ -259,7 +283,13 @@ function hasTargets(cfg: BorderConfig): boolean {
 
 export type LoadResult =
   | { kind: "loaded"; config: BorderConfig; warnings: readonly string[]; source: string }
-  | { kind: "no-op"; warnings: readonly string[] };
+  // `explicit` distinguishes the two no-op causes: undefined ⇒ NOTHING was
+  // discovered (todo-2 loud no-op stays exit 0 with no run); defined ⇒ a real
+  // border.yaml/overlay was loaded but declares zero targets — the check flow
+  // (commands/check.ts, todo 19) promotes that into a full repo-local run with
+  // an empty exposureSet, because an authored config is intent, not an
+  // absence. loadConfig's own contract (kind:'no-op') is unchanged.
+  | { kind: "no-op"; warnings: readonly string[]; explicit?: { config: BorderConfig; source: string } };
 
 function readFileOrUndefined(path: string): string | undefined {
   return existsSync(path) ? readFileSync(path, "utf8") : undefined;
@@ -346,7 +376,7 @@ export function loadConfig(
   }
 
   if (!hasTargets(config)) {
-    return { kind: "no-op", warnings };
+    return { kind: "no-op", warnings, explicit: { config, source } };
   }
   return { kind: "loaded", config, warnings, source };
 }
