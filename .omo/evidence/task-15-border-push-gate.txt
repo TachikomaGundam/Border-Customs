@@ -1,0 +1,135 @@
+Task 15 — Per-target push state machine (border-push-gate)
+Date: 2026-09-04  Baseline HEAD: 83df5cf  My commit: f0a4551
+Files: src/pushstate.ts (213 pure LOC), test/pushstate.test.ts (9 tests)
+
+== WHAT WAS BUILT ==
+src/pushstate.ts — module + tests only, NO CLI wiring (todo 17 renders it).
+Exports: PushStateError (exitCode 2, BorderLockHeldError pattern), TargetKind/
+TargetStatus("PUSHED"|"PENDING"|"BLOCKED")/TargetGate("PASSED"|"UNCHECKED"),
+TargetResult{target,kind,status,gate,reason?,findings}, PushStateResult{key,
+headSha,refSet,targets,warnings}, PushStateOptions{repoDir,cfg,configDigest,
+effectiveTargets,env?,requireOverride?,fetcher?}, parseLsRemote, derivePushState,
+pushableTargets (resume matrix), formatTargetLine (`PUSHED(no-op) | PENDING |
+BLOCKED` lines), recordPushSuccess (t:"push" via buildPushRecord+appendRecord).
+
+Contract coverage:
+* PUSHED computed LIVE, never from ledger alone:
+  - git legs: `git ls-remote <url>` FULL-REF comparison vs ctx.refSet
+    (gatherContext); tags compared as PEELED commits — remote `refs/tags/X^{}`
+    line wins, local side resolves annotated tags via for-each-ref
+    %(*objectname); remote ref absent => "absent" (first push, never "equal").
+  - npm/pypi legs reuse todo-13 runRegistryProbes version-exists polarity:
+    present + our t:"push" record for exact `name@version` => PUSHED;
+    present + owner==self (no name-foreign-owner finding) => PUSHED
+    (lost-ledger recovery); present + foreign/ambiguous owner + no record =>
+    BLOCKED delegating VERSION_EXISTS_RULE/BUMP_VERSION_MESSAGE ('bump version
+    required') — squatter NEVER silently PUSHED (round-1 M4); absent => PENDING;
+    unreachable => EngineRunError propagates (exit 2, fail-closed pinned in 13).
+* PASSED gate: latestPassCoveringTargets(records, CURRENT fp.key, [kind]) —
+  re-keyed via computeFingerprint (key binds refSet+exposure => stale PASS
+  impossible). Neither PASSED nor live-PUSHED => BLOCKED reason
+  "unchecked: no PASS record ... run 'border check' first". pushstate NEVER
+  runs checks itself.
+* No force-push anywhere, no tag cherry-picking, no state beyond ledger+probes
+  (grep "force" src/pushstate.ts: only the header's negation prose).
+
+== DESIGN DECISIONS (deviations/seams, documented per briefing) ==
+1. API shape: derivePushState takes {cfg, configDigest} (not the LoadResult) —
+   configDigest is exactly what the check flow (commands/check.ts) computes via
+   computeConfigDigest(load); todo 17 has both at hand. No sibling file touched.
+2. pushableTargets returns PENDING only. Plan says "attempt ONLY non-PUSHED
+   targets"; BLOCKED targets are also non-PUSHED but pushing them is precisely
+   what the gate exists to prevent (unchecked content / squatted version), so
+   the resume set = PENDING. The tri-state line preserves the distinction.
+3. Unreachable-remote error text deliberately DROPS the runGitChecked cause
+   string (it echoes the raw credential-bearing url); message carries the
+   sanitized url + target id instead (G20/G23 hygiene).
+4. fetcher? passthrough to RegistryProbeOptions (todo-13's existing test seam)
+   exposed on PushStateOptions — optional param, zero prod impact, pypi-leg
+   testability for todo 17.
+5. runGitChecked timeout is 60s (spawnSync, context.ts) — a hung ls-remote
+   surfaces as the same PushStateError exit-2 path (kind: "could not spawn").
+
+== FAILING-FIRST (red) PROOF ==
+$ node --import ./tools/register-ts.mjs --test test/pushstate.test.ts   # before src/pushstate.ts existed
+  ... ERR_TEST_FAILURE — Cannot find module '/…/border/src/pushstate.ts'
+# tests 1  # pass 0  # fail 1        (whole-file load failure = red for all 9 ACs)
+
+Intermediate red during git AC bring-up (fail-closed parser met real git output):
+not ok 1 - … error: "target 'git:a': malformed 'git ls-remote' output line
+'557871deb6a69f96a7e1d92a8635a9c33c98c5a8\tHEAD' — refusing to interpret (fail closed)"
+=> parser exception added for git's legitimate `HEAD` convenience line (skipped,
+never enters the ref map); unit test asserts it.
+
+== GREEN ==
+$ npx tsc --noEmit                -> zero errors
+$ node --import ./tools/register-ts.mjs --test test/pushstate.test.ts  (x3)
+  run 1: # tests 9  # pass 9  # fail 0
+  run 2: # tests 9  # pass 9  # fail 0
+  run 3: # tests 9  # pass 9  # fail 0
+$ npm test  (full suite, once)
+  # tests 267  # pass 267  # fail 0  # cancelled 0  # skipped 0
+  (no sibling WIP failures to excuse at run time — tree fully green)
+
+== AC MATRIX (all live fixtures, zero public network) ==
+| AC | Test | Result |
+|---|---|---|
+| two bare remotes A+B synced => both PUSHED(no-op) | "two synced bare remotes…" step 2 | PASS |
+| tag deleted on B only => B PENDING, A stays no-op (G43) | same test step 3; reason refs/tags/v1@absent | PASS |
+| unreachable remote (deleted dir) => exit-2 error naming target | "remote directory deleted…"; PushStateError exitCode 2, msg has 'git:a' | PASS |
+| squatter: 200-packument, no t:push record => BLOCKED loud FAIL, never PUSHED | "squatter: 200-packument…"; finding rule=version-exists msg='bump version required' | PASS |
+| our push record => PUSHED + sanitized url | "squatter defeated by our own t:push record…" ('http://user:sekret@…' -> no 'sekret' in ledger) | PASS |
+| owner==self => PUSHED | "version present + owner==self (no push record)…" | PASS |
+| absent (404) => PENDING / unchecked-no-PASS => BLOCKED | "registry answers 404…" | PASS |
+| unreachable registry => EngineRunError propagates | "unreachable npm registry (closed port)…" | PASS |
+| PUSHED independent of worktree/ledger | "PUSHED derives from probes alone" (no .border at all, dirty tree, detached HEAD tags-only) | PASS |
+
+Fixture recipe (test/pushstate.test.ts): scratch repo gitInit + commit + annotated
+tag v1 + lightweight v2; two `git init --bare` remotes under a sibling tmp dir,
+referenced as file:/// URLs (sanitizeUrl-stable); push via `git push <url> main
+--tags`; ledger PASS records appended through appendRecord with the key from
+computeFingerprint(same cfg+digest+targets) — i.e. the real key pipeline, no
+hand-tuned hashes; squatter packument served by test/helpers/registry-stub.ts
+(loopback, ephemeral port).
+
+== CANCEL/RESUME MATRIX (plan L: partial push resume) ==
+state after `border check` PASS + push of A succeeded, B crashed mid-push:
+| target | live probe says | ledger | derive => status | pushableTargets |
+|---|---|---|---|---|
+| git:a | refSet all equal (incl peeled tags) | push rec optional | PUSHED(no-op) | excluded |
+| git:b | refs/tags/v1@absent | any | PENDING | included (re-push resumes) |
+| npm   | version present | t:push present | PUSHED(no-op) | excluded |
+| npm   | version present | no rec, owner foreign | BLOCKED(version-exists) | excluded |
+| pypi  | 404 | any | PENDING | included |
+| any   | behind | no PASS under current key | BLOCKED(unchecked) | excluded |
+Re-running derive after a completed `push --yes` converges: every line flips to
+PUSHED(no-op) purely from probes; resume is idempotent with zero extra state.
+
+== ULTRAQA TRIGGER MAP ==
+* malformed_input: parseLsRemote fail-closed on garbage/no-tab/bad-hex lines
+  (PushStateError, names target); HEAD line whitelisted-but-skipped; ledger
+  garbage handled upstream by readLedger warnings (surfaced in PushStateResult).
+* stale_state: G43 IS the AC — tag deleted on B => B PENDING despite equal
+  branch tip; PASSED gate keyed to the CURRENT fingerprint (refSet+exposure in
+  the key) so a stale PASS cannot certify.
+* hung_commands: ls-remote bounded by runGitChecked 60s spawnSync timeout;
+  both the dead-dir and the timeout path raise exit-2 errors naming the target;
+  registry timeout (15s, todo 13) rejects EngineRunError (covered: closed-port
+  test; hanging-registry polarity already pinned in test/registry.test.ts).
+* misleading_success_output: squatter can never read as PUSHED — record or
+  owner==self proof required (AC test); "PUSHED(no-op)" only from live equality.
+* cancel_resume: matrix above; pushableTargets drives `push --yes`.
+* dirty_worktree: PUSHED claims derive from refSet+probes only — test drives a
+  dirty untracked file + detached HEAD with an empty ledger and still gets
+  PUSHED(no-op) for the synced remote.
+* prompt_injection: N/A — no agent/LLM text crosses this module.
+* flaky_tests: 3 consecutive full-file green runs (above); loopback-only ports
+  (ephemeral), fixtures under namespaced mkdtemp dirs; npm legs spawn the real
+  npm CLI (inherent ~1-3s, no sleeps, no polling).
+* repeated_interruptions: N/A — pure reads + append-only ledger write; re-run
+  idempotent (convergence row of resume matrix).
+
+== CLEANUP ==
+rm -rf test/tmp/ps-* — verified: only pre-existing other-suite dirs
+(ledcli-*, cli-push-*, qa10-*, timestamps 07:21/10:20 predating this session)
+remain; no stray npm/git processes (`ps aux | grep '[n]pm view'` = 0).
