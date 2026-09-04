@@ -13,8 +13,13 @@ import { fileURLToPath } from "node:url";
 
 export const BORDER_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-const ALPHA_UPPER_DIGIT = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const ALPHA_DIGIT = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+// The vendored gitleaks 8.30.1 aws-access-token rule is
+// \b((?:A3T[A-Z0-9]|AKIA|ASIA|ABIA|ACCA)[A-Z2-7]{16})\b — a BASE32 window, so
+// digits 0/1/8/9 in the 16-char suffix make the key regex-immune (~83% of naive
+// [A-Z0-9] keys silently escape detection; probe 2026-09-04). Fixture keys MUST
+// be drawn from this alphabet or the aws rule never fires deterministically.
+const AWS_KEY_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 function rand(alphabet: string, n: number): string {
   const bytes = randomBytes(n);
@@ -31,7 +36,7 @@ function rand(alphabet: string, n: number): string {
  * scan, so reused literals mask findings (spike, ADAPTER-CONTRACT.md).
  */
 export function randAwsPair(): { key: string; secret: string; text: string } {
-  const key = `AKIA${rand(ALPHA_UPPER_DIGIT, 16)}`;
+  const key = `AKIA${rand(AWS_KEY_ALPHABET, 16)}`;
   const secret = rand(ALPHA_DIGIT, 40);
   const text = `aws_access_key_id = ${key}\naws_secret_access_key = ${secret}\n`;
   return { key, secret, text };

@@ -80,3 +80,18 @@ not ok 49 - push on a clean fixture: stdout carries DRY-RUN + git push --dry-run
 # fail 1
 --- FULL SUITE 215/216; sole failure test/cli.dist.test.ts:93 attribution ---
 cause: MissingRulesInputError (src/redact.ts:150) thrown by G21 rulesHash when the todo-14 in-progress check wiring (working-tree-modified src/commands/check.ts, imported by the bundle via cli registry) resolves GITLEAKS_VENDORED_CONFIG from the esbuild bundle root (dist/../.. => harness/assets, outside border/) — the documented dist-bundle asset gap. Not my code: nothing imports src/artifacts/npm*.{ts} yet (todo 14/15 wires the stage); my support.ts edit adds a branch ONLY for spawnSync error=ETIMEDOUT+status=null (unreachable here — the throw precedes any spawn). cli.dist.test.ts before() rebuilds dist from the SHARED working tree, so any full-suite run after todo-14 lands their check wiring is red until the asset-path fix (their file ownership).
+=== FLAKE ROOT-CAUSE FINDING (task-11 adversarial probe, 2026-09-04) ===
+Probe P1 (secret nested in a .tgz inside the pack) initially returned NONE/false-green. Root cause chain, isolated by direct scanTree A/B tests on 3 key variants:
+  - vendored assets/gitleaks-defaults-v8.30.1.toml:208 aws-access-token regex = \b((?:A3T[A-Z0-9]|AKIA|ASIA|ABIA|ACCA)[A-Z2-7]{16})\b — BASE32 window [A-Z2-7], NOT [A-Z0-9] as the inherited note claimed;
+  - test/helpers/fixtures.ts randAwsPair() drew keys from A-Z0-9 => ~83% of planted keys are regex-immune (AKIAQZ7XK3M9PVTR2WJ4 MISS vs AKIAIOOEOZMSISYG2QGZ HIT, same file layout);
+  - the pre-existing leak e2e passed only because the 'aws_access_key_id = …' line shape also matches broader rules; assertion was engine-level, not rule-level => latent false-green across EVERY randAwsPair consumer.
+FIX (shared seam, test-only): AWS_KEY_ALPHABET=ABCDEFGHIJKLMNOPQRSTUVWXYZ234567 in fixtures.ts; npm suite gitleaks assertion tightened to rule==='aws-access-token'; NEW permanent e2e test 'secret inside a packed .tgz' (nested reattribution package/dist/bundle.tgz!secret.js survives filterBorderStateFindings + FAIL verdict + sandboxes gone) supersedes the throwaway probe coverage.
+=== FINAL VERIFICATION (post flake-fix) ===
+--- probe P1/P2 output (x2 runs) ---
+P1 nested-reattribution findings: CRITICAL package/dist/bundle.tgz!secret.js
+P1 survives .border filter: true | verdict FAIL | sandboxes 0 | deterministic true | single tarball nestpkg-2.0.0.tgz | repo tree untouched outside .border true
+P2 publint-missing: EngineMissingError -> fails closed (never silent pass)
+--- npm11 suite x2: 12/12 pass both ---
+# tests 221
+# pass 221
+# fail 0

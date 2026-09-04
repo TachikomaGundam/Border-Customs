@@ -182,3 +182,47 @@ consumers see scp-form output '<host>/<path>' (no scheme) — exposureSet entrie
   self-consistency, never byte-equality across runs.
 - `python3 -m build --no-isolation` is mandatory for offline + no-venv (plan Must-NOT);
   binaryCandidates' ~/.local/bin fallback means PATH-stub tests must stub HOME too.
+
+## task-11 npm artifact pipeline (2026-09-04) — gitleaks AWS fixture alphabet landmine
+- VENDORED aws-access-token regex is `[A-Z2-7]{16}` (BASE32 window), NOT [A-Z0-9] — digits 0/1/8/9 make
+  a planted key regex-immune (~83% of naive keys). randAwsPair() drew from A-Z0-9 => every aws-shaped
+  fixture had ~5/6 chance of NOT firing the AWS rule; suites passed only because `aws_access_key_id = X`
+  line-shape also matches broader rules. FIXED in test/helpers/fixtures.ts (AWS_KEY_ALPHABET=base32).
+  Task-brief text repeating "[A-Z0-9]" is stale — trust assets/gitleaks-defaults-v8.30.1.toml:208.
+- LESSON: assert `f.rule === "aws-access-token"`, never `f.engine === "gitleaks"` — engine-level
+  assertions mask rule-level false greens (exactly the misleading-success class todo 11 demands e2e proof of).
+- Throwaway probe that found this: nested secret (key inside secret.js inside dist/bundle.tgz inside the
+  pack) — promoted to permanent suite test (package/dist/bundle.tgz!secret.js reattribution survives
+  filterBorderStateFindings because stage re-scopes to artifact-root-relative). Probe bugs en route:
+  `b % 36` against a 32-char alphabet => 'undefined' chars in key; tree-snapshot taken before
+  ensureStateDir legitimately creates .border.
+- npm pack facts: `npm pack <abs-repo> --ignore-scripts --json --pack-destination <dir>` works from any
+  cwd (spawnEngine has no cwd opt); deterministic bytes across runs (todo 17 re-hash equality holds);
+  report files[].path is tar-root-relative, shasum=sha1/size cross-checked against on-disk bytes;
+  --ignore-scripts means target-repo prepack/prepare NEVER execute during border's pack (verified by
+  absence of a PWNED marker file).
+- Node>=22 spawnSync timeout quirk: killed child gets error=ETIMEDOUT with status=null — support.ts now
+  maps that to EngineRunError instead of leaking an untyped Error (hung-npm QA).
+- publint 0.3.24 invoked as devDependency binary node_modules/.bin/publint <tarball> --level error
+  (NO npx --yes — no network, no prompt); exit 1 => HIGH publint-fail, missing binary => EngineMissingError
+  (fails closed, never silent pass).
+
+## todo 14 (ledger) learnings
+- `run()` from src/cli.ts takes (argv, out, err, {cwd, env}) — integration tests can drive the whole
+  CLI in-process from a fixture cwd, no child spawn needed; env overrides ({...process.env, PATH: shim})
+  make engineVersion-stub ACs trivial (shim: intercept --version, exec the real binary for all legs —
+  scan speed stays REAL, only the fingerprint moves).
+- git SHA fields need their own width regex: parser demanded HEX64 for head and every fixture record
+  died as "unreadable" — tests caught the production bug (40 vs 64 hex). Corrupt-tolerance tests must
+  distinguish fixture mistakes from real corruption by asserting WARNING counts exactly.
+- Order of operations at a new pre-pipeline seam matters: anything consulted BEFORE executeCheck
+  inherits its failure modes out of context (see decisions.md best-effort rule). Run the FULL suite
+  after wiring, not just your own tests — the dist test that caught it isn't even a ledger test.
+- /usr/bin/time under the TS loader measures ~1.0s of pure bootstrap (--help baseline) — quote fast-path
+  numbers in-process or subtract the baseline, never claim <1s against raw wall time of a loader run.
+- Shared-worktree hazards: `test/tmp/` fixtures with planted literals MUST live under border's own
+  gitignored tmp (grep /tmp for the literal returns a SIBLING's debug dirs — not your receipt, don't
+  chase it); sibling workers commit concurrently — rebase expectations onto `git log` right before
+  staging, and stage ONLY your files (git add <list>, never -A).
+- retention pruning is dir-slice math when dir names embed a sanitized ISO ts (lexicographic ==
+  chronological): pruneRunDirs = filter `${key8}-` prefix, sort, drop head. Ledger lines never pruned.
