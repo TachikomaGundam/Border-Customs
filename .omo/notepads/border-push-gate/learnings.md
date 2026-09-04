@@ -258,3 +258,19 @@ consumers see scp-form output '<host>/<path>' (no scheme) — exposureSet entrie
   recordCheckRun so there is exactly one persistence seam.
 - agent findings have no raw secret: valueDigest = sha256(stableStringify(finding core)) is
   the honest stand-in that satisfies C1's 64-hex schema without inventing a "secret".
+
+## todo 13 (registry pre-flight) — 2026-09-04
+- spawnSync + in-process node:http stub = guaranteed deadlock (event loop blocked, server
+  never answers). Production probes AND debug one-offs must use async spawn. Symptom:
+  silent 60-240s hangs, no error.
+- Background stubs do NOT survive across bash tool calls (and add a self-exit timer);
+  any live-CLI demo must start the stub inside the SAME call as the CLI run.
+- npm view <name> <field1> <field2> --json on fields a packument lacks ⇒ exit 0 + EMPTY
+  stdout. The plan's "empty stdout must never read as absent" trap is real (confirmed v11.19.1).
+- Multi-signal OR matchers need a per-branch test: every self-owner unit test passed via
+  the email branch, so the repo-URL branch shipped broken (scheme regex missing the colon
+  before //: /^[a-z][a-z0-9+.-]*\/\// never strips 'git+https://'). The mandated LIVE CLI
+  run caught it. Lesson: keep at least one live end-to-end phase per feature, not only units.
+- Full-suite baseline drifted 222→258 mid-task (concurrent sibling workers landing llm
+  commits); "green" must be asserted as fail-0 on the current tree, twice, not against a
+  memorized count.
