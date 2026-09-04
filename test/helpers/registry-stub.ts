@@ -6,6 +6,7 @@
 // pins "no real network in the suite". Routes are a small script: each entry
 // matches pathname prefix, answers with status + JSON body (or raw text).
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { createServer as createNetServer } from "node:net";
 
 export type StubRoute = {
   /** Matched against the URL pathname (exact or prefix with `startsWith`). */
@@ -74,21 +75,46 @@ export async function startRegistryStub(routes: readonly StubRoute[]): Promise<R
 }
 
 /**
- * A port that WAS bound and is now closed: connecting gets ECONNREFUSED
- * deterministically. (A blind offset like stub.port+5000 can collide with
- * another concurrent test file's ephemeral listener — observed once under
- * full-suite load.)
+ * A held loopback endpoint that deterministically REFUSES registry traffic:
+ * an OS-assigned ephemeral TCP port kept bound by a listener for the whole
+ * scenario, which answers every accepted connection with an immediate RST
+ * (`resetAndDestroy`) — `npm view --fetch-retries=0` then fails fast with
+ * `npm error code ECONNRESET`, which `classifyNpmVersionView` maps to
+ * EngineRunError (fail-closed), exactly like ECONNREFUSED would.
+ *
+ * Why not the old bind-port-0-then-CLOSE trick (closedEphemeralPort): the
+ * close() releases the port back to the kernel's ephemeral pool, so a
+ * concurrent `node --test` sibling calling listen(0) can rebind the SAME
+ * port in the window before npm connects — the probe then hits a live stub,
+ * gets an answer, and the expected EngineRunError never fires (flake seen on
+ * test 197). A held listener removes the window entirely: the kernel cannot
+ * hand out a port that is still bound. A plain listening-never-accepting
+ * socket is NOT equivalent — connect() would SUCCEED off the accept backlog
+ * and npm would hang until the 15s timeout instead of failing on transport.
+ *
+ * The handle's url is `http://127.0.0.1:<port>`; push it to the test file's
+ * `openStubs` so `after()` closes it (hits stays empty — RST happens before
+ * any HTTP request is parsed).
  */
-export async function closedEphemeralPort(): Promise<number> {
-  const srv = createServer(() => {
-    /* unused */
+export async function refusedEndpoint(): Promise<RegistryStub> {
+  const sockets: import("node:net").Socket[] = [];
+  const server = createNetServer((s) => {
+    sockets.push(s);
+    s.resetAndDestroy();
   });
-  await new Promise<void>((ok) => srv.listen(0, "127.0.0.1", ok));
-  const addr = srv.address();
-  if (addr === null || typeof addr === "string") throw new Error("closed-port probe failed to bind");
-  const port = addr.port;
-  await new Promise<void>((ok) => srv.close(() => ok()));
-  return port;
+  await new Promise<void>((ok) => server.listen(0, "127.0.0.1", ok));
+  const addr = server.address();
+  if (addr === null || typeof addr === "string") throw new Error("refused endpoint failed to bind an ephemeral port");
+  return {
+    port: addr.port,
+    url: `http://127.0.0.1:${String(addr.port)}`,
+    hits: [],
+    close: () =>
+      new Promise<void>((ok, err) => {
+        for (const s of sockets) s.destroy();
+        server.close((e) => (e === undefined ? ok() : err(e)));
+      }),
+  };
 }
 
 /** A server that accepts connections and says nothing forever — the hung-registry probe. */
