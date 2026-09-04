@@ -1,0 +1,120 @@
+Task 13 — Registry pre-flight: immutability + squat probe
+Worker: todo-13 subagent | Date: 2026-09-04 | Repo: /home/lab/workspace/harness/border (branch main)
+
+== baseline_proof (literal) ==
+$ pwd
+/home/lab/workspace/harness/border
+$ git -C /home/lab/workspace/harness/border log --oneline -3
+3fa162e chore(state): todos 11/12/14 ledgered+checkboxed (13/24)
+ea53182 fix(ledger): packNpmArtifacts must not execute target-repo prepack scripts (G33)
+c9ae89b feat(ledger): G21-proof skip fingerprints + push records + retention
+(git status --short clean; git stash list EMPTY; src/registry/ did not exist)
+
+== Plan-authority notes / deviations from briefing summary ==
+1. The task briefing's "summary of scope" (packument abbreviated-meta, probeAvailable
+   surfaces unavailable as WARNING finding engine 'registry' rule 'registry-probe-unavailable'
+   verdict stays PASS, http.ts/versions.ts/npm.ts/pypi.ts split, 3 retries exponential
+   backoff + jitter, commit message "…name-squat probes (fail-closed, unavailable=warning)")
+   CONTRADICTS the plan text (.omo/plans/border-push-gate.md L188-194), which mandates:
+   src/registry.ts single file; npm view subprocess; ANY network/timeout/DNS failure ⇒
+   border exit 2, push REFUSED (fail-closed, NO warn-and-proceed); "no retries beyond 1".
+   Briefing itself states the plan text is authoritative. Implemented per PLAN.
+   Commit message per plan pin: feat(registry): version-exists + foreign-owner probes, fail-closed offline.
+2. Briefing claimed an uncommitted src/registry/pypi.ts + stash@{0} "todo-13 partial
+   attempt (pre-incident)". Neither exists (stash list empty, dir absent, nothing in git
+   log -- src/registry/). Phantom; nothing salvaged, stash untouched by necessity.
+3. Briefing said src/commands/push.ts prints 'registry pre-flight wired in todo 13'.
+   That placeholder does not exist anywhere in src/ (grep empty). push.ts left untouched;
+   plan todo-13 text does not mention push.ts. Pre-flight assembly belongs to todo 17.
+4. M7 "versions recorded at check time": already satisfied WITHOUT touching ctx/report/
+   ledger shapes — exposureSet (computed from package.json/pyproject.toml AT HEAD via
+   git show, per todo-13 provenance AC) feeds computeCheckKey, so any version bump
+   invalidates skip-ledger fingerprints. Zero fingerprint-shape change ⇒ baseline
+   tests protected. Re-probe immediately pre-publish is todo 17 (plan).
+
+== Implementation ==
+- src/registry.ts: classifyNpmVersionView (exit0+JSON-object⇒present; exit0+empty/
+  malformed/non-object⇒EngineRunError, never "absent"; non0+E404⇒absent; other non0⇒
+  EngineRunError), npmNameClaimed, extractOwnerSignals, ownerVerdict (self = maintainer
+  email ∈ rules.authors.emails OR repository URL matches a configured git remote after
+  normalizeGitLocation; zero signals ⇒ CRITICAL ambiguous; mismatch ⇒ CRITICAL
+  name-foreign-owner), unclaimed ⇒ INFO name-available, probeNpm + probePypi
+  (GET <repository|pypi.org>/pypi/<name>/<version>/json via global fetch +
+  AbortSignal.timeout(15000)), runRegistryProbes gated on effectiveTargets ∩ cfg.targets.
+  Unreachable/timeout/5xx/malformed ⇒ EngineRunError ⇒ CLI exit 2 (fail-closed).
+- src/check.ts: wired `await runRegistryProbes(...)` into runPipeline after scanIdentity,
+  before exposure/rulesHash. Staged MY HUNK ONLY (worktree carried a sibling's uncommitted
+  rulesHash hunk) via git hash-object -w + update-index --cacheinfo.
+- test/helpers/registry-stub.ts: node:http stub on 127.0.0.1 ephemeral port (default 404),
+  hanging stub, closedEphemeralPort. Zero public-network in suite (plan AC).
+- test/ledger.check.test.ts: two npm fixtures redirected to loopback stub 404 (otherwise
+  probes would hit real registry.npmjs.org once check wires probes — 'widgets' exists there).
+
+== TDD red→green (registry.test.ts) ==
+RED: with src/registry.ts absent, the file failed to load (ERR_MODULE_NOT_FOUND
+'../src/registry.ts') before any implementation existed.
+GREEN (initial impl, 24 tests): # tests 24 / # pass 24 / # fail 0 (~27s).
+npm run typecheck: rc=0 clean (after fixing 2 type errors in my own files only).
+
+== BUG FOUND BY LIVE CLI RUN (the reason live runs are mandated) ==
+Phase A below initially surfaced a FALSE-CRITICAL name-foreign-owner for a self-owned
+name: config remote `origin.example:widgets.git` vs packument repository.url
+`git+https://origin.example/widgets.git`. Root cause: scheme-strip regex in
+normalizeGitLocation was /^[a-z][a-z0-9+.-]*\/\//i — missing the COLON before //, so
+git+https:// (and https://) never stripped; both sides normalized to different strings.
+Unit suite missed it because every self-match test passed via the email branch of the OR.
+Fix commit 6af272e + two regression tests (URL-only self-match probe + pure normalizeGitLocation table).
+
+== Live CLI evidence (MANUAL run, loopback stub only — NO public registry) ==
+Fixture: /tmp/opencode/t13live/repo2 — git repo, package.json {name:widgets,version:1.0.0},
+border.yaml targets.git remotes origin.example:widgets.git, targets.npm.registry
+http://127.0.0.1:<stub-port> (stub serves full widgets@1.0.0 packument, maintainer
+alice@self.example, repo git+https://origin.example/widgets.git), rules.authors.emails
+[wiki@sumteclab.com].
+$ node --import file://$PWD/tools/register-ts.mjs src/index.ts check --force --json   (in fixture)
+
+Phase A-fixed (version PRESENT on registry): exit 1
+verdict: FAIL
+[{'rule': 'version-exists', 'severity': 'CRITICAL', 'message': 'bump version required'}]
+(engine=registry findings only; pre-fix run additionally showed the false owner verdict, see above)
+
+Phase B (registry DOWN — closed ephemeral port): exit 2, stdout 0 bytes, ledger unchanged
+border: engine run error: npm registry probe inconclusive (npm error ECONNREFUSED); refusing
+to assume the version is absent — registry unreachable or returned unexpected output, push
+blocked until the probe succeeds
+ledger records before=1 after=1; stdout_bytes=0   ⇒ stale_state probe: an unreachable
+registry certifies NOTHING; no record is written that push could skip against.
+
+Phase C (healthy stub again, package switched to unclaimed name): exit 0
+verdict: PASS
+[{'rule': 'name-available', 'severity': 'INFO', 'message': "name 'ungetanium-4f7a2e' is unclaimed on the npm registry"}]
+exposureSet: ['npm:ungetanium-4f7a2e@1.0.0', 'origin.example:widgets.git']
+⇒ self-heals after outage; no cached-green carried across the outage (head/exposure moved;
+and the FAIL phase B never wrote a record at all).
+
+Phase D (repeat run): exit 0, stdout 114 bytes (skip-ledger note), ledger dump:
+check FAIL llm=False ['npm:widgets@1.0.0', 'origin.example:widgets.git']
+check PASS llm=False ['npm:ungetanium-4f7a2e@1.0.0', 'origin.example:widgets.git']
+⇒ HEAD versions ARE recorded at check time in exposureSet (M7 provenance).
+
+== Final verification ==
+$ npm run typecheck   → clean (exit 0)
+$ npm test  (R1)      → # tests 258 / # pass 258 / # fail 0 / duration 106.5s
+$ npm test  (R2)      → # tests 258 / # pass 258 / # fail 0 / duration 106.8s   (flaky check: 2 green runs)
+(test/registry.test.ts alone after fix: # tests 26 / # pass 26 / # fail 0)
+
+== Adversarial probe mapping (ultraqa) ==
+- stale_state: live phase B→C above (unreachable writes no certificate; healthy re-probe
+  recomputes; unit test 'git-only targets ⇒ no probes' guards scope leaks).
+- misleading_success_output / silent-ok: phase B exit 2 (never 0/1); unit tests pin that
+  exit0+EMPTY stdout throws 'empty stdout' instead of reading absent; malformed body throws.
+- malformed_input: malformed JSON ⇒ classify throws (unit), pypi non-JSON 200 ⇒
+  EngineRunError 'parse error' (unit); npm FETCH_ERROR stderr ⇒ throw (unit).
+- hung_commands: startHangingStub (accepts, never answers) ⇒ SIGKILL at timeoutMs,
+  EngineRunError 'timed out', bounded (npm + pypi unit tests, 1500ms budget).
+- flaky_tests: full suite run twice back-to-back, 258/258 both (no order/port coupling —
+  stubs use port 0).
+
+== Commits ==
+612c43c feat(registry): version-exists + foreign-owner probes, fail-closed offline
+6af272e fix(registry): normalizeGitLocation must strip scheme colon (git+https// broke repo-URL owner match, caught by live CLI run)
