@@ -1,0 +1,198 @@
+# Task 18 evidence — LLM bundle contract + OpenCode skill wrapper
+Worker: todo-18 executor · branch main · plan .omo/plans/border-push-gate.md line 228+
+
+## 0. Baseline protocol (literal)
+$ pwd && git log --oneline -3
+/home/lab/workspace/harness/border
+3fa162e chore(state): todos 11/12/14 ledgered+checkboxed (13/24)
+ea53182 fix(ledger): packNpmArtifacts must not execute target-repo prepack scripts (G33)
+c9ae89b feat(ledger): G21-proof skip fingerprints + push records + retention
+=> baseline confirmed, no contradiction.
+
+## 1. Stub characterization BEFORE replacement (test/cli.test.ts loop, run against HEAD 3fa162e)
+$ node --import tools/register-ts.mjs src/index.ts llm-request   (in temp repo w/ border.yaml)
+border: 'llm-request' is not implemented yet (plan todo 18 wires the bundle contract)
+exit=2, stdout empty
+$ node --import tools/register-ts.mjs src/index.ts llm-ingest x.json
+border: 'llm-ingest' is not implemented yet (plan todo 18 wires the ingest contract)
+exit=2, stdout empty
+DELIBERATE UPDATE NOTE: test/cli.test.ts + test/cli.dist.test.ts stub loops were rewritten
+as part of 80c63ed — status keeps /not implemented/; the two llm commands now assert the new
+honest-precondition-failure contract (exit 2, empty stdout, message matches
+/no scan targets.*run 'border check' first/ for llm-request over a border.yaml-less repo and
+/usage: border llm-ingest/ for the no-positional call). The old stub strings no longer exist
+because the stubs are implemented (this task's mandate).
+
+## 2. TDD red-first runs (test/llm.test.ts)
+run 1 (tests only, no impl): FAIL — Cannot find module .../src/llm.ts (red for the whole contract).
+run 2 (bundle+ingest wired): 7 pass / 3 fail — causes: (a) fixture remote URL absolute /home/...
+    triggered secretlint HOMEDIR CRITICALs → switched fixtures to relative ../remote.git
+    (sanitizes to '[invalid-url-redacted]' on both sides of the exposureSet match);
+    (b) committer not allowlisted → identity CRITICAL → rules.authors added to fixtures;
+    (c) ENOBUFS: runGitChecked 1MiB maxBuffer on the 12MB truncation fixture → src/llm/diff.ts
+    owns gitOut with 64MiB maxBuffer + 120s timeout.
+run 3: 9 pass / 1 fail — findings.json written inside the clone flipped porcelainDigest between
+    ingest and the follow-up check (key mismatch); moved findings files to fixture root, outside
+    the worktree (now codified in SKILL.md: "author the findings file OUTSIDE the repo tree").
+final: 10/10 pass (~108s).
+
+## 3. Full suites / gates
+$ npm test   → tests 256 / pass 256 / fail 0 (duration 106.7s)   [after ALL todo-18 edits]
+$ npx tsc --noEmit → rc=0
+No new npm deps. node:test only. --ignore-scripts never used.
+
+## 4. REAL end-to-end CLI cycle (fixture: mktemp -d test/tmp/task18-e2e-XXXXXX,
+##    local bare remote ../remote.git, border.yaml with explicit hosts:[] ips:[] pathPatterns:[])
+### 4a. check → llm-request (literal transcript)
++ mkdir -p test/tmp/task18-e2e-Xb9EYs/remote.git test/tmp/task18-e2e-Xb9EYs/work
++ git init -q --bare -b main test/tmp/task18-e2e-Xb9EYs/remote.git
++ git clone -q test/tmp/task18-e2e-Xb9EYs/remote.git test/tmp/task18-e2e-Xb9EYs/work
+warning: You appear to have cloned an empty repository.
++ cd test/tmp/task18-e2e-Xb9EYs/work
++ git config user.name Wiki.js
++ git config user.email wiki@sumteclab.com
++ printf 'clean content\n'
++ cat
++ git add -A
++ git commit -q -m init
++ git push -q origin HEAD:refs/heads/main
++ printf 'feature work\n'
++ git add -A
++ git commit -q -m 'add feature'
++ git remote set-url origin ../remote.git
++ node --import /home/lab/workspace/harness/border/tools/register-ts.mjs /home/lab/workspace/harness/border/src/index.ts check
+border: border check PASS: 0 finding(s), 0 blocking
++ echo CHECK_EXIT=0
+CHECK_EXIT=0
++ node --import /home/lab/workspace/harness/border/tools/register-ts.mjs /home/lab/workspace/harness/border/src/index.ts llm-request
+border: llm-request: wrote .border/runs/f9ac64e4-2026-09-04T01-54-44-846Z/llm-request.json (base remote-tip, 1 file deltas, 0 deterministic findings)
++ echo REQUEST_EXIT=0
+REQUEST_EXIT=0
++ find .border/runs -name llm-request.json
+.border/runs/f9ac64e4-2026-09-04T01-54-44-846Z/llm-request.json
+
+### 4b. bundle content inspection (literal)
+{
+ "schemaVersion": 1,
+ "key8": "f9ac64e4",
+ "head": "26c563cc1e4325f13ff8cd06d668a72099d5586e",
+ "base": {
+  "mode": "remote-tip",
+  "sha": "5546f6c06acac87f2acb0fbd97f6e3be2569f718",
+  "ref": "refs/remotes/origin/main",
+  "note": "base = newest remote-tracking tip of the exposed remotes (refs/remotes/origin/main)"
+ },
+ "patchLimitBytes": 10485760,
+ "dataBoundary": "the bundle carries real reviewable source; masking covers only values the deterministic engines already flagged \u2014 a residual, still-undiscovered secret in diff context CAN reach the operator-configured LLM endpoint. That is the accepted-by-design boundary of the optional --llm layer; the deterministic layers remain the actual gate."
+}
+fileDeltas: [('feature.txt', 'A', 0, 143, False)]
+promptTemplate sha256: dfdcb27b53a55ab7 path tail: r/assets/prompts/llm-review.md
+patch: 'diff --git a/feature.txt b/feature.txt\nnew file mode 100644\nindex 0000000..bac0ee7\n--- /de'
+{"t":"check","key":"f9ac64e42e3cd9cf8123ff775a515fc876ffcf8bf940daf4628d7354fe9fa92c","key8":"f9ac64e4","head":"26c563cc1e4325f13ff8cd06d668a72099d5586e","dirtyDigest":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","refSetHash":"781350e9201ac1b6792ce2bb509d4e57d83ab10cbe6d38fcc8a0764aed503bc3","exposureSet":["[invalid-url-redacted]"],"effectiveTargets":["git"],"rulesHash":"6c00e8afa19e49cf0c0b091d130fe889db44f8161cc4ae19f5ca92ced3402038","artifacts":null,"llm":false,"verdict":"PASS","counts":{"INFO":0,"LOW":0,"MEDIUM":0,"HIGH":0,"CRITICAL":0,"total":0,"blocking":0,"warnings":0},"reportPath":".border/runs/f9ac64e4-2026-09-04T01-54-44-846Z/report.json","degraded":false,"ts":"2026-09-04T01:54:44.846Z"}
+++ tail -1 .border/ledger.jsonl
+++ python3 -c 'import json,sys;print(json.load(sys.stdin)['\''reportPath'\''])'
++ REC=.border/runs/f9ac64e4-2026-09-04T01-54-44-846Z/report.json
++ python3 -c $'\nimport json\nr=json.load(open(\'.border/runs/f9ac64e4-2026-09-04T01-54-44-846Z/report.json\'))\nprint(\'verdict:\',r[\'verdict\'],\'counts:\',r[\'counts\'][\'blocking\'],\'findings:\',[(f[\'rule\'],f[\'engine\'],f[\'valueDigest\'][:8]) for f in r[\'findings\']])\n'
+verdict: PASS counts: 0 findings: []
+
+### 4c. llm-ingest malformed (CRITICAL path-not-in-tree) then fixed (literal)
++ cat
++ node --import /home/lab/workspace/harness/border/tools/register-ts.mjs /home/lab/workspace/harness/border/src/index.ts llm-ingest /home/lab/workspace/harness/border/test/tmp/task18-e2e-Xb9EYs/findings-bad.json
+border: llm-ingest: item 0: finding-unknown-location (path "deploy/secrets.yaml" is not a file in the request bundle)
++ echo INGEST_BAD_EXIT=2
+INGEST_BAD_EXIT=2
++ echo 'ledger lines after bad ingest:'
+ledger lines after bad ingest:
++ wc -l
+1
++ python3 -
++ node --import /home/lab/workspace/harness/border/tools/register-ts.mjs /home/lab/workspace/harness/border/src/index.ts llm-ingest /home/lab/workspace/harness/border/test/tmp/task18-e2e-Xb9EYs/findings.json
+border: agent CRITICAL planted-prod-token feature.txt — production token file would be exposed
+border: agent HIGH unfinished-auth-todo feature.txt — TODO marker hints at unfinished auth work
+border: llm-ingest: verdict FAIL — 2 agent findings recorded (llm:true, key f9ac64e4) report .border/runs/f9ac64e4-2026-09-04T01-55-35-194Z/report.json
++ echo INGEST_EXIT=1
+INGEST_EXIT=1
++ echo 'ledger tail:'
+ledger tail:
++ tail -1 .border/ledger.jsonl
+{"t":"check","key":"f9ac64e42e3cd9cf8123ff775a515fc876ffcf8bf940daf4628d7354fe9fa92c","key8":"f9ac64e4","head":"26c563cc1e4325f13ff8cd06d668a72099d5586e","dirtyDigest":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","refSetHash":"781350e9201ac1b6792ce2bb509d4e57d83ab10cbe6d38fcc8a0764aed503bc3","exposureSet":["[invalid-url-redacted]"],"effectiveTargets":["git"],"rulesHash":"6c00e8afa19e49cf0c0b091d130fe889db44f8161cc4ae19f5ca92ced3402038","artifacts":null,"llm":true,"verdict":"FAIL","counts":{"INFO":0,"LOW":0,"MEDIUM":0,"HIGH":1,"CRITICAL":1,"total":2,"blocking":2,"warnings":0},"reportPath":".border/runs/f9ac64e4-2026-09-04T01-55-35-194Z/report.json","degraded":false,"ts":"2026-09-04T01:55:35.194Z"}
+++ tail -1 .border/ledger.jsonl
+++ python3 -c 'import json,sys;print(json.load(sys.stdin)['\''reportPath'\''])'
++ REC=.border/runs/f9ac64e4-2026-09-04T01-55-35-194Z/report.json
++ python3 -c $'\nimport json\nr=json.load(open(\'/home/lab/workspace/harness/border/test/tmp/task18-e2e-Xb9EYs/work/\'+\'\'\'.border/runs/f9ac64e4-2026-09-04T01-55-35-194Z/report.json\'\'\'.strip()))\nprint(\'record llm/verdict:\', json.load(open(\'/home/lab/workspace/harness/border/test/tmp/task18-e2e-Xb9EYs/work/.border/ledger.jsonl\')).get(\'llm\') if False else \'\')\nprint(\'verdict:\',r[\'verdict\'],\'blocking:\',r[\'counts\'][\'blocking\'],\'findings:\',[(f[\'rule\'],f[\'engine\'],f[\'severity\'],f[\'valueDigest\'][:8]) for f in r[\'findings\']])\n'
+record llm/verdict: 
+verdict: FAIL blocking: 2 findings: [('planted-prod-token', 'agent', 'CRITICAL', '8d16497d'), ('unfinished-auth-todo', 'agent', 'HIGH', 'abc62918')]
++ python3 -c $'\nimport json\nrec=[json.loads(l) for l in open(\'/home/lab/workspace/harness/border/test/tmp/task18-e2e-Xb9EYs/work/.border/ledger.jsonl\') if l.strip()][-1]\nprint(\'last record: llm=\',rec[\'llm\'],\'verdict=\',rec[\'verdict\'],\'key=\',rec[\'key\'][:8])\n'
+last record: llm= True verdict= FAIL key= f9ac64e4
+Assertions proven by 4c: bad ingest ⇒ exit 2 naming "item 0" + 'finding-unknown-location' +
+ledger STILL 1 line (zero writes); fixed ⇒ exit 1 (FAIL gate), ledger tail record
+"llm":true,"verdict":"FAIL" with counts HIGH:1 CRITICAL:1, report.json findings carry
+engine:'agent' + ingester-computed valueDigests, and the {llm:true} FAIL record is the newest
+of key f9ac64e4 (a later plain check re-records, --llm skip rides nothing else).
+Cleanup: rm -rf test/tmp/task18-e2e-* (done; test/tmp holds no task-18 dirs).
+
+## 5. Design decisions / interpretations (plan-faithful, stated where the plan left latitude)
+- base semantics: "newest remote-tracking tip" = for-each-ref --sort=-committerdate over
+  refs/remotes/<name>/ for every configured remote whose sanitized URL ∈ exposureSet (HEAD-ref
+  refs excluded). First-push/no-remote ⇒ FULL-TREE diff from the empty tree
+  (git hash-object -t tree --stdin), stated in bundle base.mode='full-tree' + base.note —
+  chosen over "diff from root commit" so the root commit's own content is reviewable too.
+- Patch masking needs the RAW secret values, which the ledger deliberately never stores.
+  Resolution: llm-request re-detects over the patch text itself with the deterministic engine
+  (scanTree against a throwaway .border/llm-mask-* sandbox, chunks ≤ 8MiB so gitleaks'
+  10MiB per-file guard never skips an input), registering hits into TextSanitizer; sanitize()
+  replaces them with exactly [REDACTED:<sha256[:8]>], i.e. the same token a deterministic
+  finding's valueDigest predicts. Masking therefore covers precisely "values the deterministic
+  engines already flag" — the round-2 M9a boundary is quoted verbatim in bundle.dataBoundary,
+  in SKILL.md, and in tests. If gitleaks cannot run, llm-request fails closed (exit 2) instead
+  of shipping unmasked patches.
+- ingest computes valueDigest for agent findings as sha256(stableStringify({rule,target,path,
+  line,commit,message,snippet})) — no raw-secret concept for agent findings, but the C1 schema
+  + every renderer's sanitizer registration stay satisfied. engine is force-overwritten to
+  'agent'; a supplied engine/valueDigest key is tolerated-but-ignored per plan ("Findings minus
+  valueDigest — ingester computes"); any OTHER unknown key is rejected with its index.
+- llm:true records keep the todo-14 separation: lookupSkipRecord requires record.llm === query
+  .llm, verified by the two-directional no-skip-riding test + e2e.
+- Prompt template: rulesHash consumes assets/prompts/llm-review.md (commit ca1eb98); template
+  edit ⇒ invalidates cached PASS (proven hermetically via BORDER_PROMPT_TEMPLATE_PATH). The
+  esbuild dist bundle cannot see repo assets yet — MISSING_TEMPLATE path exits 2 fail-closed,
+  consistent with GITLEAKS_VENDORED_CONFIG handling; packaging fix is owned by todos 20/21
+  (documented in code + SKILL.md).
+- src/cli.ts / src/commands/index.ts untouched; only the two handler bodies replaced
+  (exported names runLlmRequest/runLlmIngest preserved).
+
+## 6. Adversarial classes probed (per DoneClaim contract)
+- malformed_input: 7-case matrix (bad severity/rule/unknown-key/line/non-object/engine-only…) +
+  truncated JSON + non-array root + missing file — all exit 2 naming item index, zero writes.
+- prompt_injection: agent finding MESSAGE containing an AWS-key-shaped secret gets the literal
+  scrubbed from persisted report/ledger via engine-detector masking (test asserts absence).
+- stale_state: HEAD moved after llm-request ⇒ ingest refuses; llm record then head moves ⇒
+  plain check re-runs (no stale reuse either direction).
+- misleading_success_output: no-record/no-bundle/no-config/empty-array/usage paths exit 2 with
+  honest stderr and silent stdout; empty findings array records PASS truthfully (exit 0),
+  FAIL records exit 1.
+
+## 7. Final proof
+6af272e fix(registry): normalizeGitLocation must strip scheme colon (git+https// broke repo-URL owner match, caught by live CLI run)
+80c63ed feat(llm): bundle contract + ingest validation + skill wrapper
+ca1eb98 feat(check): wire llm review prompt template into rules fingerprint
+--- git show --stat ca1eb98
+ca1eb98 feat(check): wire llm review prompt template into rules fingerprint
+ assets/prompts/llm-review.md | 69 ++++++++++++++++++++++++++++++++++++++++++++
+ src/check.ts                 |  6 +++-
+ src/check/rulesHash.ts       | 25 ++++++++++++++--
+ src/ledger.ts                |  6 +++-
+ 4 files changed, 101 insertions(+), 5 deletions(-)
+--- git show --stat 80c63ed
+80c63ed feat(llm): bundle contract + ingest validation + skill wrapper
+ skills/border/SKILL.md     | 113 ++++++++++++++
+ src/commands/llmIngest.ts  |  15 +-
+ src/commands/llmRequest.ts |  13 +-
+ src/llm.ts                 |  12 ++
+ src/llm/bundle.ts          | 176 ++++++++++++++++++++++
+ src/llm/diff.ts            | 191 +++++++++++++++++++++++
+ src/llm/ingest.ts          | 201 +++++++++++++++++++++++++
+ test/cli.dist.test.ts      |  19 ++-
+ test/cli.test.ts           |  27 +++-
+ test/llm.test.ts           | 366 +++++++++++++++++++++++++++++++++++++++++++++
+ 10 files changed, 1106 insertions(+), 27 deletions(-)

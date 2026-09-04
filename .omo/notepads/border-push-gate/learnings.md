@@ -237,3 +237,24 @@ consumers see scp-form output '<host>/<path>' (no scheme) — exposureSet entrie
   package.json trips border's own /home/[a-z]+/ path-pattern rule (run1 FAILs the gate — wrong
   red); an in-repo marker file dirties porcelain and masks skip assertions. Marker belongs in
   /tmp with a pid+ts-unique name, rm'd in finally.
+
+## todo 18 — llm bundle contract (worker log, 2026-09-04)
+- Masking raw secrets in patch text cannot reuse ledger digests (the ledger is pre-redaction
+  by design). Solution: llm-request feeds the patches themselves through the deterministic
+  detector (scanTree over a throwaway .border/llm-mask-* sandbox; chunks ≤ 8MiB because
+  gitleaks silently skips files > 10MiB) so TextSanitizer registers the SAME raws and
+  sanitize() emits the contract token [REDACTED:<valueDigest[:8]>]. The token then provably
+  matches the deterministic finding's valueDigest — masking and reporting agree by
+  construction. If the detector cannot run: fail closed, never ship unmasked patches.
+- fixture gotchas that cost 3 red rounds: absolute /home/... remote URLs trip secretlint
+  HOMEDIR/path-pattern CRITICALs (use relative ../remote.git — sanitizes identically on both
+  sides of exposureSet matching); non-allowlisted committer trips identity rule (fixtures need
+  rules.authors); ANY file written inside the clone changes porcelainDigest ⇒ findings.json /
+  bundle-adjacent scratch files belong OUTSIDE the worktree (now in SKILL.md).
+- runGitChecked's 1MiB maxBuffer ENOBUFS-fails on big diffs; llm code owns its gitOut
+  (64MiB). spawnSync default buffers are a trap for anything diff-shaped.
+- {llm:true} ledger records already can't satisfy plain-check skips (lookupSkipRecord
+  record.llm===q.llm); the two-directional no-riding test locks it. ingest writes through
+  recordCheckRun so there is exactly one persistence seam.
+- agent findings have no raw secret: valueDigest = sha256(stableStringify(finding core)) is
+  the honest stand-in that satisfies C1's 64-hex schema without inventing a "secret".
