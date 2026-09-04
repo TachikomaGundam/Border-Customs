@@ -3,17 +3,18 @@
 // `border check` — the CLI seam over the plan todo-10 pipeline. cli.ts is
 // frozen; everything gate-side lives here. Exit mapping (G11): the pipeline's
 // degraded flag (required engine failed its probe) maps to exit 2 REGARDLESS of
-// the verdict — a gate that could not run never reports "pass". --force is
-// accepted but a seam only: the skip-ledger it will bypass is todo 14's.
-import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-
+// the verdict — a gate that could not run never reports "pass". todo 14 wired
+// the skip-ledger around the pipeline: a matching non-degraded PASS record
+// short-circuits the scan legs (SKIP line, cached verdict's exit code), --force
+// bypasses the lookup, and every full non-degraded run appends a fresh record.
+// The ledger never sees a degraded or NO-OP run — those can certify nothing.
 import { loadConfig, NO_OP_MESSAGE, type BorderConfig } from "../config.ts";
 import { EXIT_ERROR, EXIT_PASS, exitCodeFromVerdict, type BorderExit } from "../cli/exit.ts";
 import type { Ctx } from "../cli/types.ts";
 import { executeCheck, type CheckOutcome } from "../check.ts";
 import { BorderLockHeldError } from "../check/lock.ts";
-import { stableStringify } from "../check/rulesHash.ts";
+import { computeConfigDigest } from "../check/rulesHash.ts";
+import { consultSkipLedger, formatSkipLine, recordCheckRun } from "../ledger.ts";
 import { resolveRepoDir, computeEffectiveTargets } from "../check/context.ts";
 import { probeEngines } from "../engines/policy.ts";
 import type { EngineOptions } from "../engines/support.ts";
@@ -45,14 +46,33 @@ export async function runCheck(ctx: Ctx): Promise<BorderExit> {
     return EXIT_PASS;
   }
 
-  // base border.yaml bytes when a file backs the run; the git-remote inferred
-  // fallback has no file ⇒ digest the canonical effective config instead.
-  const configDigest = existsSync(load.source)
-    ? createHash("sha256").update(readFileSync(load.source)).digest("hex")
-    : createHash("sha256").update(stableStringify(load.config), "utf8").digest("hex");
+  // G21 fix (todo 14): canonical-JSON digest of the EFFECTIVE config (post
+  // overlay-merge, post `${VAR}` expansion) — a border.yaml byte digest left
+  // .border/config.local.yaml overlays and env-expanded remotes invisible to
+  // the fingerprint. computeConfigDigest's header carries the full rationale.
+  const configDigest = computeConfigDigest(load);
 
   const repoDir = resolveRepoDir(ctx.cwd, { env });
   const effectiveTargets = computeEffectiveTargets(load.config, ctx.flags.targets);
+
+  if (!ctx.flags.force) {
+    const decision = await consultSkipLedger({
+      repoDir,
+      cfg: load.config,
+      configDigest,
+      effectiveTargets,
+      llm: ctx.flags.llm,
+      ...(env !== undefined ? { env } : {}),
+      ...(ctx.flags.requireEngine !== undefined && ctx.flags.requireEngine.length > 0
+        ? { requireOverride: ctx.flags.requireEngine }
+        : {}),
+    });
+    for (const warning of decision.warnings) ctx.stderr(`border: WARNING ${warning}`);
+    if (decision.skip !== null) {
+      ctx.stdout(formatSkipLine(decision.skip));
+      return exitCodeFromVerdict(decision.skip.verdict);
+    }
+  }
 
   let outcome: CheckOutcome;
   try {
@@ -75,7 +95,6 @@ export async function runCheck(ctx: Ctx): Promise<BorderExit> {
   }
   if (outcome.lockWarning !== null) ctx.stderr(`border: WARNING ${outcome.lockWarning}`);
   if (outcome.ctx.dirty) ctx.stderr("border: working tree is dirty — findings may reference uncommitted files");
-  // --force seam: todo 14 (skip-ledger) consumes flags.force; check itself never skips.
   if (ctx.flags.json) {
     ctx.stdout(JSON.stringify(outcome.report, null, 2));
   } else {
@@ -85,6 +104,15 @@ export async function runCheck(ctx: Ctx): Promise<BorderExit> {
     ctx.stderr("border: required engine(s) degraded — verdict is UNTRUSTWORTHY (exit 2 regardless of findings)");
     return EXIT_ERROR;
   }
+  // Ledgered only after the degraded gate: a degraded verdict must never be cached.
+  recordCheckRun({
+    repoDir,
+    report: outcome.report,
+    ctx: outcome.ctx,
+    effectiveTargets,
+    llm: ctx.flags.llm,
+    ...(env !== undefined ? { env } : {}),
+  });
   return exitCodeFromVerdict(outcome.report.verdict);
 }
 
