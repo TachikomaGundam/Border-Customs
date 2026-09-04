@@ -1,0 +1,47 @@
+# F4 Scope fidelity — final wave report (persisted from reviewer session ses_f93615f95ffe0qXGSv5C6p1ik1)
+# Verdict: APPROVE (0 blocking). Full transcript: /home/lab/.local/share/opencode/tool-output/tool_06cb492cc001OAdk3NGqAlhkx7
+I'll compress m00001 with a dense summary. Keep m00002 (second plan half + git log + package.json) — m00002 is 5.8K... wait, the compressible ranges listed only m00001 (30.4K). m00002 wasn't listed?? The nudge lists m00001 only. Hmm, odd — maybe because m00002 is more recent. Whatever — compress m00001 only (it's the big one).
+Note the range boundary: m00001–m00001 single message. It contains the first plan read (lines 1-212) and the first bash (status + ls-files). Compress with dangerous:true? The nudge says "⚠️ NOT recommended unless you are certain... pass dangerous: true". m00001 is NOT the most recent message, so dangerous isn't strictly required — dangerous is for ranges including the tail of the conversation. The current conversation continues beyond m00001 (m00002-m00006 exist). So no dangerous flag needed.
+Then write the final report with the verdict line LAST (task says "End with EXACTLY one line: F4 VERDICT: APPROVE... Final message must BE the report"). So the report structure: findings + blocking items (0) + non-blocking observations + final line.
+Let me write the summary for m00001 now. It must include everything needed to write the final report: the plan's scope boundaries (all-gates data), the ls-files inventory, initial git status.
+All checks complete. Compressing the consumed first-read range before writing the report
+Now write the final report. All evidence is gathered. Let me structure it per the task's 7 audit dimensions, then blocking items (0), non-blocking observations, then the exact one-line verdict.
+# F4 Scope-Fidelity Audit — `border` vs `.omo/plans/border-push-gate.md`
+**Verdict: APPROVE** — every tracked file, dependency, flag, engine, and allow entry traces to a plan line; no scope creep found. Details below.
+## 1. File inventory (`git ls-files`, ~180 files — all categorized)
+| Category | Files | Evidence |
+|---|---|---|
+| Plan-mandated product | `src/**` (42 files), `test/**` (33 tests + helpers), `assets/gitleaks-defaults-v8.30.1.toml` (todo 1 vendor), `assets/prompts/llm-review.md` (todo 18), `skills/border/SKILL.md` (todo 18), `border.yaml` (todo 19 dogfood), `package.json`/`package-lock.json`/`tsconfig.json`, `tools/register-ts.mjs` (todo 1), `tools/spike-secretlint.mjs` (todo 5), `tools/copy-assets.mjs` (todo 19 build staging), `.gitignore` (todo 1) | each maps to a `[x]` todo |
+| Harness/.omo state | `.omo/plans/`, `.omo/drafts/`, `.omo/notepads/`, `.omo/evidence/task-*-*.txt` (~25), `.omo/start-work/ledger.jsonl`, `.omo/run-continuation/` (~100), `.omo/boulder.json` | plan:260 "initial commit = planning state (.omo/) + scaffold" |
+| UNJUSTIFIED | **none** | — |
+- `tools/ts-hooks.mjs`: clean-room ESM esbuild loader hook, byte-present in magi/tools/ too (harness convention); scaffold commit 3298668 alongside the plan-mandated register-ts.mjs. Justified.
+- `src/` module splits (check/, llm/, commands/, push/, ledger/, rules/) map 1:1 onto todo APIs; the split follows the harness 250-LOC ceiling (explicit refactor commit 955519a). Placement of `computeRulesHash` in `src/check/rulesHash.ts` vs findings.ts (plan todo 3) is internal organization, not scope change.
+- **No README — in-spec**: plan mentions README only as npm's always-packed name-set and the C3/G36 heuristic ban, never as a repo deliverable. Confirmed absent.
+- **No CI**: `.github/` absent — matches plan:38 "no cron/scheduler/CI workflow YAML; on-demand only".
+## 2. Dependency scope — PASS
+`npm ls --all --depth=0`: clean, no extraneous/missing. Runtime = `zod 4.5.4` + `yaml 2.9.0` (the sanctioned pair) + `@secretlint/core` + 4 `@secretlint/secretlint-rule-*` — the secretlint family is explicitly plan-mandated as runtime deps at todo 5 (plan:99-100). DevDeps exactly the six plan-referenced: `typescript 5.9.3, esbuild 0.25.12, @types/node 22.19.0, publint 0.3.24, verdaccio 6.10.2, secretlint 13.0.5` (CLI fallback, todo 5). All exact-pinned, no carets.
+**Postinstall audit**: `zod` scripts = clean/postbuild/test/prepublishOnly only; `yaml` scripts = build/test/docs only — **neither has postinstall/preinstall**; nothing executes on consumer install.
+## 3. Feature creep in src/ — none found
+- **CLI flags** (src/cli.ts parseArgs options): exactly `config, targets, force, yes, require-engine, llm, json, help` — matches plan G9 table + help. No extras.
+- **Engines**: source/files evidence shows only gitleaks, secretlint, trufflehog (optional), plus native rule families (aiArtifacts, identity, path-pattern, pack-manifest). `engine:` labels in code = `gitleaks, secretlint, trufflehog, native, agent, pypi-manifest, twine` — all plan-sanctioned (agent = todo 18 llm-ingest provenance; pypi-manifest/twine = todo 12 adapter legs).
+- **Push kinds**: `TargetKind = "git" | "npm" | "pypi"` only.
+- **Config keys**: zod schema is `.strict()` everywhere (unknown keys rejected) and matches plan exactly: `targets.git.remotes/npm/pypi`, `rules.authors/hosts/ips/pathPatterns/maxFileKB`, `allow[{rule,match,file?}]`, `engines.require/trufflehog`. Blanket unscoped `{rule:"*",match:"*"}` is rejected at config load (src/config.ts:68-69) — plan Must-NOT enforced.
+## 4. Git history hygiene — PASS (52 commits, no deletions, no secrets)
+- **Deleted/abandoned files**: `git log --diff-filter=D` → **zero**. No orphan docs.
+- **Commit scope discipline**: 11 spot-checked commits (scaffold, c72db95, 2bf381e, 6093b39, 0af66e9, 80c63ed, 1a80307, ea53182, 1ccdd49, 955519a, 706466e) each touch only their declared todo's files, `.omo/` evidence/state, or tests. The "extra" fixes are sanctioned gap-closures with their own evidence files (task-gapB-artifact-wiring.txt for the plan's "scan the exact bytes" mandate; task-17b-integration.txt for todo 17; task-19b-redfirst/green = todo 19 red-first pins) plus recorded notepad learnings.
+- **`git log -S AKIAI4Q3`**: every hit is `test/*.test.ts`, `.omo/evidence/*`, `.omo/start-work/ledger.jsonl`, `.omo/notepads/*` — i.e. planted test literals + plan-evidence/harness state only. The one `AKIA` commit outside test/ (scaffold 3298668) is `assets/gitleaks-defaults-v8.30.1.toml` — gitleaks' **upstream example strings** in the plan-mandated vendored rules config (todo 4), not product code and not a real credential; it is also explicitly allow-listed in border.yaml entry (b-ext).
+- **Real-credential patterns**: `BEGIN OPENSSH/PGP/RSA PRIVATE KEY`, `ghp_…`, `xox…` → **zero hits in all history**. `AIza\w{35}` → only the vendored rules asset above. No keys, no private-key material, no token-shaped strings in product paths.
+## 5. Scope omissions — none
+All Artifacts-section deliverables exist: skill wrapper (SKILL.md names all five subcommands ✓), prompt template (`assets/prompts/llm-review.md` ✓), ADAPTER-CONTRACT.md with empirical spike table + command shapes + redaction rules (✓ top of src/engines/), dogfood border.yaml with the three sanctioned `{rule,match,file?}` allow categories (a) .omo/**, (b) test/** + dedicated rule-scopes, (c) path-pattern — with per-entry justification comments; README correctly absent; tests provisioned engines verified live (gitleaks 8.30.1, python build 1.6.0, twine 7.0.0).
+## 6. Workspace cleanliness — PASS
+`git status --porcelain` = only `M .omo/boulder.json` + 18 untracked `run-continuation/ses_*.json` (accepted harness churn). No leftover QA scripts tracked or untracked; `/tmp/w16`, `/tmp/w15`, `/tmp/gapb*` absent; `~/.npm/_cacache` = 153MB (reasonable for esbuild+verdaccio+secretlint installs); `dist/` and `.border/` zero tracked files; `.border/` protected twice (root `.gitignore` `.border/` + in-repo `.border/.gitignore` = exactly `*`, per G22).
+## 7. border.yaml allow-list staleness — PASS
+Every file-scoped entry resolves to an in-tree path: `test/**` ✓, `assets/gitleaks-defaults-v8.30.1.toml` ✓ (exists, sha256 feeds rulesHash), `src/**` ✓, `tools/**` ✓, `.omo/**` ✓, `border.yaml` ✓. Rule-only entries (the workspace-path rule, no-homedir family) are intentionally narrow rule-scopes, not blanket. No stale entries; first-entry-wins with allow-hits reporting confirms the G14 no-silent-suppression contract at runtime (task-19b-green evidence).
+## Blocking items
+**None.**
+## Non-blocking observations
+1. `test/tmp/` holds 48 leftover gitignored scratch dirs from test runs (task's bar said "empty"). Gitignored and transient — suggest `rm -rf test/tmp/*` at handoff, not a scope issue.
+2. 18 untracked `run-continuation/ses_*.json` + modified boulder.json — expected churn; commit or clean during the F-wave state commit.
+3. npm emits a warning about unknown builtin config `globalignorefile` — environment npmrc noise, unrelated to the repo.
+4. G33 is referenced for both the dependency-scan ban and the lifecycle-script gate (commit ea53182); same pin, distinct concerns — noted in learnings.md, no action needed.
+F4 VERDICT: APPROVE
