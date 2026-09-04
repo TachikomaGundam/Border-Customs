@@ -357,14 +357,25 @@ test("push reports sanitized remote URLs in the dry-run plan", async () => {
 
 // ------------------------------------------------- stub honesty (todo 7 contract)
 
-test("status/llm stubs fail loudly with exit 2, printing nothing on stdout", async () => {
-  // 'check' left this loop when plan todo 10 wired the real gate pipeline.
-  for (const cmd of ["status", "llm-request", "llm-ingest"] as const) {
-    const r = await runCli([cmd]);
-    assert.equal(r.code, EXIT_ERROR, cmd);
-    assert.equal(r.out.length, 0, `${cmd} stub must not print a success payload`);
-    assert.match(r.err.join("\n"), /not implemented/i, cmd);
-  }
+// Deliberate todo-18 update: llm-request/llm-ingest left the "not implemented"
+// stub state for the real bundle/ingest contract. Over border's own repo
+// (border.yaml absent until todo 19 ⇒ no targets; no ledger) both must still
+// fail loudly with exit 2 and NO stdout payload — the stub-era guarantee
+// survives as precondition-honesty, only the message changes. status stays a
+// stub (todo 19).
+test("status stub + wired llm commands fail honestly: exit 2, nothing on stdout", async () => {
+  const stub = await runCli(["status"]);
+  assert.equal(stub.code, EXIT_ERROR);
+  assert.equal(stub.out.length, 0);
+  assert.match(stub.err.join("\n"), /not implemented/i);
+  const req = await runCli(["llm-request"]);
+  assert.equal(req.code, EXIT_ERROR);
+  assert.equal(req.out.length, 0, "llm-request must not print a success payload");
+  assert.match(req.err.join("\n"), /no scan targets.*run 'border check' first/i);
+  const ing = await runCli(["llm-ingest"]);
+  assert.equal(ing.code, EXIT_ERROR);
+  assert.equal(ing.out.length, 0, "llm-ingest must not print a success payload");
+  assert.match(ing.err.join("\n"), /usage: border llm-ingest <findings\.json>/);
 });
 
 test("bad config is a tool error: exit 2, one sanitized line, no stack", async () => {
