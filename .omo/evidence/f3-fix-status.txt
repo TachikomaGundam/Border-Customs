@@ -44,3 +44,54 @@ shared-derivation surgery, violating "1-3 lines in a SINGLE shared helper" —
 my status fix derives ids from the same sanitizeUrl, so status and push stay
 consistent whichever way n1 is later resolved. Left per instruction (F3 marked
 non-blocking).
+
+======================================================================
+FOLLOW-UP: unnamed-remote collision fix (2026-09-04) — closes §4b nit n1
+======================================================================
+
+DEFECT (repro'd by final-wave QA, ledger task-completed entry F3): border.yaml
+with TWO git remotes lacking `name:` and using local-path urls (e.g.
+/tmp/x/a.git, /tmp/x/b.git) — sanitizeUrl (src/redact.ts) collapses unparseable
+local paths to the literal `[invalid-url-redacted]`, so pushstate.ts keyed BOTH
+legs `git:[invalid-url-redacted]`; push.ts gitLegs `.find()` matched the FIRST
+remote for both legs (a.git double-pushed, b.git NEVER pushed) and both ledger
+push records carried identical target strings (breaks record identity +
+resume). The status.ts gitRemoteIds helper held the third drift copy.
+
+RED-FIRST (test/push.git.test.ts, 2 new F3-followup tests, run against the
+pre-fix tree):
+  not ok 1 - F3-followup: two unnamed local-path remotes — --yes lands BOTH
+    bares, 2 DISTINCT records, status shows both pushed
+    error: b.git: branch tip must equal local HEAD — every unnamed remote gets
+    its own push leg
+      + actual - expected
+      + null
+      - 411a684709043e076876ad9a9caa2731d3e29714
+  not ok 2 - F3-followup: named + unnamed mix — named keeps git:origin ledger
+    shape, unnamed is git:#1, both land
+    deepStrictEqual: actual ['git:[invalid-url-redacted]','git:origin']
+      vs expected ['git:#1','git:origin']
+
+FIX (single source of truth — src/gitTargetId.ts, NEW): per-remote push target
+id = `git:${remote.name ?? `#${index}`}` (index = position in
+cfg.targets.git.remotes). Safety argument (comment in file): border.yaml feeds
+computeConfigDigest → the fingerprint key, so any remote-set reordering/edit
+yields a NEW key; records are always consulted key-matched, so index-based ids
+can never be confused across configs. Applied at all three sites:
+  src/pushstate.ts      id construction for git legs (pushstate.ts:227 loop)
+  src/commands/push.ts  gitLegs resolves target→remote via a Map keyed by
+                        gitTargetId (unique keys — no first-match)
+  src/commands/status.ts gitRemoteIds display matching (degrade path: catch
+                        → [] => legacy bare-kind match, preserved)
+grep `git:${` post-fix: only src/gitTargetId.ts (line 15 + the explanatory
+comment at line 4). Redaction invariants unchanged: human output lines and
+ledger push-record url fields still flow through sanitizeUrl exactly as
+before; no raw/local paths newly appear in report.json, status output,
+stdout/stderr, or ledger records. remoteName for an unnamed remote is the
+`#N` key. Named-remote ids stay `git:origin` — the 3 existing F3 status tests
+in test/status.test.ts and all existing push/pushstate tests pass UNCHANGED.
+
+GREEN: 2 new tests + existing 11 targeted (F3-followup|F3:|AC in
+push.git.test.ts + status.test.ts) 11/11; npx tsc --noEmit 0 errors; npm run
+build clean; FULL SUITE `npm test` 334/334 pass (329 prior-wave + 2 new +
+3 timeout-feature tests landed meanwhile by the F2-polish commit d98087a).
