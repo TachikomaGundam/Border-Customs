@@ -17,6 +17,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "esbuild src/index.ts --bundle --format=esm --platform=node --banner:js='import{createRequire as __borderRequire}from\"node:module\";const require=__borderRequire(import.meta.url);' --outfile=dist/index.js && node tools/copy-assets.mjs",
+    "pretest": "node -e \"const fs=require('node:fs');fs.rmSync('test/tmp',{recursive:true,force:true});fs.mkdirSync('test/tmp',{recursive:true})\"",
     "test": "node --import ./tools/register-ts.mjs --test test/*.test.ts"
   },
   "dependencies": {
