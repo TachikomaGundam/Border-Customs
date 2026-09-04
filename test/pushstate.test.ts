@@ -27,6 +27,7 @@ import type { BorderConfig } from "../src/config.ts";
 import type { ReportCounts } from "../src/findings.ts";
 import { EngineRunError } from "../src/engines/support.ts";
 import { BUMP_VERSION_MESSAGE, VERSION_EXISTS_RULE } from "../src/registry.ts";
+import { IDENTITY_RULE } from "../src/rules/identity.ts";
 import {
   PushStateError,
   derivePushState,
@@ -71,14 +72,17 @@ function bareRemote(parent: string, name: string): { path: string; url: string }
   return { path, url: `file://${path}` };
 }
 
-function fileCfg(remotes: readonly { name: string; url: string }[], npmRegistry?: string, emails?: readonly string[]): BorderConfig {
+/* The git-leg fixtures commit/tag as Wiki.js (ID), so the default authors
+   allowlist must carry it — derivePushState now identity-scans PENDING git
+   legs, and an empty allowlist would block every legitimate push fixture. */
+function fileCfg(remotes: readonly { name: string; url: string }[], npmRegistry?: string, emails?: readonly string[], names?: readonly string[]): BorderConfig {
   return {
     version: 1,
     targets: {
       git: { remotes: remotes.map((r) => ({ name: r.name, url: r.url })) },
       ...(npmRegistry === undefined ? {} : { npm: { registry: npmRegistry } }),
     },
-    rules: { authors: { emails: [...(emails ?? [])], names: [] }, hosts: [], ips: [], pathPatterns: [], maxFileKB: 500 },
+    rules: { authors: { emails: [...(emails ?? ["wiki@sumteclab.com"])], names: [...(names ?? ["Wiki.js"])] }, hosts: [], ips: [], pathPatterns: [], maxFileKB: 500 },
     allow: [],
     engines: { require: [], trufflehog: false },
   };
@@ -169,6 +173,50 @@ test("two synced bare remotes ⇒ both PUSHED(no-op); tag deleted on B only ⇒ 
   assert.equal(targetOf(split, "git:b").status, "PENDING", "missing tag must not be masked by branch-tip equality");
   assert.match(formatTargetLine(targetOf(split, "git:b")), /refs\/tags\/v1@absent/);
   assert.deepEqual(pushableTargets(split).map((t) => t.target), ["git:b"]);
+});
+
+test("first-push gate: PENDING whose transmitted objects carry an unallowlisted identity ⇒ BLOCKED, never pushable", async () => {
+  const top = scratchDir("ps-eve-top");
+  const a = bareRemote(top, "a");
+  const seed = scratchDir("ps-eve-seed");
+  gitInit(seed);
+  writeRel(seed, "x.txt", "x\n");
+  gitAddCommit(seed, "x");
+  pushRepo(seed, a.url);
+  git(top, ["clone", "-q", a.url, "clone"]);
+  const clone = join(top, "clone");
+  writeRel(clone, "e.txt", "e\n");
+  git(clone, ["add", "-A"]);
+  git(clone, ["-c", "user.name=evil Eve", "-c", "user.email=eve@evil.test", "commit", "-q", "--no-gpg-sign", "-m", "evil"]);
+  const cfg = fileCfg([{ name: "a", url: a.url }]);
+  await passLedgerFor(clone, cfg, ["git"]); // ledger PASS despite the evil commit entering the push object set
+  const res = await derivePushState({ repoDir: clone, cfg, configDigest: stableStringify(cfg), effectiveTargets: ["git"] });
+  const t = targetOf(res, "git:a");
+  assert.equal(t.status, "BLOCKED", `PENDING with unallowlisted transmitted identities must be rejected, got: ${JSON.stringify(t)}`);
+  assert.ok(t.findings.some((f) => f.rule === IDENTITY_RULE && f.message.includes("eve@evil.test")), JSON.stringify(t.findings));
+  assert.deepEqual(pushableTargets(res), []);
+});
+
+test("remote already has every object ⇒ PUSHED(no-op) is not identity-blocked (nothing transmits)", async () => {
+  const top = scratchDir("ps-eve-synced-top");
+  const a = bareRemote(top, "a");
+  const seed = scratchDir("ps-eve-synced-seed");
+  gitInit(seed);
+  writeRel(seed, "x.txt", "x\n");
+  gitAddCommit(seed, "x");
+  pushRepo(seed, a.url);
+  git(top, ["clone", "-q", a.url, "clone"]);
+  const clone = join(top, "clone");
+  writeRel(clone, "e.txt", "e\n");
+  git(clone, ["add", "-A"]);
+  git(clone, ["-c", "user.name=evil Eve", "-c", "user.email=eve@evil.test", "commit", "-q", "--no-gpg-sign", "-m", "evil"]);
+  git(clone, ["push", "-q", "origin", "main"]);
+  const cfg = fileCfg([{ name: "a", url: a.url }]);
+  await passLedgerFor(clone, cfg, ["git"]);
+  const res = await derivePushState({ repoDir: clone, cfg, configDigest: stableStringify(cfg), effectiveTargets: ["git"] });
+  const t = targetOf(res, "git:a");
+  assert.equal(t.status, "PUSHED");
+  assert.deepEqual(t.findings, []);
 });
 
 test("remote directory deleted ⇒ exit-2 PushStateError naming the target", async () => {

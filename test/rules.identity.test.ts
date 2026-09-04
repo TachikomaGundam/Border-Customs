@@ -6,7 +6,7 @@
 // a "foreign" identity without touching the real user config.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
 
 import { parseConfig, type BorderConfig } from "../src/config.ts";
@@ -381,6 +381,147 @@ test("bad refSet entry fails closed (git error propagates, no silent empty scan)
   try {
     commitAs(dir, WIKI);
     assert.throws(() => scan(dir, ["no-such-ref-xyz"], CLEAN_CFG), /no-such-ref-xyz|exited/);
+  } finally {
+    removeDir(dir);
+  }
+});
+
+// ---------------------------------------------------------------- transmitted-object leg (first push)
+//
+// The first-push gap: a `border push` transmits every OBJECT of a ref the
+// remote has never had (no remote-tracking ref, or a restored deleted tag),
+// so identities carried only by those objects must still be allow-listed.
+// The scan unions the history leg (git log over the ref set) with a
+// per-remote `git rev-list <remote>/<ref>..<ref>` leg; refs whose remote
+// endpoint is unresolvable skip the leg silently (whole ref transmitted ⇒
+// history leg already covers it). These tests pin the operator-visible
+// contract plus the zero-false-positive regressions.
+
+const EVE_FP = { name: "evil Eve", email: "eve@evil.test" };
+
+function cfgWithRemote(opts: {
+  emails: readonly string[];
+  names: readonly string[];
+  remotes: readonly { name?: string; url: string }[];
+}): BorderConfig {
+  const remoteLines = opts.remotes
+    .map((r) => `    - { ${r.name === undefined ? "" : `name: ${JSON.stringify(r.name)}, `}url: ${JSON.stringify(r.url)} }`)
+    .join("\n");
+  return parseConfig(`version: 1
+targets:
+  git:
+    remotes:
+${remoteLines}
+rules:
+  authors:
+    emails: [${opts.emails.map((e) => JSON.stringify(e)).join(", ")}]
+    names: [${opts.names.map((n) => JSON.stringify(n)).join(", ")}]
+  hosts: []
+  ips: []
+  pathPatterns: []
+`);
+}
+
+/** Bare remote `a.git` seeded with one Wiki.js commit `main`. */
+function wikiSeededRemote(): { top: string; a: string } {
+  const top = makeFixtureDir("identity-fp");
+  const a = join(top, "a.git");
+  gitRun(top, ["init", "-q", "--bare", "-b", "main", a]);
+  const seed = join(top, "seed");
+  gitRun(top, ["init", "-q", "-b", "main", seed]);
+  writeRel(seed, "x.txt", "x\n");
+  gitRun(seed, ["add", "-A"]);
+  gitRun(seed, ["commit", "-q", "--no-gpg-sign", "-m", "x"], identEnv(WIKI));
+  gitRun(seed, ["push", "-q", a, "main"]);
+  return { top, a };
+}
+
+function cloneOf(top: string, a: string): string {
+  gitRun(top, ["clone", "-q", a, "b"]);
+  return join(top, "b");
+}
+
+test("first push: evil commit on a ref the remote never had is reported (eve@evil.test scenario)", () => {
+  const { top, a } = wikiSeededRemote();
+  try {
+    const b = cloneOf(top, a);
+    const evilSha = commitAs(b, EVE_FP);
+    const cfg = cfgWithRemote({ emails: ["wiki@sumteclab.com"], names: ["Wiki.js"], remotes: [{ name: "origin", url: `file://${a}` }] });
+    const findings = scanIdentity({ repoDir: b, refSet: ["refs/heads/main"], cfg });
+    assert.equal(findings.length, 1, `expected exactly 1 finding, got ${JSON.stringify(findings.map((f) => f.message))}`);
+    const msg = findings[0]?.message ?? "";
+    assert.ok(msg.includes("eve@evil.test"), msg);
+    assert.ok(msg.includes("evil Eve"), msg);
+    assert.ok(msg.includes(evilSha), "message must name the transmitted commit sha");
+  } finally {
+    removeDir(top);
+  }
+});
+
+test("regression: allow-listed first-push adds ZERO new findings", () => {
+  const { top, a } = wikiSeededRemote();
+  try {
+    const b = cloneOf(top, a);
+    commitAs(b, WIKI);
+    const cfg = cfgWithRemote({ emails: ["wiki@sumteclab.com"], names: ["Wiki.js"], remotes: [{ name: "origin", url: `file://${a}` }] });
+    assert.deepEqual(scanIdentity({ repoDir: b, refSet: ["refs/heads/main"], cfg }), []);
+  } finally {
+    removeDir(top);
+  }
+});
+
+test("regression: remote already fully has the ref adds no duplicate findings (sha listed exactly once)", () => {
+  const { top, a } = wikiSeededRemote();
+  try {
+    const b = cloneOf(top, a);
+    const evilSha = commitAs(b, EVE_FP);
+    gitRun(b, ["push", "-q", "origin", "main"]);
+    gitRun(b, ["fetch", "-q", "origin"]); // origin/main == main ⇒ rev-list leg is empty
+    const cfg = cfgWithRemote({ emails: ["wiki@sumteclab.com"], names: ["Wiki.js"], remotes: [{ name: "origin", url: `file://${a}` }] });
+    const findings = scanIdentity({ repoDir: b, refSet: ["refs/heads/main"], cfg });
+    assert.equal(findings.length, 1);
+    const msg = findings[0]?.message ?? "";
+    assert.equal(msg.split(evilSha).length - 1, 1, `sha must appear exactly once, got: ${msg}`);
+  } finally {
+    removeDir(top);
+  }
+});
+
+test("unresolvable remote endpoint (named remote never fetched) skips the rev-list leg silently — full history still scanned", () => {
+  const { top, a } = wikiSeededRemote();
+  try {
+    const b = cloneOf(top, a); // tracking refs exist only under `origin`, never under `a`
+    const evilSha = commitAs(b, EVE_FP);
+    const cfg = cfgWithRemote({ emails: ["wiki@sumteclab.com"], names: ["Wiki.js"], remotes: [{ name: "a", url: `file://${a}` }] });
+    const findings = scanIdentity({ repoDir: b, refSet: ["refs/heads/main"], cfg });
+    assert.equal(findings.length, 1);
+    assert.ok(findings[0]?.message.includes(evilSha));
+  } finally {
+    removeDir(top);
+  }
+});
+
+test("range-style refSet entries skip the rev-list leg without throwing", () => {
+  const dir = newRepo();
+  try {
+    commitAs(dir, WIKI);
+    gitRun(dir, ["checkout", "-q", "-b", "feature"]);
+    const evilSha = commitAs(dir, EVE_FP);
+    const cfg = cfgWithRemote({ emails: ["wiki@sumteclab.com"], names: ["Wiki.js"], remotes: [{ name: "origin", url: "file:///does-not-exist.git" }] });
+    const findings = scan(dir, ["main..feature"], cfg);
+    assert.equal(findings.length, 1);
+    assert.ok(findings[0]?.message.includes(evilSha));
+  } finally {
+    removeDir(dir);
+  }
+});
+
+test("bad refSet entry still fails closed when remotes are configured", () => {
+  const dir = newRepo();
+  try {
+    commitAs(dir, WIKI);
+    const cfg = cfgWithRemote({ emails: ["wiki@sumteclab.com"], names: ["Wiki.js"], remotes: [{ name: "origin", url: "file:///does-not-exist.git" }] });
+    assert.throws(() => scan(dir, ["no-such-ref-xyz"], cfg), /no-such-ref-xyz|exited/);
   } finally {
     removeDir(dir);
   }
