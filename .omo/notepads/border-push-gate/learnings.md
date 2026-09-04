@@ -274,3 +274,21 @@ consumers see scp-form output '<host>/<path>' (no scheme) — exposureSet entrie
 - Full-suite baseline drifted 222→258 mid-task (concurrent sibling workers landing llm
   commits); "green" must be asserted as fail-0 on the current tree, twice, not against a
   memorized count.
+
+## [2026-09-04T13:35:00+08:00] Task: 15 — push state machine
+- `git ls-remote` emits a legitimate `<sha>\tHEAD` line; a fail-closed parser must
+  whitelist-and-skip it (never enter the ref map). Learned the hard way: the first
+  bare-repo run red on exactly this line.
+- runGitChecked's error text embeds the raw remote url (it joins argv). Wrapping
+  ls-remote failures means DROPPING the cause string and re-emitting with
+  sanitizeUrl only — otherwise a credential-bearing url leaks into the exit-2 line.
+- configDigest gotcha for todo 17: derivePushState must receive the SAME
+  computeConfigDigest(load) value the check run used, or fp.key differs and every
+  gate reads UNCHECKED. Pass cfg+configDigest straight from the check-flow caller.
+- Owner==self PUSHED clause = lost-ledger recovery; the squatter defense is the
+  FOREIGN_OWNER_RULE finding (todo-13 emits it for both foreign AND ambiguous
+  zero-signal owners, so "no foreign finding" is a real positive proof, not absence
+  of evidence).
+- Resume set = PENDING only, not "everything non-PUSHED": BLOCKED-unchecked and
+  BLOCKED-squatter are non-PUSHED but pushing them is the exact failure the gate
+  exists to stop. Documented in code + evidence matrix.
