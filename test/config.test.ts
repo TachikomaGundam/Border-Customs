@@ -171,6 +171,58 @@ test("wrong type for rules.hosts errors instead of coercing", () => {
   );
 });
 
+// ---------------------------------------------------------------- remote names
+
+test("duplicate git remote names rejected: names the dup, kind invalid-value, exit 2", () => {
+  const yaml = `version: 1
+targets:
+  git:
+    remotes:
+      - name: origin
+        url: https://a.example/x.git
+      - name: origin
+        url: git@b.example:acme/y.git
+rules:
+  authors:
+    emails: ["a@b.test"]
+    names: []
+  hosts: []
+  ips: []
+  pathPatterns: []
+`;
+  assert.throws(
+    () => parseConfig(yaml, "border.yaml"),
+    (err: unknown) => {
+      assert.ok(err instanceof ConfigError, `expected ConfigError, got ${String(err)}`);
+      assert.equal(err.kind, "invalid-value");
+      assert.equal(err.exitCode, 2);
+      assert.match(err.message, /duplicate/i);
+      assert.match(err.message, /origin/);
+      assert.match(err.message, /remotes/);
+      return true;
+    },
+  );
+});
+
+test("multiple unnamed remotes stay valid (index-keyed git:#N ids, no dup to compare)", () => {
+  const yaml = `version: 1
+targets:
+  git:
+    remotes:
+      - url: https://a.example/x.git
+      - url: https://b.example/y.git
+rules:
+  authors:
+    emails: ["a@b.test"]
+    names: []
+  hosts: []
+  ips: []
+  pathPatterns: []
+`;
+  const cfg = parseConfig(yaml, "border.yaml");
+  assert.equal(cfg.targets.git.remotes.length, 2);
+});
+
 // ---------------------------------------------------------------- env expansion
 
 test("${VAR} expands in url/registry/repository but nowhere else", () => {
