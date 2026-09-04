@@ -292,3 +292,13 @@ consumers see scp-form output '<host>/<path>' (no scheme) — exposureSet entrie
 - Resume set = PENDING only, not "everything non-PUSHED": BLOCKED-unchecked and
   BLOCKED-squatter are non-PUSHED but pushing them is the exact failure the gate
   exists to stop. Documented in code + evidence matrix.
+
+## [2026-09-04T14:33:49+08:00] Task: 19
+>> allow post-filter (G14) at check.ts pipeline tail before verdict/counts; allowHits on Report (optional, schemaVersion 1); recordCheckRun persists md beside canonical json.
+>> configDigest = sha256(stableStringify(full config)) already covers allow[] — key rotation e9f299a9->06eb5c54 proved it live; no digest hole.
+>> blanket ban implemented as rejecting ONLY unscoped {rule:'*',match:'*'} pairs; wildcard pairs require a repo-relative file glob — otherwise the 3 sanctioned categories are inexpressible (DECISIONS #1 in evidence).
+>> explicit-empty border.yaml no longer collapses to no-op: LoadResult carries explicit:{config,source} only when the file was discovered; runCheck narrows it to loaded. Undiscovered+no-remotes stays loud no-op exit 0.
+>> dist asset resolution: src/assets.ts candidate walk (here/assets -> ../assets -> ../../assets, src path first => rulesHash stable) + tools/copy-assets.mjs in build; banner untouched.
+>> gitleaks tree leg emits ABSOLUTE paths — allow file-scoping normalizes via toRepoRelative + strips '<archive>!' prefix; pin preserved.
+>> cli/exit.ts EACCES label widened to 'permission denied' (fs writes now share the errno funnel).
+>> dogfood: 497 suppressed across 7 entries (a .omo/** 228, b test/** 46 + self-corpus 158+27+25+12+1 incl c abs-path 27); exit 0; zero raw fixture literals in .border/.

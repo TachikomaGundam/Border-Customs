@@ -357,17 +357,17 @@ test("push reports sanitized remote URLs in the dry-run plan", async () => {
 
 // ------------------------------------------------- stub honesty (todo 7 contract)
 
-// Deliberate todo-18 update: llm-request/llm-ingest left the "not implemented"
-// stub state for the real bundle/ingest contract. Over border's own repo
-// (border.yaml absent until todo 19 ⇒ no targets; no ledger) both must still
-// fail loudly with exit 2 and NO stdout payload — the stub-era guarantee
-// survives as precondition-honesty, only the message changes. status stays a
-// stub (todo 19).
-test("status stub + wired llm commands fail honestly: exit 2, nothing on stdout", async () => {
+// Deliberate todo-19 update: status left the "not implemented" stub for the
+// real ledger view, so it now runs INFORMATIONALLY over this repo's live
+// state (table or "no check runs recorded yet" — both exit 0, stdout-only).
+// llm-request/llm-ingest stay precondition-honest failures: the dogfood
+// border.yaml has targets.git.remotes: [] ⇒ loadConfig kind is still "no-op"
+// (only `check` promotes explicit-empty), so exit 2 with no stdout survives.
+test("status is informational over the live repo (exit 0, stdout-only); wired llm commands still fail honestly", async () => {
   const stub = await runCli(["status"]);
-  assert.equal(stub.code, EXIT_ERROR);
-  assert.equal(stub.out.length, 0);
-  assert.match(stub.err.join("\n"), /not implemented/i);
+  assert.equal(stub.code, EXIT_PASS);
+  assert.ok(stub.out.length > 0, "status must print a table or the empty-ledger note");
+  assert.ok(!stub.err.join("\n").includes("not implemented"));
   const req = await runCli(["llm-request"]);
   assert.equal(req.code, EXIT_ERROR);
   assert.equal(req.out.length, 0, "llm-request must not print a success payload");
