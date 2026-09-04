@@ -251,10 +251,10 @@ All paths relative to repo root `/home/lab/workspace/harness/border`. Spec autho
 
 ## Final verification wave
 > Runs in parallel after ALL todos. ALL must APPROVE. Surface results and wait for the user's explicit okay before declaring complete.
-- [ ] F1. Plan compliance audit
-- [ ] F2. Code quality review
-- [ ] F3. Real manual QA
-- [ ] F4. Scope fidelity
+- [x] F1. Plan compliance audit
+- [x] F2. Code quality review
+- [x] F3. Real manual QA
+- [x] F4. Scope fidelity
 
 ## Commit strategy
 One conventional commit per todo (message in each todo's Commit line). **Repository: border/ gets its OWN fresh `git init -b main` in todo 1 step 0 (empirically it is not currently a repo; the enclosing /home/lab/workspace repo must never be the push/scan subject — all git ops assert toplevel==border root); initial commit = planning state (.omo/) + scaffold; work directly on `main` (this plan produces no PR; border's own remote is added by the user post-plan, and its first real `border push` is itself the dogfood acceptance, manual).** Never commit mid-todo in waves 2-6; tests green before each commit (`npm run typecheck && npm test` scoped to touched files acceptable until todo 20 makes full suite mandatory). No push to any remote from this plan.

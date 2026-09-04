@@ -1,0 +1,264 @@
+F3 REAL MANUAL QA — evidence log
+date: 2026-09-04 | qa-runner: fresh session, skeptical-user mode
+binary under test: /home/lab/workspace/harness/border/dist/index.js (npm run build, esbuild 1.5MB, built this session)
+bin alias exercised via shim /tmp/f3-bin/border -> `exec node .../dist/index.js "$@"` (many invocations run as `border ...`)
+engines: gitleaks 8.30.1 REAL (~/.local/bin), secretlint BUNDLED. Fixtures: /tmp/f3-{a,b,c,d} (created, deleted after this run).
+NOTE: `border push --yes` NEVER executed against the real repo; no `git push` in the repo; repo files untouched except this evidence append.
+
+== SETUP ==
+$ npm run build   -> "dist/index.js 1.5mb" + "assets staged into dist/assets/"; ls dist/assets: gitleaks-defaults-v8.30.1.toml, package-lock.json, prompts/
+$ border --help   -> usage table, exit 0.
+
+== S1 CLEAN-FIXTURE LOOP — PASS ==
+fixture /tmp/f3-a: bare remote /tmp/f3-a/remote.git; repo with border.yaml version:1, targets.git.remotes[{url:/tmp/f3-a/remote.git}], rules.authors emails[f3@example.com] names["F3 QA"], hosts/ips/pathPatterns []. git user.name/email match.
+$ border check --force        (cwd repo)
+  border: border check PASS: 0 finding(s), 0 blocking
+  EXIT=0   real 0m2.775s
+  ledger.jsonl gains 1 record (t:check,verdict:PASS); run dir .border/runs/434ccfa6-2026-09-04T13-35-41-270Z/{report.json,report.md}
+$ border check                (second, no --force)
+  SKIP 434ccfa6 — PASS 2026-09-04T13:35:41.270Z report .border/runs/434ccfa6-.../report.json
+  EXIT=0   wall_ms=918 (raw incl. process launch)
+  node boot measured: `node -e 0` = 183/163/164 ms  -> skip-path net ≈ 0.75s
+
+== S2 HISTORY LEAK HONESTY — PASS ==
+$ printf ... > lib/generated.js   (contains AKIAI4Q3EXAMPL3K7X2Q) ; git commit -am "feat: add key"  -> LEAK_SHA=556565376cf6723ded8704c7efe74154b341c536
+$ revert file; git commit -am "revert: remove key"
+$ border check --force --json
+  EXIT=1  verdict:"FAIL"
+  finding: {"rule":"aws-access-token","sev":"CRITICAL","engine":"gitleaks",
+            "commit":"556565376cf6723ded8704c7efe74154b341c536","path":"lib/generated.js",
+            "snippet":"AKIA…7X2Q"}        <- leak sha carried; snippet MASKED; revert did not launder history
+$ grep -r AKIAI4Q3 .border/  -> 0 hits (grep exit 1)
+$ border push --yes
+  border: git:[invalid-url-redacted]  BLOCKED  unchecked: no PASS record for 'git' under the current fingerprint key — run 'border check' first
+  border: push --yes refused — 1 BLOCKED target(s) above; nothing was pushed
+  EXIT=1
+$ git ls-remote before/after -> cmp: BYTE-IDENTICAL (both empty)
+$ ledger records -> [check:PASS, check:FAIL]  push records: 0
+
+== S3 TAMPER GATE — PASS ==
+S3a ledger corruption (fixture A has no npm target):
+$ corrupt ledger line 1 JSON tail; border check --force -> EXIT=1, scan honest.
+$ border check (skip path):
+  border: WARNING ledger line 1 unreadable (Unterminated string in JSON at position 708 (line 1 column 709)) — line skipped
+  full re-check, EXIT=1 honest. No crash, no skip-fabrication.
+$ semantic tamper: flip FAIL record "verdict":"FAIL"->"PASS"; border check
+  -> NOT skipped: "check FAIL: 1 finding(s), 1 blocking" EXIT=1. Tampered PASS cannot certify.
+S3b npm fixture /tmp/f3-b/pkg (package.json files:["dist"], border.yaml targets.npm.name f3-demo-pkg):
+$ border check --force
+  border: border check PASS: 1 finding(s), 0 blocking
+  border: INFO name-available registry name 'f3-demo-pkg' is unclaimed on the npm registry
+  EXIT=0 ; .border/dist/f3-demo-pkg-0.1.0.tgz AUTO-POPULATED (258 B)
+$ border check -> SKIP 4abd40a8 — PASS ... (freshness repack digest-parity honored)
+$ printf 'TAMPERED' >> .border/dist/f3-demo-pkg-0.1.0.tgz ; border check
+  -> SKIP still honored (exit 0). DESIGN: freshness proof re-packs from SOURCE tree
+     (src/ledger/freshness.ts packNpmArtifacts + sameArtifacts), never trusts .border/dist bytes.
+     On-disk tarball is pipeline-internal and re-verified at push (G38 below). Not a hole:
+     the bytes that would ship are re-hashed before the publish spawn.
+$ border push --yes   (tampered tarball, gate PASS)
+  artifact changed since check — .border/dist/f3-demo-pkg-0.1.0.tgz no longer hashes to the digest recorded by the check
+  EXIT=2, refuse strictly BEFORE any network. Same on plain dry-run push: EXIT=2.
+$ border check --force (repack heals) ; border push   (dry-run ONLY, per brief — verdaccio skipped; npm publish leg never executed, gate refusal proven above)
+  border DRY-RUN: no --yes, so nothing runs — this is the plan (m-R5-a) contract
+    DRY-RUN: npm publish .border/dist/f3-demo-pkg-0.1.0.tgz   EXIT=0
+$ plant leak in dist/leak.js, commit, check --force -> EXIT=1; border push --yes
+  border: npm  BLOCKED  unchecked: no PASS record for 'npm' under the current fingerprint key — run 'border check' first
+  EXIT=1 -> npm leg refused on non-PASS gate CONFIRMED.
+  (post-removal check still FAIL: leak remains in history — honesty re-confirmed on 2nd fixture.)
+
+== S4 LLM LOOP — PASS (1 expectation-vs-design note) ==
+fixture A after S2 FAIL.
+$ border llm-request
+  stdout: border: llm-request: wrote .border/runs/4f550e98-2026-09-04T13-37-33-348Z/llm-request.json (base full-tree, 3 file deltas, 1 deterministic findings)   EXIT=0
+  (stderr carried the S3a WARNING line; stdout is the path line only, no bundle dump)
+$ grep -c AKIAI4Q3 <bundle> -> 0
+  bundle: schemaVersion 1, key 4f550e98…, head 0f575acb556a97c895281149b271097ea81ae373 (=revert commit),
+  base {mode:full-tree, sha:4b825dc…ee4904 = EMPTY TREE, ref:null, note:"first push / no remote-tracking tip … FULL-TREE diff"},
+  fileDeltas [README.md, border.yaml, lib/generated.js], deterministic{verdict:FAIL,n:1}. Base-commit field SANE.
+$ border llm-ingest findings-bad.json   (item0 valid CRITICAL rule e2e-planted-key path lib/generated.js; item1 {path:"nope.js"})
+  border: llm-ingest: item 1: rule must match /^[a-z0-9-]+$/, got undefined
+  EXIT=2, names the invalid item INDEX (0-based; index 1 = the nope.js item).
+$ border llm-ingest findings-ok.json    (valid-only)
+  border: agent CRITICAL e2e-planted-key lib/generated.js — Planted AWS access key id visible in history diff at commit 5565653.
+  border: llm-ingest: verdict FAIL — 1 agent findings recorded (llm:true, key 4f550e98) report .border/runs/4f550e98-2026-09-04T13-41-54-158Z/report.json
+  EXIT=1  <- task expected 0; tool returned 1 because a VALID CRITICAL agent finding is blocking BY THE TOOL'S OWN
+              exit contract (0 pass | 1 CRITICAL/HIGH). exit-1 is the correct fail-closed outcome; exit-0 here would be
+              the bug. Graded as tool-correct / brief-inconsistent.
+  ledger: {t:"check", llm:true, verdict:FAIL, counts{CRITICAL:2,blocking:2}}; engine forced "agent", valueDigest computed
+  here (82c195384fbd…), free text scrubbed. report.json agent finding: {"rule":"e2e-planted-key","sev":"CRITICAL","engine":"agent","path":"lib/generated.js"}.
+$ border status -> "key 4f550e98 — verdict FAIL — … — 2026-09-04T13:41:54.158Z" (LLM-ingested record IS the governing state; status surfaces verdict+ts, not a per-finding list — finding itself proven in ledger/report above).
+
+== S5 DEGRADED ENGINE — PASS ==
+$ env PATH=/usr/bin:/bin node dist/index.js check --force   (gitleaks only on ~/.local/bin)
+  EXIT=1 — NOT degraded: src/engines/support.ts:107 deliberately probes PATH then falls back to ~/.local/bin/<bin>
+  (todo-1 provisioning location). Correct per design; had to strip the fallback too:
+$ env PATH=/usr/bin:/bin HOME=/tmp/f3-emptyhome node dist/index.js check --force
+  stdout: border: CRITICAL DEGRADED-ENGINE gitleaks required engine 'gitleaks' failed its probe: engine binary 'gitleaks' not found; border fails closed — install it or pass binPath; …
+  stderr: border: required engine(s) degraded — verdict is UNTRUSTWORTHY (exit 2 regardless of findings)
+  EXIT=2. ledger lines before=7 after=7 -> NO record written for degraded run. ✓
+$ restore full PATH: border check --force -> honest FAIL exit 1 (leak still in history). Engines healthy again. ✓
+
+== S6 REPO DOGFOOD (real repo) — PASS ==
+$ time node dist/index.js check --force
+  border: working tree is dirty — findings may reference uncommitted files   (stderr; .omo churn — honest warning)
+  border: border check PASS: 0 finding(s), 0 blocking
+  EXIT=0   real 0m7.401s
+$ ls .border/runs latest: f555242e-2026-09-04T13-44-03-950Z ; report.md:
+  "## allow-hits (618 suppressed)" table rows:
+    * | 288 | .omo/start-work/ledger.jsonl | entry #6
+    * | 85 | test/e2e.honesty.test.ts | entry #1
+    * | 158 | assets/gitleaks-defaults-v8.30.1.toml | entry #2
+    path-pattern:/home/lab/workspace/harness/border | 44 | .omo/boulder.json | entry #0
+    path-pattern:* | 1 | assets/prompts/llm-review.md | entry #3
+    @secretlint/secretlint-rule-no-homedir/* | 2 | border.yaml | entry #7
+    path-pattern:* | 2 | border.yaml | entry #8
+    path-pattern:* | 26 | src/artifacts/manifestDiff.ts | entry #4
+    path-pattern:* | 12 | tools/spike-secretlint.mjs | entry #5
+$ grep -rl AKIAI4Q3 .border/ | wc -l -> 0. (dogfood key never lands raw in gate state)
+$ node dist/index.js status
+  border status — key f555242e — verdict PASS — head 74296230487a — …
+  (no effective targets — repo-local check only, nothing to push)
+  all effective targets pushed for key f555242e            EXIT=0  (remotes[] => vacuous-but-correct line)
+
+== S7 WEIRD INPUTS — PASS (all clean exits, single sanitized lines, ZERO stack traces) ==
+$ border bogus-cmd                -> EXIT=2; stderr: border: unknown command 'bogus-cmd' — run 'border --help' for usage (+usage on stdout)
+$ border check --force extra-positional (no-config dir) -> EXIT=0 "border: no targets discovered; check is a no-op"; NOTE positional silently ignored (see cosmetic notes)
+$ border push (no border.yaml, no git) -> EXIT=0 "border: no targets discovered — nothing to push (NO-OP)"  <- loud no-op per plan ✓
+$ border llm-request (never checked) -> EXIT=2 "border: llm-request: no scan targets are configured — run 'border check' first (here it would itself be a NO-OP)" ✓
+$ bad-indent border.yaml -> EXIT=2 "border: config error: malformed YAML in /tmp/f3-c/badyaml/border.yaml at line 5, column 1: Flow sequence in block collection must be sufficiently indented and end with a ] …" ✓ line:col present
+$ url ${BORDER_F3_MISSING_URL} -> EXIT=2 "border: config error: environment variable 'BORDER_F3_MISSING_URL' is not set (referenced by targets.git.remotes[0].url)" ✓
+
+== S8 --TARGETS SUBSET — FAIL (one genuine defect) ==
+fixture /tmp/f3-d: clean repo + bare remote, git-only border.yaml.
+$ border check --targets npm   -> EXIT=2 "border: config error: --targets 'npm' is not configured in border.yaml (configured targets: git)" ✓ fail-closed
+$ border check --targets pypi  -> EXIT=2 same shape ✓
+$ border check --force --targets git -> PASS EXIT=0 ✓
+$ border push --targets git (dry-run) -> prints "DRY-RUN: git push --dry-run /tmp/f3-d/remote.git --follow-tags", SKIP line, EXIT=0 ✓
+$ border push --yes --targets git -> FIXTURE remote only (never real repo):
+    border: git:[invalid-url-redacted]  PENDING  behind: refs/heads/main@absent
+    To /tmp/f3-d/remote.git  * [new branch] main -> main
+    border: pushed git:[invalid-url-redacted] — a757e1f9 confirmed via ls-remote  EXIT=0
+$ git ls-remote /tmp/f3-d/remote.git -> refs/heads/main = a757e1f9eb47df6b1865cf29a8c4db997f65ba98 ✓
+$ ledger -> check(b355e93e) + push{key: b355e93ead1ebce3… SAME key as PASS record, confirmedVia ls-remote}
+$ border status
+    border status — key b355e93e — verdict PASS — head a757e1f9eb47
+    git      pending  no push record for key b355e93e
+    pending targets: git — run `border push` to publish the PASS      <-- WRONG: contradicts the ledger.
+$ border check --force --targets git (post-push, key unchanged b355e93e); border status -> STILL "pending". Persistent, deterministic.
+
+ROOT CAUSE (read-only analysis, not patched):
+  src/commands/status.ts:48-52 `pushesFor(target)` matches `r.target === target` with target ∈ CheckRecord.effectiveTargets,
+  where the git leg is the bare kind "git". But git PushRecords store the PER-REMOTE id `git:${r.name ?? sanitizeUrl(r.url)}`
+  (src/commands/push.ts:135, src/pushstate.ts:174-176). "git" never equals "git:<name>" ⇒ the pushed-state table is
+  unreachable for git on ANY config (named remotes included: id would be "git:bare"). npm/pypi target ids are the bare kind
+  and DO match. Existing 326 tests do not cover status-after-real-git-push ⇒ suite stayed green.
+  Direction of error is fail-safe (over-reports work remaining; a re-push is ls-remote-confirmed no-op), but it is factually
+  FALSE output contradicting the tool's ledger, on the tool's marquee promise ("gate-verified push"), and permanently
+  misleads operators: every completed push shows as pending forever.
+
+== REGRESSION TAIL ==
+$ npm run typecheck -> clean (tsc --noEmit, exit 0)
+$ npm test          -> 1..326; # pass 326  # fail 0  (duration_ms 114126)   EXACTLY as expected 326/326 ✓
+
+== COSMETIC / NON-BLOCKING NOTES ==
+n1. Unnamed local-path remotes render as `[invalid-url-redacted]` in push/status output and in ledger target/remoteName
+    fields (sanitizeUrl treats absolute paths as non-URLs). Informational over-redaction; hurts operator UX and compounds
+    n3/S8 confusion. A `name:` in border.yaml would mitigate.
+n2. `border status --json` is silently ignored (plain table printed). --json is documented only for the check report;
+    help text placement invites the wrong expectation.
+n3. `check --force extra-positional` ignores the positional argument instead of rejecting it (exit 0 here was the no-op
+    contract, unrelated to the stray token).
+n4. Degraded run (S5) prints the partial stdout summary "check FAIL: 1 finding(s)" alongside the stderr UNTRUSTWORTHY
+    line; exit 2 dominates so the fail-closed contract holds — message ordering could be clearer.
+n5. Fixture B observation: after reverting a committed secret, check stays FAIL on history — by design, re-proved on the
+    npm fixture.
+n6. S4: task brief expected ingest exit 0 for a valid CRITICAL agent finding; tool's own exit-code contract (CRITICAL =>
+    gate-blocked => 1) makes exit 1 the correct behavior. Tool graded correct; brief internally inconsistent.
+n7. Verdaccio/npm-publish execution intentionally NOT attempted (network publish); dry-run print + non-PASS gate refusal +
+    G38 re-hash refusal constitute the npm-leg proofs, as authorized by the brief.
+
+== FIXTURE CLEANUP ==
+see receipt below (rm -rf /tmp/f3-a /tmp/f3-b /tmp/f3-c /tmp/f3-d /tmp/f3-bin /tmp/f3-emptyhome).
+Real repo mutations this session: ONLY this evidence file + .border/ runtime state (ledger records/run dirs) produced
+by the brief-mandated S6 `check --force` dogfood run. No git operations performed in the real repo.
+
+F3 VERDICT: REJECT — S8 (border status permanently reports a ledger-confirmed, ls-remote-verified git push as
+"pending — run border push" for every git configuration; root cause src/commands/status.ts:48 vs push.ts:135 target-id
+mismatch). All other scenarios (S1-S7) + regression tail (326/326, typecheck 0) PASS with fresh evidence above.
+
+=====================================================================
+F3 RE-VERIFICATION — fix commits 49b019d (src/commands/status.ts +
+test/status.test.ts only, verified via git show --stat) + eb2594e
+(evidence-only). HEAD eb2594e. Runner: original F3 auditor.
+=====================================================================
+
+CHECK 1 CODE REVIEW — PASS
+- status.ts gitRemoteIds: `git:${r.name ?? sanitizeUrl(r.url)}` (diff @49b019d)
+  pushstate.ts:226-227: `const name = remote.name ?? sanitizeUrl(remote.url);
+                         gitState(o, \`git:${name}\`, ...)`  => IDENTICAL expressions.
+- loadConfig in gitRemoteIds: cwd=repoDir + --config pass-through + env (check.ts uses cwd=ctx.cwd;
+  discovery candidates [cwd/border.yaml, toplevel/border.yaml] (config.ts:335) converge at the
+  toplevel, so check-vs-status resolution is equal except a duplicate-border.yaml-in-subdir or a
+  RELATIVE --config invoked from a subdir — microscopic edge, noted, non-blocking).
+- pushesFor stays pure `r.target === row` equality (no substring, no network).
+- Bare 'git' expands to per-remote rows ONLY when gitIds.length>0, else legacy bare match.
+- npm/pypi bare-kind claims VERIFIED at cited lines: src/push/npm.ts:214 `target: "npm"`,
+  src/push/pypi.ts:128 `target: "pypi"`.
+- Drift modes (rename/add remote between check and status): current-config ids shown -> the new-id
+  row prints pending. HONEST current-config view: the pushed old-id remote no longer exists in
+  config; pushing under the renamed id requires a fresh key anyway (configDigest is in the key).
+  Remove remote: row disappears. All fail-safe direction. Acceptable.
+
+CHECK 2a TESTS — PASS
+- node --import ./tools/register-ts.mjs --test test/status.test.ts -> "# pass 9  # fail 0" (6 old + 3 new).
+- New tests match claims verbatim: named-remote-pushed + "false pending must be gone" assertion;
+  two-named-remotes both pushed + "all effective targets pushed"; per-remote pushed/pending split
+  + "pending targets: git:upstream". No substring-sloppiness escape hatch.
+
+CHECK 2b FRESH TWO-UNNAMED-REMOTE LIVE SCENARIO — collision CONFIRMED, PRE-EXISTING
+- fixture /tmp/f3two: border.yaml remotes [{url:/tmp/f3two/a.git},{url:/tmp/f3two/b.git}] (no names).
+  check --force PASS; push --yes -> both leg displays resolve to `(/tmp/f3two/a.git)`;
+  ls-remote a.git: main=1538087d839d; ls-remote b.git: EMPTY (NEVER PUSHED); both ledger push
+  records identical {target:"git:[invalid-url-redacted]", url:"[invalid-url-redacted]"};
+  status: two identical "pushed" rows + "all effective targets pushed".
+- Root cause: src/commands/push.ts:135 `remotes.find(r => \`git:${r.name ?? sanitizeUrl(r.url)}\` === t.target)`
+  returns the FIRST remote for both collided ids => leg B pushes to A twice. git blame: line 135 is
+  from 17b27ebe (original push implementation). Fix commit 49b019d touched ONLY status.ts +
+  status.test.ts (git show --stat; git diff --name-only 7429623..HEAD | grep -v .omo|^test/status
+  -> src/commands/status.ts). => COLLISION IS PRE-EXISTING, NOT NEWLY CAUSED. Per brief it REMAINS
+  NON-BLOCKING for this re-verification. RECOMMENDED FOLLOW-UP (new ticket): resolve legs by remote
+  INDEX (or raw url) instead of display-id find; display-id/record-id collision (n1 root) silently
+  duplicates one remote and skips another — a real push-correctness defect for multi-unnamed-local-path
+  configs, and it defeats the ledger's push-record identity. Pre-fix code path was identical; the fix
+  merely makes the collided rows visible.
+
+CHECK 3 DEGRADE PATHS — PASS (one wording nit)
+- fixture /tmp/f3deg: named remote origin, check+push -> record target git:origin.
+- (a) malformed border.yaml: `status` exit 0, no crash, degrades to legacy bare match => prints
+  "git pending". Direction is fail-safe (never claims a push that the ledger cannot prove) but note
+  the fix comment "never a false pending" is optimistic for case (a): with an unreadable config and
+  a git:* record the bare match reproduces the pending display. Behavioral requirement (no crash,
+  sane exit, no FALSE PUSHED) holds. Non-blocking.
+- (b) border.yaml absent: git-remote fallback infers origin -> row "git:origin pushed ls-remote
+  origin … @ 74a92d0ee0d7". Consistent.
+- (c) remotes: [] -> bare match pending for orphaned key; harmless (config says nothing to push).
+
+CHECK 4 SCOPE/SCHEMA — PASS
+- git show 49b019d --stat: exactly src/commands/status.ts + test/status.test.ts (40+/56+).
+- Full-range diff src: only status.ts outside .omo/test -> report.json writer + ledger schema
+  byte-untouched. Live report.json keys canonical:
+  schemaVersion,key,head,dirty,exposureSet,refSet,rulesHash,verdict,counts,findings,ts.
+- .omo/start-work/ledger.jsonl: 26 lines, all JSON.parse OK.
+
+VERDICT RE-ASSESSMENT: original S8 blocker (false 'git pending' after ledger-confirmed push) is
+resolved — independently re-proven (targeted tests + fresh /tmp/f3deg named-remote live push shows
+"git:origin pushed"). Remaining findings (unnamed-multi-remote push-collision [pre-existing,
+push.ts:135], config-unreadable pending display, relative---config subdir edge, n1-n4 from first
+round) are all non-blocking and recorded as follow-up tickets material.
+
+CLEANUP RECEIPT: rm -rf /tmp/f3two /tmp/f3deg -> `ls -d /tmp/f3two /tmp/f3deg` = No such file or directory.
+Repo writes this round: this evidence append only (+.border runtime state from re-verify fixtures is
+inside /tmp fixtures, none in the real repo besides S6-class runs already disclosed; no push against
+real repo, no git operations).
+
+F3 RE-VERDICT: APPROVE
