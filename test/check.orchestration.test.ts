@@ -392,14 +392,17 @@ test("rulesHash changes with engine versions and config; key changes with refSet
 
 // ------------------------------------------------------------------ CLI layer
 
-test("CLI: no-op config prints NO_OP_MESSAGE and exits 0 (no remote inferred; zero-target border.yaml)", async () => {
+test("CLI: undiscovered config no-ops exit 0; EXPLICIT zero-target config runs the pipeline (todo 19)", async () => {
   const dir = fixture("cli-noop");
   gitInit(dir); // git repo, no border.yaml, no remotes ⇒ no-op
   const r = await runCli(["check"], dir);
   assert.equal(r.code, EXIT_PASS);
   assert.ok(r.out.join("\n").includes(NO_OP_MESSAGE));
 
-  const dir2 = fixture("cli-noop-yaml");
+  // Deliberate todo-19 change: an EXPLICIT zero-target border.yaml is intent,
+  // not discovery failure — check runs the repo-local legs (empty exposureSet,
+  // empty effectiveTargets) instead of collapsing to the no-op message.
+  const dir2 = fixture("cli-explicit-empty");
   gitInit(dir2);
   writeRel(dir2, "border.yaml", [
     "version: 1",
@@ -408,17 +411,20 @@ test("CLI: no-op config prints NO_OP_MESSAGE and exits 0 (no remote inferred; ze
     "    remotes: []",
     "rules:",
     "  authors:",
-    "    emails: []",
-    "    names: []",
+    "    emails: [\"*\"]",
+    "    names: [\"*\"]",
     "  hosts: []",
     "  ips: []",
     "  pathPatterns: []",
     "",
-  ].join("\n")); // zero targets ⇒ no-op despite config
+  ].join("\n"));
+  gitAddCommit(dir2, "init");
   const r2 = await runCli(["check"], dir2);
-  assert.equal(r2.code, EXIT_PASS);
-  assert.ok(r2.out.join("\n").includes(NO_OP_MESSAGE));
-  assert.equal(existsSync(join(dir2, ".border", "lock")), false, "no-op must not engage the pipeline");
+  assert.equal(r2.code, EXIT_PASS, `explicit-empty must run the pipeline, got ${String(r2.code)}: ${r2.err.join("\n")}`);
+  const out2 = r2.out.join("\n");
+  assert.ok(!out2.includes(NO_OP_MESSAGE), "explicit-empty is NOT a no-op");
+  assert.match(out2, /border check PASS/);
+  assert.equal(existsSync(join(dir2, ".border", "lock")), false, "lock must be released after the run");
 });
 
 test("CLI --json prints the Report without raw values; plain output prints the verdict + summary", async () => {

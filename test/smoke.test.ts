@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 
 import { run, usage } from "../src/index.ts";
@@ -39,16 +42,24 @@ test("absent command (no args) exits 2 and prints an error line to stderr", () =
   assert.match(err[0] as string, /unknown command/i);
 });
 
-test("recognized-but-unwired subcommand fails loudly instead of faking success", () => {
-  // 'check' became a real gate in plan todo 10; 'status' is the remaining wired-stub surface.
-  const err: string[] = [];
-  const out: string[] = [];
-  const code = run(["status"], (s) => {
-    out.push(String(s));
-  }, (s) => {
-    err.push(String(s));
-  });
-  assert.equal(code, 2);
-  assert.equal(out.length, 0, "unwired command must not print a success payload");
-  assert.match(err[0] as string, /not implemented/i);
+// Deliberate todo-19 update: 'status' left the wired-stub surface for the real
+// ledger view; this pins the LAST stub is gone and the failure path stays
+// loud (exit 2, zero stdout) when the cwd is not a git repository.
+test("status is fully wired: no stub remains, and it fails loudly outside a git repo", () => {
+  const dir = mkdtempSync(join(tmpdir(), "border-smoke-"));
+  try {
+    const err: string[] = [];
+    const out: string[] = [];
+    const code = run(["status"], (s) => {
+      out.push(String(s));
+    }, (s) => {
+      err.push(String(s));
+    }, { cwd: dir });
+    assert.equal(code, 2);
+    assert.equal(out.length, 0, "failing status must not print a success payload");
+    assert.match(err.join("\n"), /status/i);
+    assert.doesNotMatch(err.join("\n"), /not implemented/i);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

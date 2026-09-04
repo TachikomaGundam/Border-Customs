@@ -1,0 +1,71 @@
+# border's own gate config (plan todo 19 dogfood).
+#
+# `border check`/`border push` over THIS repository. The repo intentionally
+# commits planning artifacts (.omo/) and planted-leak test literals (test/),
+# so the naive scan can never PASS without an explicit, enumerated allow-list;
+# every suppression below is one `allow` entry with a justification comment and
+# shows up in the report's allow-hits section (G14 — nothing hidden silently).
+version: 1
+
+targets:
+  git:
+    # No publish remote yet (todo 21 owns the release). An EXPLICIT empty list
+    # is not a discovery failure: repo-local legs (history/tree/identity/
+    # artifacts/secretlint) still run; only the exposureSet is empty.
+    remotes: []
+
+rules:
+  authors:
+    # Hardcoded from `git config user.email` == wiki@sumteclab.com and
+    # `git config user.name` == Wiki.js (captured 2026-09-04 in this repo).
+    emails:
+      - "wiki@sumteclab.com"
+    names:
+      - "Wiki.js"
+  hosts: []
+  ips: []
+  # The repo's own absolute path must never leak outward: every occurrence of
+  # it in tracked content becomes a finding (category (c) below scopes the
+  # sanctioned docs/evidence occurrences out of the verdict).
+  pathPatterns:
+    - "/home/lab/workspace/harness/border"
+  maxFileKB: 500
+
+# Three sanctioned suppression categories (plan round-1 M3). Order matters:
+# the filter is FIRST-ENTRY-WINS, so the most specific entry runs first and its
+# count reflects exactly its category. Every suppressed finding lands in the
+# report's allow-hits section with {rule, count, sample, entry} — G14: nothing
+# hidden silently. Unscoped `{rule:"*",match:"*"}` is rejected by the config
+# schema (plan Must-NOT); these wildcard pairs are all file-scoped.
+allow:
+  # (c) the repo's own absolute path, sanctioned wherever it legitimately
+  # appears (docs, planning evidence, engine reports). Concrete rule name,
+  # so this never hides a secret — only the workspace-path detector.
+  - { rule: "path-pattern:/home/lab/workspace/harness/border", match: "*" }
+  # (b) our own planted test literals: every engine fixture value (AKIA…,
+  # BasicAuth, stripe, …) and the pattern strings tests assert on. Scoped to
+  # test/**, where the whole corpus is synthetic by design (plan round-2 M5:
+  # the literals live in test/*.test.ts, runtime-generated fixtures aside).
+  - { rule: "*", match: "*", file: "test/**" }
+  # (b-ext) the tool's own vendored detection signatures: the gitleaks rules
+  # TOML contains example keys and UNC-regex sources that match border's own
+  # scanners by construction. Pinned to the signature file, whose sha256 is
+  # part of rulesHash — any edit changes the fingerprint and re-runs the scan.
+  - { rule: "*", match: "*", file: "assets/gitleaks-defaults-v8.30.1.toml" }
+  # (b-ext) backslash/home path literals inside the tool's own pattern-aware
+  # sources: src/** (regex handling, ADAPTER-CONTRACT.md docs), tools/**
+  # (spike scripts) and the prompt template's example paths. Scoped to the
+  # generated path-pattern rule family — real secret rules still fire there.
+  - { rule: "path-pattern:*", match: "*", file: "assets/**" }
+  - { rule: "path-pattern:*", match: "*", file: "src/**" }
+  - { rule: "path-pattern:*", match: "*", file: "tools/**" }
+  # (a) .omo/** planning artifacts: Prometheus/Momus/oracle transcripts and
+  # evidence intentionally quote leak-hunting literals at absolute /home paths.
+  # Everything not caught by (c) above and still inside the planning tree.
+  - { rule: "*", match: "*", file: ".omo/**" }
+
+engines:
+  require:
+    - gitleaks
+    - secretlint
+  trufflehog: false

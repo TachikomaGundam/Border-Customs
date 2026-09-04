@@ -18,6 +18,7 @@ import { GIT_PUSH_DRY_RUN } from "../src/commands/push.ts";
 import type { Finding } from "../src/findings.ts";
 import { BORDER_ROOT, removeDir, writeRel } from "./helpers/fixtures.ts";
 import { borderYaml, gitIn, makeRemoteFixture } from "./helpers/cli-fixtures.ts";
+import { requireGitleaks } from "./helpers/require-engines.ts";
 
 // child-process AC2 runs the freshly built dist bundle
 before(() => {
@@ -113,7 +114,8 @@ test("bad flag ⇒ exit 2 + usage; bare invocation ⇒ exit 2", () => {
   assert.match(bare.stderr, /unknown command/i);
 });
 
-test("push on a clean fixture: stdout carries DRY-RUN + git push --dry-run, bare sha unchanged", () => {
+test("push on a clean fixture: real gate runs from dist (assets resolve), dry-run exits with the gate verdict, bare sha unchanged", () => {
+  requireGitleaks();
   const fx = makeRemoteFixture();
   try {
     writeRel(fx.work, "border.yaml", borderYaml([{ name: "origin", url: fx.bare }]));
@@ -122,11 +124,13 @@ test("push on a clean fixture: stdout carries DRY-RUN + git push --dry-run, bare
     assert.match(r.stdout, /DRY-RUN/);
     assert.ok(r.stdout.includes(GIT_PUSH_DRY_RUN), "grep-guard string must survive bundling");
     assert.ok(r.stdout.includes("origin"));
-    // post todo-10 the dist bundle wires the REAL check; dist cannot resolve
-    // the vendored gitleaks assets yet (files:["dist"] packaging is todo 20/21),
-    // so the gate fails CLOSED — exactly the "never a fake 0" contract:
-    assert.match(r.stderr, /engine run error|not implemented/i, "unwired gate ⇒ fail-closed 2, never a fake 0");
-    assert.equal(r.code, EXIT_ERROR);
+    // post todo-19 the dist bundle stages assets/ (copy-assets) so the REAL
+    // engine pipeline runs end-to-end from dist: the fixture author is not in
+    // the empty allow-list ⇒ identity-not-allowlisted CRITICAL ⇒ the gate
+    // exits with the verdict (1), never a fake 0 and never an asset-error 2.
+    assert.doesNotMatch(r.stderr, /vendored gitleaks config missing|engine run error/i);
+    assert.equal(r.code, EXIT_BLOCKED, `expected a real gate FAIL, got ${String(r.code)}: ${r.stderr}`);
+    assert.match(r.stdout + r.stderr, /identity-not-allowlisted/);
     assert.equal(gitIn(fx.root, fx.bare, ["rev-parse", "main"]), before);
   } finally {
     removeDir(fx.root);
@@ -164,13 +168,13 @@ test("clean gate (findings spy over a leak-free repo): dry-run exits 0, sha unch
   }
 });
 
-// Deliberate todo-18 update (mirrors cli.test.ts): llm commands are wired now;
-// over border's own repo (no border.yaml until todo 19) they must still exit 2
-// with no stdout — honest precondition failures from the esbuild bundle too.
-test("dist status stub + wired llm commands exit 2 without touching the repo", () => {
+// Deliberate todo-19 update: status is the real ledger view (informational,
+// exit 0 over this repo's live .border/ state); llm commands stay exit-2
+// precondition failures because the dogfood border.yaml keeps kind "no-op".
+test("dist status runs informationally; wired llm commands exit 2 without touching the repo", () => {
   const status = runDist(["status"], BORDER_ROOT);
-  assert.equal(status.code, EXIT_ERROR);
-  assert.match(status.stderr, /not implemented/i);
+  assert.equal(status.code, EXIT_PASS);
+  assert.ok(status.stdout.length > 0);
   const req = runDist(["llm-request"], BORDER_ROOT);
   assert.equal(req.code, EXIT_ERROR);
   assert.match(req.stderr, /no scan targets|run 'border check' first/i);

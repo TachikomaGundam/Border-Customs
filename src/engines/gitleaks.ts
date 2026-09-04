@@ -20,10 +20,10 @@
 // Secret/Match values stay process-memory only — every finding is ingested
 // through redact(), and the optional TextSanitizer keeps the raw values for
 // free-text scrubbing during the process lifetime only.
+import { resolveAsset } from "../assets.ts";
 import { existsSync, mkdirSync, mkdtempSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join, relative, resolve } from "node:path";
 
 import { extractArchive, findNativeMissArchives, removeSandbox } from "../artifacts/extract.ts";
 import type { Finding } from "../findings.ts";
@@ -38,13 +38,7 @@ import {
 
 export { EngineMissingError, EngineRunError as GitleaksRunError } from "./support.ts";
 
-export const GITLEAKS_VENDORED_CONFIG = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "..",
-  "assets",
-  "gitleaks-defaults-v8.30.1.toml",
-);
+export const GITLEAKS_VENDORED_CONFIG = resolveAsset(import.meta.url, ["gitleaks-defaults-v8.30.1.toml"]);
 
 export const HOSTILE_CONFIG_RULE = "repo-self-ignores-findings";
 const HOSTILE_CONFIG_BASENAMES = new Set([".gitleaksignore", ".gitleaks.toml"]);

@@ -94,7 +94,7 @@ function labelFor(err: unknown): string | undefined {
   if (err instanceof UnknownArgError) return "argument error";
   if (err instanceof InvalidFindingError) return "malformed finding";
   const code = (err as NodeJS.ErrnoException | undefined)?.code;
-  if (code === "EACCES" || code === "EPERM") return "spawn permission denied";
+  if (code === "EACCES" || code === "EPERM") return "permission denied";
   if (code === "ENOENT") return "spawn failed (binary missing)";
   if (err instanceof Error) return "unexpected error";
   return "unexpected failure";

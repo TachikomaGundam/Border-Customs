@@ -48,6 +48,25 @@ export type Finding = {
 
 export type Verdict = "PASS" | "FAIL" | "NO-OP";
 
+/**
+ * G14 allow-list provenance: one row per border.yaml `allow` entry that
+ * actually suppressed findings this run. The report NEVER omits a suppression
+ * silently — `findings` carries only what survived the post-filter, and this
+ * ledger of what was dropped (count + one sample location + the entry index
+ * into cfg.allow) rides beside it. Additive optional field: schemaVersion
+ * stays 1 and consumers written before todo 19 keep parsing every byte.
+ */
+export type AllowHit = {
+  /** the allow entry's rule glob verbatim (category identity for review). */
+  rule: string;
+  /** number of findings this entry suppressed. */
+  count: number;
+  /** first suppressed finding's path, else commit, else target (review sample). */
+  sample: string;
+  /** 0-based index into cfg.allow — resolves match/file/justification in border.yaml. */
+  entryIndex: number;
+};
+
 export type ReportCounts = {
   [S in Severity]: number;
 } & {
@@ -72,6 +91,8 @@ export type Report = {
   verdict: Verdict;
   counts: ReportCounts;
   findings: readonly Finding[];
+  /** G14: present (non-empty) only when the allow post-filter suppressed findings. */
+  allowHits?: readonly AllowHit[];
   /** ISO-8601 timestamp of report creation. */
   ts: string;
 };
