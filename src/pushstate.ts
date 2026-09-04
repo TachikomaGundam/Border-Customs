@@ -48,6 +48,7 @@ import {
   type RegistryProbeOptions,
 } from "./registry.ts";
 import { sanitizeUrl } from "./redact.ts";
+import { gitTargetId } from "./gitTargetId.ts";
 
 /** Exit-2 class (same shape as BorderLockHeldError): a git probe that cannot
  *  answer fails closed naming the target; the CLI maps exitCode. */
@@ -222,9 +223,9 @@ export async function derivePushState(o: PushStateOptions): Promise<PushStateRes
     let identities: readonly Finding[] | null = null;
     const transmittedIdentities = (): readonly Finding[] =>
       (identities ??= scanIdentity({ repoDir: o.repoDir, refSet: [...ctx.refSet], cfg: o.cfg }));
-    for (const remote of o.cfg.targets.git.remotes) {
-      const name = remote.name ?? sanitizeUrl(remote.url);
-      const t = gitState(o, `git:${name}`, remote.url, ctx.refSet, locals, gate);
+    for (const [index, remote] of o.cfg.targets.git.remotes.entries()) {
+      const id = gitTargetId(remote, index);
+      const t = gitState(o, id, remote.url, ctx.refSet, locals, gate);
       targets.push(t.status === "PENDING" ? gateTransmitIdentities(t, transmittedIdentities()) : t);
     }
   }

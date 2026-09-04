@@ -27,6 +27,7 @@ import { confirmRemoteBranch, DIVERGED_MESSAGE, executePush, fastForwardGuard, t
 import { runNpmPublish, type PublishInput, type PublishTarget } from "../push/npm.ts";
 import { runPypiPublish } from "../push/pypi.ts";
 import { sanitizeUrl } from "../redact.ts";
+import { gitTargetId } from "../gitTargetId.ts";
 
 export const DRY_RUN_PREFIX = "DRY-RUN";
 export const GIT_PUSH_DRY_RUN = "git push --dry-run";
@@ -127,12 +128,16 @@ async function dryRunPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExit> {
   return verdict;
 }
 
-/** Pending git legs, in configured-remote order, matched to their target ids. */
+/** Pending git legs, in configured-remote order, matched to their target ids.
+ *  Resolution is a Map keyed by the SAME gitTargetId helper pushstate used to
+ *  build the ids — index-keyed `git:#N` ids make every key unique, so a target
+ *  can never first-match a different (unnamed) remote again. */
 function gitLegs(state: PushStateResult, loaded: LoadedConfig): GitRemoteTarget[] {
   const pending = pushableTargets(state).filter((t) => t.kind === "git");
+  const byId = new Map(loaded.config.targets.git.remotes.map((r, index) => [gitTargetId(r, index), r]));
   const legs: GitRemoteTarget[] = [];
   for (const t of pending) {
-    const remote = loaded.config.targets.git.remotes.find((r) => `git:${r.name ?? sanitizeUrl(r.url)}` === t.target);
+    const remote = byId.get(t.target);
     // pushstate derives the id FROM these remotes, so a PENDING git target always resolves.
     if (remote !== undefined) legs.push({ target: t.target, url: remote.url });
   }
@@ -212,7 +217,7 @@ async function executeYesPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExi
       recordPushSuccess(repoDir, {
         key: state.key,
         target: leg.target,
-        remoteName: leg.target.slice("git:".length), // configured name ?? sanitized url
+        remoteName: leg.target.slice("git:".length), // configured name, else the index key '#N'
         url: leg.url,
         localSha: state.headSha,
         remoteSha,
