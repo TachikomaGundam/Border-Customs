@@ -141,7 +141,11 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
   findings.push(...(await runRegistryProbes({ repoDir, cfg: o.cfg, effectiveTargets: o.effectiveTargets, ...envOpt })));
 
   const exposure = [...exposureSet(o.cfg, { cwd: repoDir })];
-  const rulesHash = await computeCheckRulesHash({ engineVersions: probe.engineVersions, configDigest: o.configDigest });
+  const rulesHash = await computeCheckRulesHash({
+    engineVersions: probe.engineVersions,
+    configDigest: o.configDigest,
+    ...(o.env !== undefined ? { env: o.env } : {}),
+  });
   const report: Report = {
     schemaVersion: 1,
     key: computeCheckKey({
