@@ -80,3 +80,12 @@ _Auto-scaffolded by /start-work. Append new entries below - never overwrite._
   `pwd` + include both in DoneClaim; (2) commit production code as soon as
   tests-green, before writing evidence/docs; (3) DoneClaim must paste ACTUAL
   final `git log --oneline -3` output, not narrated hashes.
+
+## todo 18 — open follow-ups for todos 20/21 (packaging)
+- assets/prompts/llm-review.md is unreadable from the esbuild dist bundle (fileURLToPath walk
+  lands outside the package). Handled fail-closed (MISSING_TEMPLATE ⇒ llm-request exit 2;
+  rulesHash omits the prompt input when the file is absent, mirroring GITLEAKS_VENDORED_CONFIG
+  treatment). Todo 20/21 must copy assets/** into dist (or inline it) and then cli.dist tests
+  can assert full llm-request behavior instead of honest-failure behavior.
+- BORDER_PROMPT_TEMPLATE_PATH env seam exists for hermetic template-digest tests; keep it
+  documented if the registry/packaging story changes the resolution order.
