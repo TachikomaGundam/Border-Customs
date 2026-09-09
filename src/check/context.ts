@@ -19,7 +19,9 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { dirname, resolve } from "node:path";
 
-import { ConfigError, type BorderConfig } from "../config.ts";
+import { ConfigError } from "../channels/errors.ts";
+import type { BorderConfig } from "../config.ts";
+import { allChannels } from "../channels/registry.ts";
 
 export type GitCallOptions = {
   env?: Readonly<Record<string, string | undefined>>;
@@ -94,10 +96,7 @@ export function gatherContext(repoDir: string, o: GitCallOptions = {}): CheckCon
 
 /** effectiveTargets = configured target set ∩ --targets; an unconfigured request is exit 2. */
 export function computeEffectiveTargets(cfg: BorderConfig, requested: readonly string[] | undefined): string[] {
-  const configured = new Set<string>();
-  if (cfg.targets.git.remotes.length > 0) configured.add("git");
-  if (cfg.targets.npm !== undefined) configured.add("npm");
-  if (cfg.targets.pypi !== undefined) configured.add("pypi");
+  const configured = new Set(allChannels().filter((c) => c.configured(cfg)).map((c) => c.id));
   const wanted = requested === undefined || requested.length === 0 ? [...configured] : requested;
   for (const target of wanted) {
     if (!configured.has(target)) {

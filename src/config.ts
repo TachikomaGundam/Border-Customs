@@ -1,4 +1,7 @@
-// provenance: original clean-room implementation per .omo/plans/border-push-gate.md todo 2
+// provenance: original clean-room implementation per .omo/plans/border-push-gate.md todo 2,
+//   re-wired per .omo/plans/border-push-channels.md todo C2 (target schema fragments,
+//   ${VAR} env-expand fields, hasTargets and exposure items now flow from the channel
+//   descriptors in src/channels/ — behavior byte-identical)
 //
 // border.yaml: zod-strict schema, discovery (--config > ./border.yaml > git
 // toplevel), private `.border/config.local.yaml` overlay (deep-merged, G15),
@@ -13,6 +16,8 @@ import { parse as parseYaml, YAMLParseError } from "yaml";
 import { z } from "zod";
 
 import { sanitizeUrl } from "./redact.ts";
+
+import { cratesChannel, npmChannel, pypiChannel, rubygemsChannel, publishChannels } from "./channels/registry.ts";
 
 export const DEFAULT_MAX_FILE_KB = 500;
 export const DEFAULT_ENGINES = ["gitleaks", "secretlint"];
@@ -46,101 +51,113 @@ const gitRemotesSchema = z.array(gitRemoteSchema).superRefine((remotes, ctx) => 
   }
 });
 
-const borderConfigSchema = z
-  .object({
-    version: z.literal(1),
-    targets: z
-      .object({
-        git: z.object({ remotes: gitRemotesSchema }).strict(),
-        npm: z.object({ name: z.string().optional(), registry: z.string().optional() }).strict().optional(),
-        pypi: z.object({ name: z.string().optional(), repository: z.string().optional() }).strict().optional(),
-      })
-      .strict(),
-    rules: z
-      .object({
-        authors: z
-          .object({
-            emails: z.array(z.string()),
-            names: z.array(z.string()),
-            allowBots: z.boolean().optional(),
-          })
-          .strict(),
-        hosts: z.array(z.string()),
-        ips: z.array(z.string()),
-        pathPatterns: z.array(z.string()),
-        maxFileKB: z.number().int().positive().default(DEFAULT_MAX_FILE_KB),
-      })
-      .strict(),
-    allow: z
-      .array(
-        z
-          .object({ rule: z.string().min(1), match: z.string().min(1), file: z.string().min(1).optional() })
-          .strict()
-          // G14: the plan's Must-NOT bans the blanket `allow: [{rule:"*"}]`
-          // SHAPE — an entry that suppresses by wildcard with NO scoping at
-          // all. rule/match wildcards are legitimate only when a concrete
-          // `file` scope pins the suppression to a location (the dogfood
-          // categories (a) .omo/** and (b) test/** are exactly that), so the
-          // combo is rejected only when `file` is absent. An absolute or
-          // escaping `file` glob can never match a repo-relative finding
-          // path — a typo posing as a rule — so it fails typed at LOAD too
-          // (kind invalid-value ⇒ exit 2) instead of silently no-op'ing.
-          .superRefine((entry, ctx) => {
-            if (entry.file === undefined && entry.rule === "*" && entry.match === "*") {
-              ctx.addIssue({ code: "custom", message: "blanket allow entry: '{rule:\"*\",match:\"*\"}' without a file scope is rejected — wildcards need a concrete file glob to bound them" });
-            }
-            if (entry.file !== undefined) {
-              const f = entry.file;
-              if (f.startsWith("/") || f.startsWith("~") || /^[A-Za-z]:[\\/]/.test(f) || f.split("/").includes("..")) {
-                ctx.addIssue({ code: "custom", message: `allow file glob must be repo-relative without '..' segments (got '${f}')` });
-              }
-            }
-          }),
-      )
-      .default([]),
-    engines: z
-      .object({
-        require: z.array(z.string()).default(DEFAULT_ENGINES),
-        trufflehog: z.boolean().default(false),
-      })
-      .strict()
-      .default(() => ({ require: [...DEFAULT_ENGINES], trufflehog: false })),
-  })
-  .strict();
+// The assembled schema reads channel descriptors (npmChannel/pypiChannel).
+// It is built lazily (memoized function, not a top-level const): config.ts
+// sits inside the channel-registry ESM load cycle, and reading a channel
+// binding during module evaluation would hit uninitialized bindings. No
+// other module reads this schema at load time, so deferring to first
+// safeParse keeps evaluation order-independent.
+type BorderConfigSchema = ReturnType<typeof buildBorderConfigSchema>;
+let borderConfigSchemaValue: BorderConfigSchema | undefined;
+function borderConfigSchema(): BorderConfigSchema {
+  borderConfigSchemaValue ??= buildBorderConfigSchema();
+  return borderConfigSchemaValue;
+}
 
-export type BorderConfig = z.output<typeof borderConfigSchema>;
+function buildBorderConfigSchema() {
+  return z
+    .object({
+      version: z.literal(1),
+      targets: z
+        .object({
+          git: z.object({ remotes: gitRemotesSchema }).strict(),
+          // Per-channel schema fragments come from the channel descriptors
+          // (todo C2) — each is zod .strict() (+ .optional()), so an unknown
+          // channel key or unknown field inside still lands in the same
+          // `unknown-key` exit-2 ConfigError as pre-C2.
+          npm: npmChannel.configSchema,
+          pypi: pypiChannel.configSchema,
+          crates: cratesChannel.configSchema,
+          rubygems: rubygemsChannel.configSchema,
+        })
+        .strict(),
+      rules: z
+        .object({
+          authors: z
+            .object({
+              emails: z.array(z.string()),
+              names: z.array(z.string()),
+              allowBots: z.boolean().optional(),
+            })
+            .strict(),
+          hosts: z.array(z.string()),
+          ips: z.array(z.string()),
+          pathPatterns: z.array(z.string()),
+          maxFileKB: z.number().int().positive().default(DEFAULT_MAX_FILE_KB),
+        })
+        .strict(),
+      allow: z
+        .array(
+          z
+            .object({ rule: z.string().min(1), match: z.string().min(1), file: z.string().min(1).optional() })
+            .strict()
+            // G14: the plan's Must-NOT bans the blanket `allow: [{rule:"*"}]`
+            // SHAPE — an entry that suppresses by wildcard with NO scoping at
+            // all. rule/match wildcards are legitimate only when a concrete
+            // `file` scope pins the suppression to a location (the dogfood
+            // categories (a) .omo/** and (b) test/** are exactly that), so the
+            // combo is rejected only when `file` is absent. An absolute or
+            // escaping `file` glob can never match a repo-relative finding
+            // path — a typo posing as a rule — so it fails typed at LOAD too
+            // (kind invalid-value ⇒ exit 2) instead of silently no-op'ing.
+            .superRefine((entry, ctx) => {
+              if (entry.file === undefined && entry.rule === "*" && entry.match === "*") {
+                ctx.addIssue({ code: "custom", message: "blanket allow entry: '{rule:\"*\",match:\"*\"}' without a file scope is rejected — wildcards need a concrete file glob to bound them" });
+              }
+              if (entry.file !== undefined) {
+                const f = entry.file;
+                if (f.startsWith("/") || f.startsWith("~") || /^[A-Za-z]:[\\/]/.test(f) || f.split("/").includes("..")) {
+                  ctx.addIssue({ code: "custom", message: `allow file glob must be repo-relative without '..' segments (got '${f}')` });
+                }
+              }
+            }),
+        )
+        .default([]),
+      engines: z
+        .object({
+          require: z.array(z.string()).default(DEFAULT_ENGINES),
+          trufflehog: z.boolean().default(false),
+        })
+        .strict()
+        .default(() => ({ require: [...DEFAULT_ENGINES], trufflehog: false })),
+      // R4 (border-residue-gate): the residue scan is ON unless the user opts
+      // out. Strict shape mirrors engines.trufflehog — an unknown sibling under
+      // `residue:` is a typed exit 2, never a silently-ignored typo. Outer
+      // `.optional()` (not `.default()`): a whole BorderConfig literal must
+      // construct without the key (inferredConfig + pinned suites), so absence
+      // IS the enabled default — `residue?.enabled !== false` at the merge
+      // point in check.ts materializes that semantics. The ONLY sanctioned skip
+      // of the residue scan is this toggle; a scan that cannot RUN is a FAIL
+      // (fail-closed doctrine), and the digest seam keeps every cached PASS
+      // honest about the residue sources it was certified against.
+      residue: z
+        .object({
+          enabled: z.boolean().default(true),
+        })
+        .strict()
+        .optional(),
+    })
+    .strict();
+}
+
+export type BorderConfig = z.output<BorderConfigSchema>;
 export type GitRemote = BorderConfig["targets"]["git"]["remotes"][number];
 
-// ---------------------------------------------------------------- errors
-
-export type ConfigErrorKind =
-  | "unknown-key"
-  | "invalid-value"
-  | "malformed-yaml"
-  | "missing-env"
-  | "unreadable"
-  | "git-failed";
-
-export class ConfigError extends Error {
-  readonly exitCode: 2 = 2;
-  readonly kind: ConfigErrorKind;
-  readonly key: string | undefined;
-  readonly line: number | undefined;
-  readonly column: number | undefined;
-
-  constructor(
-    kind: ConfigErrorKind,
-    message: string,
-    pos?: { key?: string | undefined; line?: number | undefined; column?: number | undefined },
-  ) {
-    super(message);
-    this.name = "ConfigError";
-    this.kind = kind;
-    this.key = pos?.key;
-    this.line = pos?.line;
-    this.column = pos?.column;
-  }
-}
+// ConfigError/isRecord live in src/channels/errors.ts (a dependency-free leaf)
+// and are re-exported here: the channel descriptors throw ConfigError without
+// importing this module, so the two never close a static ESM cycle (todo C2).
+import { ConfigError, isRecord, type ConfigErrorKind } from "./channels/errors.ts";
+export { ConfigError, isRecord, type ConfigErrorKind };
 
 function yamlToJson(text: string, source: string): unknown {
   try {
@@ -175,7 +192,7 @@ function zodToConfigError(error: z.ZodError, source: string): ConfigError {
 }
 
 function validateDoc(doc: unknown, source: string): BorderConfig {
-  const result = borderConfigSchema.safeParse(doc);
+  const result = borderConfigSchema().safeParse(doc);
   if (result.success) {
     return result.data;
   }
@@ -199,40 +216,28 @@ function expandEnv(text: string, field: string, env: Record<string, string | und
 }
 
 function expandInConfig(cfg: BorderConfig, env: Record<string, string | undefined>): BorderConfig {
-  const npm = cfg.targets.npm;
-  const pypi = cfg.targets.pypi;
-  return {
-    ...cfg,
-    targets: {
-      ...cfg.targets,
-      git: {
-        remotes: cfg.targets.git.remotes.map((r, i) => ({
-          ...r,
-          url: expandEnv(r.url, `targets.git.remotes[${i}].url`, env),
-        })),
-      },
-      ...(npm === undefined
-        ? {}
-        : {
-            npm: {
-              ...npm,
-              ...(npm.registry === undefined
-                ? {}
-                : { registry: expandEnv(npm.registry, "targets.npm.registry", env) }),
-            },
-          }),
-      ...(pypi === undefined
-        ? {}
-        : {
-            pypi: {
-              ...pypi,
-              ...(pypi.repository === undefined
-                ? {}
-                : { repository: expandEnv(pypi.repository, "targets.pypi.repository", env) }),
-            },
-          }),
+  const targets: BorderConfig["targets"] = {
+    git: {
+      remotes: cfg.targets.git.remotes.map((r, i) => ({
+        ...r,
+        url: expandEnv(r.url, `targets.git.remotes[${i}].url`, env),
+      })),
     },
   };
+  // Per-channel ${VAR} expansion, driven by each descriptor's envExpandFields
+  // (todo C2: npm.registry / pypi.repository — nothing else may expand).
+  for (const channel of publishChannels()) {
+    const section = (cfg.targets as unknown as Record<string, Record<string, string | undefined> | undefined>)[channel.id];
+    if (section === undefined) continue;
+    const out: Record<string, string | undefined> = { ...section };
+    for (const field of channel.envExpandFields) {
+      const value = section[field];
+      if (value === undefined) continue;
+      out[field] = expandEnv(value, `targets.${channel.id}.${field}`, env);
+    }
+    (targets as unknown as Record<string, Record<string, string | undefined>>)[channel.id] = out;
+  }
+  return { ...cfg, targets };
 }
 
 export function parseConfig(
@@ -248,10 +253,7 @@ export function parseConfig(
 // plain objects merge recursively; arrays and scalars replace. The MERGED
 // document is schema-validated (same schema), so partial overlays are legal
 // while unknown keys anywhere are still rejected by name.
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+// (isRecord is defined in src/channels/errors.ts — re-exported at line 126.)
 
 function deepMergeRaw(base: unknown, overlay: unknown): unknown {
   if (isRecord(base) && isRecord(overlay)) {
@@ -297,7 +299,7 @@ function headFile(toplevel: string, rel: string): string {
 }
 
 function hasTargets(cfg: BorderConfig): boolean {
-  return cfg.targets.git.remotes.length > 0 || cfg.targets.npm !== undefined || cfg.targets.pypi !== undefined;
+  return cfg.targets.git.remotes.length > 0 || publishChannels().some((c) => c.configured(cfg));
 }
 
 // ---------------------------------------------------------------- discovery
@@ -404,47 +406,25 @@ export function loadConfig(
 
 // ---------------------------------------------------------------- exposure set
 
-function tomlField(text: string, key: string, file: string): string {
-  const m = new RegExp(`^\\s*${key}\\s*=\\s*["']([^"']+)["']`, "m").exec(text);
-  const value = m?.[1];
-  if (value === undefined) {
-    throw new ConfigError("invalid-value", `cannot read '${key}' from ${file} at HEAD`);
-  }
-  return value;
-}
-
-/** Sorted set of public exposure points: sanitized remote URLs plus
- *  `npm:<name>@<version>` / `pypi:<name>@<version>` read AT HEAD (never the
- *  working tree). Remote URLs pass through sanitizeUrl before entering. */
+/** Sorted set of public exposure points: sanitized remote URLs plus each
+ *  configured publish channel's exposure item (`npm:<name>@<version>` /
+ *  `pypi:<name>@<version>` — items and their HEAD coordinate readers live on
+ *  the channel descriptors, todo C2, so a new platform joins exposure
+ *  automatically). Remote URLs pass through sanitizeUrl before entering. */
 export function exposureSet(cfg: BorderConfig, options: { cwd?: string } = {}): string[] {
   const cwd = resolve(options.cwd ?? process.cwd());
   const items = new Set<string>();
   for (const remote of cfg.targets.git.remotes) {
     items.add(sanitizeUrl(remote.url));
   }
-  if (cfg.targets.npm !== undefined) {
-    const raw = headFile(cwd, "package.json");
-    let pkg: unknown;
-    try {
-      pkg = JSON.parse(raw);
-    } catch {
-      throw new ConfigError("invalid-value", "package.json at HEAD is not valid JSON");
-    }
-    const version = isRecord(pkg) && typeof pkg["version"] === "string" ? pkg["version"] : undefined;
-    if (version === undefined) {
-      throw new ConfigError("invalid-value", "cannot read 'version' from package.json at HEAD");
-    }
-    const name = cfg.targets.npm.name ?? (isRecord(pkg) && typeof pkg["name"] === "string" ? pkg["name"] : undefined);
-    if (name === undefined) {
-      throw new ConfigError("invalid-value", "cannot read npm package name (config + package.json at HEAD)");
-    }
-    items.add(`npm:${name}@${version}`);
-  }
-  if (cfg.targets.pypi !== undefined) {
-    const pyproject = headFile(cwd, "pyproject.toml");
-    const name = cfg.targets.pypi.name ?? tomlField(pyproject, "name", "pyproject.toml");
-    const version = tomlField(pyproject, "version", "pyproject.toml");
-    items.add(`pypi:${name}@${version}`);
+  for (const channel of publishChannels()) {
+    if (!channel.configured(cfg)) continue;
+    // repoDir (cwd) is passed through for channels whose HEAD coordinate
+    // reader needs git plumbing beyond a fixed manifest path (C4: rubygems
+    // gemspec discovery is `git ls-tree`, unreadable via `read`); the
+    // fixed-path readers (npm/pypi/crates) ignore the extra argument.
+    const coords = channel.exposureCoords(cfg, (rel: string) => headFile(cwd, rel), cwd);
+    items.add(channel.exposureItem(coords));
   }
   return [...items].sort();
 }

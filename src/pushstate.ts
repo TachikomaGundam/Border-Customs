@@ -41,12 +41,11 @@ import {
 import {
   FOREIGN_OWNER_RULE,
   VERSION_EXISTS_RULE,
-  readNpmCoords,
-  readPypiCoords,
   runRegistryProbes,
   type PublishCoords,
   type RegistryProbeOptions,
 } from "./registry.ts";
+import { allChannels, publishChannels, type ChannelId, type PublishChannelId } from "./channels/registry.ts";
 import { sanitizeUrl } from "./redact.ts";
 import { gitTargetId } from "./gitTargetId.ts";
 
@@ -57,7 +56,9 @@ export class PushStateError extends Error {
   override readonly name = "PushStateError";
 }
 
-export type TargetKind = "git" | "npm" | "pypi";
+// Derived from the channel registry (todo C2): "git" plus every registered
+// publish channel id — the same set computeEffectiveTargets and the CLI accept.
+export type TargetKind = ChannelId;
 export type TargetStatus = "PUSHED" | "PENDING" | "BLOCKED";
 export type TargetGate = "PASSED" | "UNCHECKED";
 
@@ -177,7 +178,7 @@ function gitState(o: PushStateOptions, id: string, url: string, refSet: readonly
   return { target: id, kind: "git", status: "PENDING", gate, reason: `behind: ${behind.join(", ")}`, findings: [] };
 }
 
-function registryState(kind: "npm" | "pypi", coords: PublishCoords, findings: readonly Finding[], ours: readonly PushRecord[], gate: TargetGate): TargetResult {
+function registryState(kind: PublishChannelId, coords: PublishCoords, findings: readonly Finding[], ours: readonly PushRecord[], gate: TargetGate): TargetResult {
   const leg = (rule: string): Finding | undefined => findings.find((f) => f.target === kind && f.rule === rule);
   const present = leg(VERSION_EXISTS_RULE) !== undefined;
   if (!present) {
@@ -205,9 +206,9 @@ function gateFor(records: readonly LedgerRecord[], key: string, kind: TargetKind
  *  an unreachable-remote error wins any race (plan failure AC). */
 export async function derivePushState(o: PushStateOptions): Promise<PushStateResult> {
   const env = o.env ?? process.env;
+  const byId = new Map(allChannels().map((c) => [c.id, c]));
   const want = (kind: TargetKind): boolean =>
-    o.effectiveTargets.includes(kind) &&
-    (kind === "git" ? o.cfg.targets.git.remotes.length > 0 : o.cfg.targets[kind] !== undefined);
+    o.effectiveTargets.includes(kind) && byId.get(kind)?.configured(o.cfg) === true;
   const ctx = await gatherContext(o.repoDir, { env });
   const { fp } = await computeFingerprint(o.repoDir, o.cfg, o.configDigest, [...o.effectiveTargets], {
     env,
@@ -230,19 +231,19 @@ export async function derivePushState(o: PushStateOptions): Promise<PushStateRes
     }
   }
 
-  const publishLegs = (["npm", "pypi"] as const).filter(want);
+  const publishLegs = publishChannels().filter((ch) => want(ch.id));
   if (publishLegs.length > 0) {
     const findings = await runRegistryProbes({
       repoDir: o.repoDir,
       cfg: o.cfg,
-      effectiveTargets: publishLegs,
+      effectiveTargets: publishLegs.map((c) => c.id),
       env,
       ...(o.fetcher === undefined ? {} : { fetcher: o.fetcher }),
     });
     const ours = pushRecords(records);
-    for (const kind of publishLegs) {
-      const coords = kind === "npm" ? readNpmCoords(o.repoDir, o.cfg, env) : readPypiCoords(o.repoDir, o.cfg, env);
-      targets.push(registryState(kind, coords, findings, ours, gateFor(records, fp.key, kind)));
+    for (const channel of publishLegs) {
+      const coords = channel.coords(o.repoDir, o.cfg, env);
+      targets.push(registryState(channel.id, coords, findings, ours, gateFor(records, fp.key, channel.id)));
     }
   }
 

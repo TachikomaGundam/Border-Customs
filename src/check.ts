@@ -9,11 +9,10 @@
 // the `.border/` ingest filter here (never in the adapter).
 // Findings order is the pipeline order above — deterministic per run so the
 // JSON render (todo 19) is stable.
-import { join, relative } from "node:path";
+import { join } from "node:path";
 
-import { attributeToTarball, runNpmArtifactStage } from "./artifacts/npm.ts";
-import { scanPyPiArtifacts } from "./artifacts/pypi.ts";
 import { exposureSet, type BorderConfig } from "./config.ts";
+import { publishChannels } from "./channels/registry.ts";
 import { scanGitHistory, scanTree, detectHostileConfig } from "./engines/gitleaks.ts";
 import { probeEngines } from "./engines/policy.ts";
 import { scanGitTrackedFiles } from "./engines/secretlint.ts";
@@ -24,6 +23,7 @@ import type { LedgerArtifact } from "./ledger/records.ts";
 import { redact, TextSanitizer } from "./redact.ts";
 import { runRegistryProbes } from "./registry.ts";
 import { scanAiArtifacts } from "./rules/aiArtifacts.ts";
+import { RESIDUE_SEVERITIES } from "./rules/residueMatchers.ts";
 import { scanIdentity } from "./rules/identity.ts";
 import { gatherContext, runGitChecked, type CheckContext } from "./check/context.ts";
 import { applyAllowList } from "./check/allow.ts";
@@ -34,6 +34,10 @@ import { scanTagMessages, TAG_MESSAGE_RULE } from "./check/tagScan.ts";
 
 export const TRACKED_BORDER_RULE = "repo-tracks-border-state";
 export { TAG_MESSAGE_RULE };
+
+// Closed residue rule-id set (plan §57: residueMatchers.ts is the sole emitter —
+// derived from its RESIDUE_SEVERITIES table, never restated here).
+const RESIDUE_RULE_IDS: ReadonlySet<string> = new Set(Object.keys(RESIDUE_SEVERITIES));
 
 const GUARD_PATH_CAP = 50;
 
@@ -151,8 +155,12 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
   // verdict; the digests certify exactly these bytes to the ledger (todo 14) and to
   // publish's same-bytes chain (todo 17). Degraded engines inherit the skip flags.
   const ledgerArtifacts: LedgerArtifact[] = [];
-  if (o.effectiveTargets.includes("npm")) {
-    const stage = await runNpmArtifactStage({
+  // Per-channel artifact stage (todo C2): each configured∩requested publish
+  // channel builds/scans its own bytes (npm pack / pypi build) and returns
+  // {findings, artifacts} — the ledger digests certify exactly these bytes.
+  for (const channel of publishChannels()) {
+    if (!o.effectiveTargets.includes(channel.id) || !channel.configured(o.cfg)) continue;
+    const stage = await channel.stage({
       repoDir,
       cfg: o.cfg,
       sanitizer,
@@ -160,23 +168,25 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
       skipGitleaks: broken.has("gitleaks"),
       skipSecretlint: broken.has("secretlint"),
     });
-    findings.push(...attributeToTarball(stage.findings, stage.artifact));
-    if (stage.artifact !== null) ledgerArtifacts.push({ file: stage.artifact.file, sha256: stage.artifact.sha256 });
-  }
-  if (o.effectiveTargets.includes("pypi")) {
-    const scan = await scanPyPiArtifacts({
-      repoDir,
-      sanitizer,
-      rules: o.cfg.rules,
-      ...envOpt,
-      skipGitleaks: broken.has("gitleaks"),
-      skipSecretlint: broken.has("secretlint"),
-    });
-    findings.push(...scan.findings);
-    for (const a of scan.artifacts) ledgerArtifacts.push({ file: relative(repoDir, a.path), sha256: a.sha256 });
+    findings.push(...stage.findings);
+    ledgerArtifacts.push(...stage.artifacts);
   }
 
   findings.push(...(await runRegistryProbes({ repoDir, cfg: o.cfg, effectiveTargets: o.effectiveTargets, ...envOpt })));
+
+  // R4 residue.enabled central gate: the toggle's ONLY effect is hiding the
+  // closed residue-* rule set (single home: RESIDUE_SEVERITIES keys) from the
+  // merge point down — every other rule, the allow-list bookkeeping, the report
+  // schema and the verdict math are untouched, so a residue-off run can never
+  // launder a non-residue blocker. The scan itself already RAN above (fail-open
+  // on cost, fail-closed on results: absence of the key === enabled; there is
+  // no other sanctioned skip path).
+  if (o.cfg.residue?.enabled === false) {
+    for (let i = findings.length - 1; i >= 0; i -= 1) {
+      const f = findings[i];
+      if (f !== undefined && RESIDUE_RULE_IDS.has(f.rule)) findings.splice(i, 1);
+    }
+  }
 
   const exposure = [...exposureSet(o.cfg, { cwd: repoDir })];
   // G14 post-filter (todo 19): last gate before the verdict. Suppressed

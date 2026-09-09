@@ -44,7 +44,7 @@ export type CheckRecord = {
   readonly ts: string;
 };
 
-export const PUSH_CONFIRMED_VIA = ["ls-remote", "npm-view", "pypi-json"] as const;
+export const PUSH_CONFIRMED_VIA = ["ls-remote", "npm-view", "pypi-json", "crates-json", "rubygems-json"] as const;
 export type PushConfirmedVia = (typeof PUSH_CONFIRMED_VIA)[number];
 
 /** G20 proof-of-push record; consumed by todos 15/16/17 (push state machine, status). */

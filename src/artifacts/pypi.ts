@@ -38,6 +38,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmdirSyn
 import { basename, dirname, join, relative, resolve } from "node:path";
 
 import { extractArchive, removeSandbox } from "./extract.ts";
+import { residueFindings } from "./residue.ts";
+import { residuePypiHits } from "./residuePy.ts";
 import type { Finding } from "../findings.ts";
 import { globToRegExp } from "../rules/artifactMatchers.ts";
 import { scanTree } from "../engines/gitleaks.ts";
@@ -106,8 +108,18 @@ export function buildPypiArtifacts(o: PypiInput): { readonly artifacts: readonly
     throw new PypiPrerequisiteError(`no pyproject.toml in the repo root — the PyPI pipeline builds from pyproject's own [build-system]`);
   }
   const distDir = join(resolve(o.stateDir ?? join(repoDir, ".border")), "dist");
-  rmSync(distDir, { recursive: true, force: true });
   mkdirSync(distDir, { recursive: true });
+  // Wipe ONLY the pypi kinds (.tar.gz/.whl): an earlier run's — or an
+  // attacker's pre-seeded — pypi artifact must never be scanned (build-once
+  // hygiene), but OTHER channels' staged artifacts (.tgz/.crate/.gem) must
+  // survive a multi-target check. Exposed by the C5 cross-channel matrix:
+  // a full rmSync made every git+npm+pypi repo's npm push leg fail at the
+  // re-hash gate ("artifact changed since check — .tgz is missing from the
+  // working tree"), because the npm stage packed first and this wipe deleted
+  // the recorded bytes before the record was written.
+  for (const name of readdirSync(distDir)) {
+    if (name.endsWith(".tar.gz") || name.endsWith(".whl")) rmSync(join(distDir, name), { force: true });
+  }
   const out = spawnEngine(binaryCandidates("python3", o), ["-m", "build", "--no-isolation", "--outdir", distDir, repoDir], o);
   if (out.status !== 0) {
     throw new EngineRunError(`\`python3 -m build\` exited ${String(out.status)} — no artifacts to gate (border exit 2). stderr: ${tail(out.stderr)}`, out.status);
@@ -297,6 +309,13 @@ export async function scanPyPiArtifacts(o: PypiInput): Promise<PypiScanResult> {
         if (o.skipSecretlint !== true) {
           for (const f of await scanPaths({ ...scanOpts, ...(o.sanitizer !== undefined ? { sanitizer: o.sanitizer } : {}), ...(o.rules !== undefined ? { rules: o.rules } : {}), dir: scanRoot, files: rest })) absorb(f, f.path ?? "");
         }
+        // R3a residue leg (plan §57): build hooks + artifact-wide T4, attributed `<archive>!<inner>`.
+        for (const f of residueFindings(residuePypiHits(scanRoot, rest), {
+          root: basename(artifact.path),
+          sep: "!",
+          identity: basename(artifact.path),
+          ...(o.sanitizer !== undefined ? { sanitizer: o.sanitizer } : {}),
+        })) absorb(f, f.path ?? "");
         if (artifact.kind === "sdist") for (const f of manifestFindings(o, rest, target)) absorb(f, f.path ?? "");
       } finally {
         removeSandbox(sandbox);

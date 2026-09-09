@@ -26,6 +26,8 @@ import { scanTree } from "../engines/gitleaks.ts";
 import { scanPaths, type SecretlintMode } from "../engines/secretlint.ts";
 import { EngineRunError, type EngineOptions } from "../engines/support.ts";
 import { LIFECYCLE_SCRIPT_KEYS, parseNpmManifest, unexpectedEntries } from "./manifestDiff.ts";
+import { residueFindings, scanNpmLifecycleHook, sweepResidueNpmArtifact } from "./residue.ts";
+import { RESIDUE_T1_RULE } from "../rules/residueMatchers.ts";
 import {
   NPM_LIFECYCLE_RULE,
   NPM_PUBLINT_RULE,
@@ -195,17 +197,37 @@ export async function runNpmArtifactStage(o: NpmStageOptions): Promise<NpmStageR
     // not the working tree — npm may rewrite package.json inside the tarball.
     const packedManifest = parseNpmManifest(readFileSync(join(extractDir, packedManifestRel), "utf8"));
 
+    // RESIDUE-CONTRACT §1.6/§3 (R2): a hook is downgraded to MEDIUM ONLY when the
+    // classifier matches closed signature #1 in full; every other outcome — unknown
+    // grammar, unreadable target, out-of-signature literal — keeps the 0.2.0
+    // lifecycle-script CRITICAL row byte-identically (gate-2 pins). Family rows
+    // (T2/T3/cross-manager) are emitted IN ADDITION; the gate only ever gets stricter.
+    const pkgDir = join(extractDir, root);
+    const residueCtx = { root, identity, ...(o.sanitizer !== undefined ? { sanitizer: o.sanitizer } : {}) };
     for (const key of LIFECYCLE_SCRIPT_KEYS) {
       const cmd = packedManifest.scripts[key];
       if (cmd === undefined) continue;
-      findings.push(nativeFinding(
-        NPM_LIFECYCLE_RULE,
-        "CRITICAL",
-        `package.json script '${key}' is a lifecycle hook — npm executes it on every consumer install (G33): ${tail(sanitizeOut(o.sanitizer, cmd))}`,
-        packedManifestRel,
-        `${identity}:lifecycle:${key}`,
-        o.sanitizer,
-      ));
+      const scan = scanNpmLifecycleHook({ pkgDir, hook: cmd });
+      if (scan.signatureId !== null) {
+        findings.push(nativeFinding(
+          RESIDUE_T1_RULE,
+          "MEDIUM",
+          `package.json script '${key}' matches closed safe signature '${scan.signatureId}' (T1: install-root writes only, frozen probe/fallback argv literals, zero network/out-of-tree/persistence/cross-manager hits) — allowed but audit-visible; any deviation keeps the blocking lifecycle-script CRITICAL`,
+          packedManifestRel,
+          `${identity}:residue:t1:${key}`,
+          o.sanitizer,
+        ));
+      } else {
+        findings.push(nativeFinding(
+          NPM_LIFECYCLE_RULE,
+          "CRITICAL",
+          `package.json script '${key}' is a lifecycle hook — npm executes it on every consumer install (G33): ${tail(sanitizeOut(o.sanitizer, cmd))}`,
+          packedManifestRel,
+          `${identity}:lifecycle:${key}`,
+          o.sanitizer,
+        ));
+      }
+      findings.push(...residueFindings(scan.hits, residueCtx));
     }
     const entries = relPaths.filter((p) => p !== packedManifestRel).map((p) => p.slice(root.length + 1));
     for (const entry of unexpectedEntries(entries, manifest.files)) {
@@ -218,6 +240,12 @@ export async function runNpmArtifactStage(o: NpmStageOptions): Promise<NpmStageR
         o.sanitizer,
       ));
     }
+
+    // T4 + B2 marker pair-detection are artifact-wide (contract §4/§5.3): a persistence string
+    // in ANY packed file blocks, even with no lifecycle hook present. NpmManifest does
+    // not parse `bin`, so the CLI-inverse surface is scanned over the packed bin/ tree.
+    const binRels = relPaths.filter((p) => p.startsWith(`${root}/bin/`));
+    findings.push(...residueFindings(sweepResidueNpmArtifact({ pkgDir, files: relPaths, binRels }), residueCtx));
 
     if (o.skipGitleaks !== true) {
       const tree = scanTree({
