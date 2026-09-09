@@ -80,6 +80,7 @@ function secretFixture(): { dir: string; ghostKey: string } {
   commitAll(dir);
   // planted AFTER the commit — .gitignore never hides these from setuptools' sdist walk
   writeRel(dir, "src/secrets_in_data.py", `AWS_KEY = "${AC_KEY}"\n`);
+  // randAwsPair OK: only .key is consumed — KEY half flags deterministically (aws-access-token)
   const ghostKey = randAwsPair().key;
   writeRel(dir, "src/secrets_pkg/ghost.py", `GHOST_KEY = "${ghostKey}"\n`);
   return { dir, ghostKey };
@@ -142,6 +143,7 @@ test("AC1 happy: planted MANIFEST.in secret ⇒ CRITICAL surviving the repo-scop
 
 test("dedupe: one secret in sdist AND wheel ⇒ one merged finding per (rule, relpath, digest)", async () => {
   const dir = fixtureDir();
+  // randAwsPair OK: only .key is consumed (dedupe probe) — KEY half flags deterministically
   const key = randAwsPair().key;
   writeRel(dir, "pyproject.toml", `${BUILD_SYSTEM}
 [project]
