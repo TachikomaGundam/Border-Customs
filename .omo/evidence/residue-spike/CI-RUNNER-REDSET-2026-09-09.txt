@@ -1,0 +1,216 @@
+# duration_ms 215814.248132
+not ok 52 - channels golden: check key, exposureSet and DRY-RUN stdout are byte-identical to the post-refactor capture at this location
+  ---
+  duration_ms: 2401.894903
+  type: 'test'
+  location: '/home/runner/work/Border-Customs/Border-Customs/test/channels.golden.test.ts:43:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    check key changed across the channel-registry refactor
+    + actual - expected
+    
+    + 'c39b3ec6120dce9d5d087348223265526d3aca32ef76cf7aa9429c4191386dd3'
+    - 'd6b83c4c366a9077e1360247f5a93d8c5026d2ef735809239709578ca5707abc'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'd6b83c4c366a9077e1360247f5a93d8c5026d2ef735809239709578ca5707abc'
+  actual: 'c39b3ec6120dce9d5d087348223265526d3aca32ef76cf7aa9429c4191386dd3'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/runner/work/Border-Customs/Border-Customs/test/channels.golden.test.ts:148:10)
+    async Test.run (node:internal/test_runner/test:1404:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+--
+not ok 53 - C5-1 subset discipline: a git-only PASS authorizes NO publish leg; a full PASS authorizes no crates-only push (fingerprint effectiveTargets scope binding)
+  ---
+  duration_ms: 10943.22168
+  type: 'test'
+  location: '/home/runner/work/Border-Customs/Border-Customs/test/channels.integration.test.ts:232:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    exactly one check record, git-scoped
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/runner/work/Border-Customs/Border-Customs/test/channels.integration.test.ts:237:10)
+    async Test.run (node:internal/test_runner/test:1404:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: C5-2 all-BLOCKED: --yes with every leg blocked (no check at all) ⇒ exit 1, zero publishes, zero push-records
+ok 54 - C5-2 all-BLOCKED: --yes with every leg blocked (no check at all) ⇒ exit 1, zero publishes, zero push-records
+--
+not ok 56 - C5-4 ordering: publish legs execute in descriptor order git→npm→pypi→crates→rubygems (exact spawn sequence), all five push-records under ONE key
+  ---
+  duration_ms: 11523.582775
+  type: 'test'
+  location: '/home/runner/work/Border-Customs/Border-Customs/test/channels.integration.test.ts:298:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    publish spawns in descriptor .order (git 0 → npm 1 → pypi 2 → crates 3 → rubygems 4); the repackage gate precedes the crates spawn
+    + actual - expected
+    
+      [
+        'npm:publish',
+    +   'twine:--version',
+        'twine:upload',
+        'cargo:package',
+        'cargo:publish',
+        'gem:push'
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'npm:publish'
+--
+not ok 75 - stage: real gem build lands .border/dist/<name>-<version>.gem, deterministic sha256, tmp cleaned, scans are artifact-root-relative
+  ---
+  duration_ms: 2577.277104
+  type: 'test'
+  location: '/home/runner/work/Border-Customs/Border-Customs/test/channels.rubygems.test.ts:319:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    gem build is byte-deterministic per tree (spike §e) — freshness repack is sound
+    + actual - expected
+    
+    + 'b1d4befe5fa574cfe36895efe372efae10cbb3f8233121c351e998bc377befc2'
+    - '580dc3b53db2a1b698384d70384b89b3bdad05a865b6f7c6121764e00bf35fa1'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: '580dc3b53db2a1b698384d70384b89b3bdad05a865b6f7c6121764e00bf35fa1'
+  actual: 'b1d4befe5fa574cfe36895efe372efae10cbb3f8233121c351e998bc377befc2'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/runner/work/Border-Customs/Border-Customs/test/channels.rubygems.test.ts:331:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1404:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:969:7)
+--
+not ok 87 - freshness: rubygems repacks via the shared REPACKERS lookup; ambiguous tree or s.date => null (fail-closed, never a skip)
+  ---
+  duration_ms: 1164.074594
+  type: 'test'
+  location: '/home/runner/work/Border-Customs/Border-Customs/test/channels.rubygems.test.ts:515:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    repack digest must equal the stage digest (deterministic build)
+    + actual - expected
+    
+    + '48b7e600d04e71a23fa0cb09a0abedda7b31193d234e985f400a5719e488763d'
+    - 'f9030b36b4b6ef9cfb46036567e57a55900e1be0c8bfcf140cec66a17e058dd0'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'f9030b36b4b6ef9cfb46036567e57a55900e1be0c8bfcf140cec66a17e058dd0'
+  actual: '48b7e600d04e71a23fa0cb09a0abedda7b31193d234e985f400a5719e488763d'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/runner/work/Border-Customs/Border-Customs/test/channels.rubygems.test.ts:524:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1404:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:969:7)
+--
+not ok 267 - I1 git+npm PENDING: push --yes lands the bare, publishes to verdaccio, and writes BOTH push-records under the PASS key
+  ---
+  duration_ms: 12101.550291
+  type: 'test'
+  location: '/home/runner/work/Border-Customs/Border-Customs/test/push.integration.test.ts:220:1'
+  failureType: 'testCodeFailure'
+  error: 'verdaccio saw the publish PUT'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/runner/work/Border-Customs/Border-Customs/test/push.integration.test.ts:238:10)
+    async Test.run (node:internal/test_runner/test:1404:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: I2 diverged backup + npm PENDING: exit 1 DIVERGED, ZERO publish attempts, no npm push-record (order invariant)
+ok 268 - I2 diverged backup + npm PENDING: exit 1 DIVERGED, ZERO publish attempts, no npm push-record (order invariant)
+  ---
+  duration_ms: 5080.275454
+  type: 'test'
+  ...
+--
+not ok 271 - AC1 npm E2E: dry-run prints exact command with ZERO verdaccio hits; --yes publishes with warning-before-spawn, visible version, push-record
+  ---
+  duration_ms: 7703.626049
+  type: 'test'
+  location: '/home/runner/work/Border-Customs/Border-Customs/test/push.registries.test.ts:257:1'
+  failureType: 'testCodeFailure'
+  error: '--yes path did contact the registry (probe + PUT)'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/runner/work/Border-Customs/Border-Customs/test/push.registries.test.ts:278:10)
+    async Test.run (node:internal/test_runner/test:1404:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: AC2 npm tamper: one flipped byte in .border/dist after the PASS ⇒ exit 2 before ANY registry hit
+ok 272 - AC2 npm tamper: one flipped byte in .border/dist after the PASS ⇒ exit 2 before ANY registry hit
+  ---
+  duration_ms: 1370.521756
+  type: 'test'
+  ...
+--
+not ok 273 - AC3 npm double-publish: second --yes attempt re-probes, hard-FAILs with bump message, issues no PUT
+  ---
+  duration_ms: 7984.790316
+  type: 'test'
+  location: '/home/runner/work/Border-Customs/Border-Customs/test/push.registries.test.ts:311:1'
+  failureType: 'testCodeFailure'
+  error: 'first attempt performs exactly one publish PUT'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/runner/work/Border-Customs/Border-Customs/test/push.registries.test.ts:320:10)
+    async Test.run (node:internal/test_runner/test:1404:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:969:7)
+  ...
+# Subtest: AC4 pypi dry-run: exact twine upload line with repository-url, ZERO probe requests
+ok 274 - AC4 pypi dry-run: exact twine upload line with repository-url, ZERO probe requests
+  ---
+  duration_ms: 1629.177964
+  type: 'test'
+  ...
+--
+not ok 466 - R3a-E ([build-system] requires naming an http client ⇒ T2 on the block; [project] dependency must STAY silent)
+  ---
+  duration_ms: 764.966407
+  type: 'test'
+  location: '/home/runner/work/Border-Customs/Border-Customs/test/residue.pypi.test.ts:117:1'
+  failureType: 'testCodeFailure'
+  error: '`python3 -m build` exited 1 — no artifacts to gate (border exit 2). stderr: * Getting build dependencies for sdist... ERROR Unmet dependencies (checked against /usr/bin/python3): httpx>=0.27 wanted: >=0.27 found: not installed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'EngineRunError'
+  stack: |-
+    buildPypiArtifacts (file:///home/runner/work/Border-Customs/Border-Customs/src/artifacts/pypi.ts:71:11)
+    scanPyPiArtifacts (file:///home/runner/work/Border-Customs/Border-Customs/src/artifacts/pypi.ts:204:25)
+    stagePatched (file:///home/runner/work/Border-Customs/Border-Customs/test/residue.pypi.test.ts:42:30)
+    TestContext.<anonymous> (file:///home/runner/work/Border-Customs/Border-Customs/test/residue.pypi.test.ts:118:26)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1397:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+    Test.postRun (node:internal/test_runner/test:1537:19)
+    Test.run (node:internal/test_runner/test:1462:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:969:7)
+  ...
+# Subtest: R3a-F (marker-less rc append in setup.py ⇒ T3 dotfile family still fires)
+ok 467 - R3a-F (marker-less rc append in setup.py ⇒ T3 dotfile family still fires)
