@@ -1,0 +1,9 @@
+{
+  "name": "fixture-pairing-paired",
+  "version": "1.0.0",
+  "license": "MIT",
+  "description": "R2 corpus (k) paired: real hr setup_env.py (sha-pinned) writes a # BEGIN aihr PATH marker block and ships its symmetric remove + --uninstall inverse via bin/cli.py. Expect T3 HIGH with pairing=verified annotation — still HIGH in 0.3.0, never downgraded.",
+  "bin": {
+    "aihr-setup": "./bin/cli.py"
+  }
+}

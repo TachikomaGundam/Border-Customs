@@ -1,0 +1,9 @@
+{
+  "name": "fixture-crossmgr",
+  "version": "1.0.0",
+  "license": "MIT",
+  "description": "R2 corpus (i): install hook spawning FOREIGN package managers (the aihr incident shape) — residue-cross-manager-write HIGH naming the foreign ledgers. Synthetic; never executed.",
+  "scripts": {
+    "postinstall": "node ./postinstall.js"
+  }
+}
