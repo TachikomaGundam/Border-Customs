@@ -82,12 +82,29 @@ jobs:
           node dist/index.js --help > /dev/null
           echo "smoke ok: dist/index.js built, --help exits 0"
 
-      # ~14 test files hard-gate on the REAL gitleaks 8.30.1 binary
-      # (test/helpers/require-engines.ts: fail loud, never skip; probes PATH
-      # then ~/.local/bin). GitHub-hosted runners lack it — without this step
-      # the suite yields ~14 unsanctioned reds and the gate below correctly
-      # fails closed. cargo/gem/python3/docker already ship in the image.
-      - name: Provision gitleaks 8.30.1 (test engine, pinned + checksummed)
+      # EXTERNAL-PREREQUISITE AUDIT (src/ grep, 2026-09-09) — what ubuntu-latest
+      # already ships vs what we pin here:
+      #   image:     git, cargo (channels/crates.ts:332, artifacts/crates.ts:121,
+      #              ledger/freshness.ts:82), gem (channels/rubygems.ts:276,
+      #              artifacts/rubygems.ts:147, ledger/freshness.ts:114),
+      #              python3+pip (ubuntu-latest preinstalled), docker, node@24.
+      #   pin here:  gitleaks 8.30.1 binary — ~14 test files hard-gate via
+      #              test/helpers/require-engines.ts (fail loud, never skip;
+      #              probes PATH then ~/.local/bin); build+twine python modules —
+      #              src/artifacts/pypi.ts:88 requireModule probes
+      #              `python3 -m <mod> --version` (exit-0 gate), pypi.ts:123 then
+      #              runs the real `python3 -m build --no-isolation`;
+      #              setuptools==78.1.1 — with --no-isolation the fixture's
+      #              [build-system] requires are IGNORED and the AMBIENT
+      #              setuptools executes setup.py, so it must equal the version
+      #              the suite was verified against (test/fixtures/residue/
+      #              l-py-clean/pyproject.toml pin + local probe 78.1.1);
+      #              wheel==0.46.3 completes the locally-verified module set.
+      #   not needed: trufflehog — src/engines/trufflehog.ts exists but the suite
+      #              never spawns the real binary (stub seams only; proven by
+      #              exit-0 local full run on a box without trufflehog).
+      # runner python3 is PEP-668 externally-managed ⇒ --user --break-system-packages.
+      - name: Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)
         run: |
           set -euo pipefail
           mkdir -p "$HOME/.local/bin"
@@ -98,6 +115,11 @@ jobs:
           tar -xzf gitleaks_8.30.1_linux_x64.tar.gz gitleaks
           install -m 0755 gitleaks "$HOME/.local/bin/gitleaks"
           "$HOME/.local/bin/gitleaks" --version
+          python3 -m pip install --user --break-system-packages \
+            build==1.6.0 twine==7.0.0 wheel==0.46.3 setuptools==78.1.1
+          python3 -m build --version
+          python3 -m twine --version
+          python3 -c 'import setuptools; print("setuptools", setuptools.__version__)'
 
       # RELEASE GATE (fail-closed): run the suite, allow ONLY the exact sanctioned
       # failing tests below. Any other failure, ANY sanctioned test newly passing,
