@@ -1,6 +1,6 @@
 # border
 
-A fail-closed pre-push gate for git, npm, and PyPI. It scans your repo for secrets and
+A fail-closed pre-push gate for git, npm, PyPI, crates.io, and RubyGems. It scans your repo for secrets and
 supply-chain risk, then refuses to let anything leave the machine unless a fresh, unbroken
 check passed for exactly the state you are about to publish.
 
@@ -12,8 +12,19 @@ border check
 
 Requires Node >= 22 and the `gitleaks` binary on `PATH` (border vendors the rule config for
 gitleaks 8.30.1; the binary itself is yours to install, same as `git`). secretlint runs
-in-process as a bundled dependency. Optional engines are listed in
-[Configuration](#configuration).
+in-process as a bundled dependency. Each registry leg additionally shells out to its platform's
+own publisher, which must be on `PATH` whenever that target is configured; a missing publisher
+binary is exit 2, never a skipped leg:
+
+| Registry target | Publisher border runs | Version the same-bytes proofs were measured on |
+| --- | --- | --- |
+| `npm` | `npm` | (unchanged since 0.1.0) |
+| `pypi` | `python3 -m build` / `python3 -m twine` | (unchanged since 0.1.0) |
+| `crates` | `cargo` | cargo 1.93.1 (rustup) |
+| `rubygems` | `gem` | RubyGems 3.6.7 on ruby 3.3.8 |
+
+Other toolchain versions of `cargo` and `gem` are untested by those byte-determinism proofs.
+Optional engines are listed in [Configuration](#configuration).
 
 ## The problem it solves
 
@@ -39,9 +50,9 @@ pushed" includes the six things people forget:
   transmit, not just HEAD.
 - **Archives.** Tarballs and zips inside the repo are unpacked and scanned with
   `<archive>!<inner-path>` attribution.
-- **The published bytes, not the source tree.** `npm pack` and `python -m build` rewrite
-  what ships. border packs/builds once into `.border/dist/`, scans those exact bytes, and
-  re-hashes them again at publish time.
+- **The published bytes, not the source tree.** `npm pack`, `python -m build`,
+  `cargo package`, and `gem build` rewrite what ships. border packs/builds once into
+  `.border/dist/`, scans those exact bytes, and re-hashes them again at publish time.
 - **The registry.** Pushing `package.json` at version `1.2.3` when `1.2.3` already exists
   on the registry is a supply-chain event (silent stale artifact, or squatted name). border
   fails the check on "version exists, bump required" and on foreign ownership of your name.
@@ -57,9 +68,9 @@ One sentence: **a PASS is a statement about a fingerprint, not about the past.**
 checkKey = sha256( headSha
                  ⊕ porcelainDigest      # every tracked/untracked/staged byte-change
                  ⊕ rulesHash            # config digest + vendored rules + engine versions + prompt template
-                 ⊕ exposureSet          # sanitized remote URLs + npm/pypi name@version
+                 ⊕ exposureSet          # sanitized remote URLs + npm/pypi/crates/rubygems name@version
                  ⊕ refSet               # branch being pushed + every local tag
-                 ⊕ effectiveTargets )   # git, npm, pypi as configured for this run
+                 ⊕ effectiveTargets )   # git, npm, pypi, crates, rubygems as configured for this run
 ```
 
 Move *any* of those six and the key moves, the stored PASS no longer covers the state, and
@@ -107,22 +118,33 @@ it, and the two registry-facing legs (pre-flight and publish) both have to agree
    against the history of every ref *and* against the object set a remote does not already
    have (the transmit set). Oversized-file, checked-in-binary, and notebook-output rules
    round it out.
-7. **Registry pre-flight** (npm/PyPI targets only). Three outcomes per target: version
-   already published ⇒ CRITICAL `version-exists` ("bump version required"); name owned by
-   someone outside your `rules.authors` allow-list ⇒ CRITICAL `name-foreign-owner`;
-   ambiguous ownership signals ⇒ also CRITICAL, because guessing wrong is how squats ship.
-   Critically, **silence never means absent**: an empty stdout from `npm view`, a non-200
-   non-404 PyPI response, a timeout, or unparseable JSON all fail closed as exit 2. An
-   unreachable registry blocks the push instead of letting it run blind.
-8. **Artifact stage.** If npm/PyPI targets are configured, packages are built **once** into
-   `.border/dist/` (`npm pack --ignore-scripts`, `python -m build --no-isolation`), that
-   exact byte-stream is scanned (gitleaks + secretlint over the extracted contents),
-   manifest-diffed (lifecycle `preinstall`/`install`/`postinstall`/`prepare` hooks are
-   CRITICAL; entries outside the `files` whitelist are HIGH; PyPI sdists get a
-   `sdist-unexpected-file` HIGH because setuptools builds from the working tree and is
-   `.gitignore`-blind), checked with `publint` / `twine check --strict`, and recorded as
-   `{file, sha256, bytes}` in the ledger.
-   At publish time the *same bytes* are re-hashed: any mismatch is exit 2, before the wire.
+7. **Registry pre-flight** (npm, PyPI, crates.io, and RubyGems targets). Three outcomes per
+   target: version already published ⇒ CRITICAL `version-exists` ("bump version required");
+   name owned by someone outside your `rules.authors` allow-list ⇒ CRITICAL
+   `name-foreign-owner`; ambiguous ownership signals ⇒ also CRITICAL, because guessing wrong
+   is how squats ship. Critically, **silence never means absent**: an empty stdout from
+   `npm view`, a non-200 non-404 PyPI response, a crates.io 403 (the API rejects requests
+   without a self-identifying User-Agent; border sends one, and a 403 still stops the gate
+   instead of being read as "not published"), a rubygems 404 whose body text does not match
+   one of that API's exact *absent* messages (its 404s are text, not JSON, and an
+   unrecognized one is never guessed), a timeout, or unparseable JSON all fail closed as
+   exit 2. An unreachable registry blocks the push instead of letting it run blind.
+8. **Artifact stage.** If registry targets are configured, packages are built **once** into
+    `.border/dist/` (`npm pack --ignore-scripts`, `python -m build --no-isolation`,
+    `cargo package --allow-dirty --no-verify`, `gem build <name>.gemspec -o .border/dist/`),
+    that exact byte-stream is scanned (gitleaks + secretlint over the extracted contents),
+    manifest-diffed (lifecycle `preinstall`/`install`/`postinstall`/`prepare` hooks are
+    CRITICAL; entries outside the `files` whitelist are HIGH; PyPI sdists get a
+    `sdist-unexpected-file` HIGH because setuptools builds from the working tree and is
+    `.gitignore`-blind), the npm and PyPI artifacts are additionally checked with
+    `publint` / `twine check --strict`, and everything is recorded as
+    `{file, sha256, bytes}` in the ledger.
+    At publish time the *same bytes* are re-hashed: any mismatch is exit 2, before the wire.
+    The crates leg carries one extra assertion because `cargo publish` repackages from the
+    manifest instead of uploading the staged file: immediately before the spawn, border
+    re-runs the check's exact `cargo package` into a throwaway directory and refuses to
+    publish if the fresh digest differs from the certified `.crate`. `gem push` uploads the
+    recorded `.gem` byte-for-byte, so it needs no such re-assertion.
 9. **Report.** Findings carry `valueDigest` (sha256 of the matched value) and a masked
    snippet: fully blocked for short values, else `first4…last4`. Raw secret bytes never
    leave process memory. A per-run `TextSanitizer` holds the digest-to-value registry and
@@ -142,11 +164,55 @@ The **skip-ledger** is what makes the gate cheap enough to run on every push: a 
 `border check` on an unchanged fingerprint replays the recorded verdict in well under a
 second. The replay is not blind trust. Before honoring a skip border re-derives the live
 fingerprint (including engine probes), refuses skips recorded in the other LLM mode, and
-re-packs npm artifacts to prove the recorded tarball digests still match fresh byte-for-byte
-(a dirty tree, a drifted `package.json`, or a changed npm version all force a full re-check;
-PyPI builds are not byte-reproducible, so their skip proof is head+porcelain equality, and
-publish still re-hashes the exact dist files). A corrupt ledger line is dropped with a loud
+re-packs npm, crates, and rubygems artifacts to prove the recorded digests still match fresh
+byte-for-byte (a dirty tree, a drifted `package.json`, or a changed npm version all force a
+full re-check; `cargo package` is deterministic per HEAD and stamps the sha into
+`.cargo_vcs_info.json`, and `gem build` is byte-deterministic only because RubyGems embeds a
+fixed default date, which is why a gemspec that assigns `s.date` is rejected outright rather
+than certified; PyPI builds are not byte-reproducible, so their skip proof is head+porcelain
+equality, and publish still re-hashes the exact dist files). A corrupt ledger line is dropped with a loud
 warning, never a crash, and never a silently empty history.
+
+### The residue scan (0.3.0)
+
+The artifact stage no longer treats every install-time hook as one blanket CRITICAL. Packed
+and built bytes are additionally run through a **closed signature table** that classifies what
+an installer *does*, per tier — the split behind opencode-ai's in-tree `postinstall.mjs`
+(legit) vs. a `curl … | bash` rc-appender (not):
+
+| Tier | Rule | Severity | One-liner |
+| --- | --- | --- | --- |
+| T0 | *(no finding)* | — | Silent install: recorded in the ledger, never flagged. |
+| T1 | `residue-in-tree-hook` | MEDIUM | Hook that only touches its own package tree and matches one closed safe-shape signature (the opencode-ai anatomy). Unknown hook shapes keep the original CRITICAL row verbatim — T1 is the ONLY downgrade in 0.3.0. |
+| T2 | `residue-install-download` | HIGH | Install-time network fetch: bytes that never passed registry review run on every consumer install. |
+| T3 | `residue-out-of-tree-write` | HIGH | Writes outside the package dir: shell rc files, `profile.d`, `git config --global`, `authorized_keys`, `%APPDATA%`, PATH-carrier lines (`setx /F PATH`, `HKCU\Environment`, …). |
+| T4 | `residue-persistence-primitive` | CRITICAL | Any reference to cron / `systemctl --user` / `launchctl` / XDG autostart / `schtasks` / registry Run keys in install-time code or anything it reaches. Malware class: no legitimate pass exists. |
+| cross | `residue-cross-manager-write` | HIGH | A lifecycle/build script spawning a *foreign* package manager (`pip install --user` from npm…): files land on another ledger and reclaim by this ledger is impossible by construction. |
+| pairing | `residue-pairing-missing` | HIGH | A `# BEGIN <id>` marker-block WRITE whose symmetric REMOVE path or CLI inverse is absent. Detection only: a verified pair still pays the T3 HIGH — waiver downgrade is 0.4.0's roundtrip valve. |
+| gem | `residue-gem-unmatched-extension` | MEDIUM | A Ruby `extensions:`/build hook the classifier cannot resolve — surfaced, never silently clean. |
+
+The pairing classes behind these rows (multi-channel PASS **C5** subset/ordering discipline;
+**C9** interpolated-and-indirected root spellings; **C10** comment/quote-boundary shapes that
+once silent-passed) are frozen with their evidence in
+[src/artifacts/RESIDUE-CONTRACT.md](src/artifacts/RESIDUE-CONTRACT.md).
+
+**Fail-closed:** a residue scan whose rule table or classifier sources cannot be read is exit 2,
+never a silent pass — and the classifier source bytes are part of the ledger `rulesHash`, so
+editing any signature invalidates every cached PASS even at the same commit.
+**Opt-out:** `residue: { enabled: false }` in `border.yaml` (strict; unknown sibling keys exit 2)
+hides exactly the rows above from the report and verdict and nothing else; flipping it changes
+the fingerprint and forces a re-check rather than honoring a stale PASS.
+
+**Boundary honesty.** Static analysis proves *capability*, not *fact*: a T2 row says the
+installer *can* fetch and run remote bytes at install time, not that it shipped malware, and a
+clean residue scan is an absence of matched signatures, never a certificate of benign intent.
+The signature table is deliberately closed, and the list of shapes it **cannot see** —
+content-writes, handle-variants, dead spellings, interpolation-then-slash, span-quirk
+over-blocks, IO-instance writers, user-shadowed bare verbs — lives in
+[RESIDUE-CONTRACT.md §8](src/artifacts/RESIDUE-CONTRACT.md); this README points, it does not
+restate. The empirical roundtrip (install → snapshot → uninstall → rc-delta-zero) is the 0.4.0
+valve. **border is NOT a malware sandbox**: it never executes, intercepts, or sandboxes the
+code it reads; it matches text and blocks the push.
 
 ## Architecture: `border push`
 
@@ -160,8 +226,9 @@ never from cache:
 | `BLOCKED` | no PASS for this state (run `border check`), or a registry finding says stop |
 
 - Bare `border push` is a **DRY-RUN**: it prints the exact `git push --dry-run` /
-  `npm publish` / `twine upload` lines it would run, refuses to act, and exits with the
-  gate's verdict. `--yes` is what executes.
+  `npm publish` / `twine upload` / `cargo publish` / `gem push` lines it would run, refuses
+  to act, and exits with the gate's verdict. `--yes` is what executes. The real line shapes
+  per channel are in [What `border push` actually runs](#what-border-push-actually-runs).
 - Multi-remote git push is **all-or-nothing before anything moves**: every remote × every
   ref must be a fast-forward, checked up front. If any remote diverged, border prints
   `DIVERGED` with the offending shas and pushes nothing. **It never force-pushes; there is
@@ -169,11 +236,43 @@ never from cache:
 - Registry legs go through the same gate as push: a PASS record for the current key, then
   the artifact re-hash match against `.border/dist/`, then an immediate version-exists
   re-probe (the registry is allowed to change between check and publish), then the upload
-  with `stdio: inherit` so `npm`/`twine` OTP and credential prompts reach you untouched.
-  border never reads, stores, or handles registry tokens. Published versions are not
+  with `stdio: inherit` so `npm`, `twine`, `cargo`, and `gem` OTP and credential prompts
+  reach you untouched. border never reads, stores, or handles registry tokens (including
+  `CARGO_REGISTRY_TOKEN` and `GEM_HOST_API_KEY`, which the publisher tools own). Published versions are not
   retried on failure because a half-published version can never be republished.
 - If one remote of several succeeded before a failure, border says so explicitly (PARTIAL)
   and exits 1; a rerun of `border push --yes` picks up only the still-PENDING targets.
+
+### What `border push` actually runs
+
+Every DRY-RUN line is rendered from the same argv source as the real publish spawn (one line
+per recorded artifact row, execution order `git` remotes, then npm, PyPI, crates, rubygems).
+For a repo configured like the five-target `border.yaml` in
+[Configuration](#configuration), the plan prints as:
+
+```bash
+$ border push
+border DRY-RUN: no --yes, so nothing runs — this is the plan (m-R5-a) contract
+  DRY-RUN: git push --dry-run origin --follow-tags  (https://github.com/acme/widgets.git)
+  DRY-RUN: npm publish .border/dist/widgets-1.2.3.tgz --registry https://registry.npmjs.org
+  DRY-RUN: twine upload --repository-url https://pypi.org .border/dist/widgets-1.2.3-py3-none-any.whl .border/dist/widgets-1.2.3.tar.gz
+  DRY-RUN: cargo publish --allow-dirty --no-verify
+  DRY-RUN: gem push .border/dist/widgets-1.2.3.gem --host https://gems.acme.example
+```
+
+- `cargo publish` is the one line with no filename: the command takes no positional `.crate`
+  (verified against cargo 1.93.1 `--help`; it always repackages from the manifest), so the
+  pre-publish repackage digest-assert described in step 8 of the check pipeline is what pins
+  the upload back to the certified bytes. Divergence is exit 2 before anything is sent.
+- `twine upload` is a single row carrying every recorded `.whl`/`.tar.gz`; `npm publish` and
+  `gem push` get one row per staged file.
+- A `--registry` / `--repository-url` / `--host` flag appears only when the config sets it.
+  With `targets.npm.registry`, `targets.pypi.repository`, and `targets.rubygems.host` unset,
+  the lines are the bare `npm publish <file>`, `twine upload <files...>`, and
+  `gem push <file>`, and the tool's own defaults decide where bytes go.
+- If the fingerprint has no PASS covering a target, dry-run cannot list its artifacts and
+  prints `DRY-RUN: <target> registry leg: run 'border check --force' first — dry-run cannot
+  list artifacts` in place of the command lines.
 
 ## Architecture: the LLM layer (optional, agent-executed)
 
@@ -220,7 +319,7 @@ Every subcommand accepts the same global flags (verified against `border <cmd> -
 | Flag | Effect |
 | --- | --- |
 | `--config <path>` | config file; default `./border.yaml` |
-| `--targets <list>` | comma-separated `git,npm,pypi` subset restricting this run's scope; a named target that is not configured is exit 2 |
+| `--targets <list>` | comma-separated `git,npm,pypi,crates,rubygems` subset restricting this run's scope; a named target that is not configured is exit 2 |
 | `--force` | ignore the skip-ledger, re-run the full check |
 | `--yes` | execute mutations (push only); without it a push is always DRY-RUN |
 | `--require-engine <list>` | replaces the required-engine set from config; unknown or unprobeable names degrade the run (exit 2) |
@@ -245,7 +344,7 @@ matrix (`gitleaks` 0/1, `trufflehog` 0/183, `secretlint` 0/1); *anything* else, 
 
 Everything border can be told lives in `border.yaml` at the repo root. Unknown keys are
 rejected at load (a typo in a gate config is a gate you did not ask for). `${VAR}`
-expansion applies only to remote URLs and registry/repository values, and an unset variable
+expansion applies only to remote URLs and registry/repository/host values, and an unset variable
 is a hard error, never an empty string.
 
 Minimal, a git-only repo:
@@ -268,7 +367,8 @@ rules:
 
 `rules` is required by design: a gate with silent defaults is a gate you did not ask for.
 
-A repo that publishes a package, with the full surface:
+A repo that publishes a package, with the full surface (every one of the five channels, new in
+0.2.0; a config without `crates`/`rubygems` behaves exactly as it did on 0.1.0):
 
 ```yaml
 version: 1
@@ -281,6 +381,13 @@ targets:
     registry: https://registry.npmjs.org    # optional; any npm-protocol registry works
   pypi:
     repository: https://pypi.org            # optional; TestPyPI or private indexes work
+  crates:                                   # optional; public crates.io only — there is
+    name: widgets                           #   deliberately no url/host key; overrides
+                                            #   the Cargo.toml [package] name when set
+  rubygems:                                 # optional; exactly one *.gemspec at HEAD,
+    name: widgets                           #   this only disambiguates multi-gemspec repos
+    host: "${GEM_HOST}"                     # optional; any gemcutter-compatible push host,
+                                            #   ${VAR} expansion allowed on this field only
 rules:
   authors:                                  # identity allow-list
     emails: [devs@acme.example]
@@ -294,6 +401,8 @@ allow:                                      # enumerated suppressions, never bla
   - { rule: "junk-artifact", match: "*", file: "test/fixtures/**" }
 engines:
   require: [gitleaks, secretlint]           # trufflehog: true adds the third-party engine
+residue:
+  enabled: true                             # default; false hides ONLY the residue-* rows
 ```
 
 Notes that change behavior:
@@ -302,11 +411,32 @@ Notes that change behavior:
   history/tree/identity/artifact legs still run, only the exposure set is empty. A
   completely missing config with real remotes falls back to config-from-`git remote` with
   a loud stderr warning.
+- `targets.crates` reads its coordinates from `git show HEAD:Cargo.toml` and accepts only a
+  literal `[package] version`; a workspace-inherited or computed version is exit 2 telling
+  you to set a literal one. There is no crates.io host/registry key *by design*: the channel
+  is pinned to public crates.io, and an unknown key there is rejected at load rather than
+  quietly ignored (or silently trusted as a private-registry config the pre-flight cannot
+  probe).
+- `targets.rubygems` discovers `*.gemspec` files at HEAD; exactly one may exist unless
+  `targets.rubygems.name` selects one, and `s.name`/`s.version` must be literals (computed
+  versions are exit 2, border never evaluates gemspec code to find out). A gemspec assigning
+  `s.date` is rejected wholesale: `gem build` is byte-deterministic precisely because it
+  embeds a fixed default date, so an explicit `s.date` breaks the digest proof border would
+  otherwise be certifying. `host` redirects both the probes and `gem push --host`, and is
+  the only `${VAR}`-expandable field of the two new targets.
 - Every `allow` entry must be scoped (a `file` pin); `{rule: "*", match: "*"}` with no
   file is rejected at load. Suppressed findings are enumerated in the report's
   `allow-hits` section, so an exit 0 never hides what it hid.
 - `rules.hosts/ips/pathPatterns` feed the same matcher pipeline as the built-ins, so your
   patterns get the same archive attribution and the same allow-listing semantics.
+- `residue.enabled` (0.3.0) is the only sanctioned skip of the residue scan; its default is
+  `true`, an unknown sibling under `residue:` is a typed exit 2, and — unlike an `allow`
+  entry, which suppresses findings while *listing* them — turning it off changes the
+  fingerprint, so no PASS certified with residue on can ever skip a run that has it off.
+- 0.2.0 adds the `crates` and `rubygems` channels; existing configs are unchanged. Channels
+  are opt-in by the presence of their `targets.<id>` section, and the ledger's append-only
+  format means old records keep parsing: `confirmedVia` gained two enum members
+  (`crates-json`, `rubygems-json`), 0.1.x ledgers are accepted as-is and never rewritten.
 
 ## Integration
 
@@ -340,6 +470,17 @@ same one that wrote the commit) how to run the five subcommands, how to produce 
 - **Not an escape hatch.** There is no force-push flag, no `--i-know-what-im-doing`, no
   per-run expiry of a missing PASS. The refusal paths are the product. If a check cannot be
   trusted (engine gone, registry unreachable), the result is stop, not proceed.
+- **Not a config runner.** You cannot define a custom channel or override what border
+  shells out to (a `push.command`-style escape hatch is deliberately absent). A user-defined
+  command would void the two properties the gate exists to provide: the same-bytes proof
+  (only a built-in channel descriptor knows which artifact bytes the check certified and can
+  re-hash exactly those before the wire) and the fail-closed registry pre-flight (only a
+  built-in knows each registry's response polarity: which status and which body string mean
+  *absent*, and that everything else is silence, which never means absent). Free-form
+  commands would turn "a PASS covers this exact state" into "a PASS covers whatever your
+  script happened to run": a config runner wearing a gate's clothes. Channels are built-in
+  only; adding one means shipping a descriptor whose probe, packaging, and byte-determinism
+  were measured against the real registry first.
 - **Not a replacement for review or branch protection.** It gates *this machine's* push
   surface; server-side controls still own everything else.
 
@@ -352,15 +493,55 @@ same one that wrote the commit) how to run the five subcommands, how to produce 
   registry stdout, unparsed versions, non-translatable exit codes, unresolvable ownership,
   corrupt-but-present rules inputs, all become exit 2 or a CRITICAL, never a pass.
 - **No telemetry, no callbacks.** `border check` touches the network only for the
-  registry pre-flight, against URLs you configured (`npmjs.org`/`pypi.org` defaults, fully
-  overridable to private indexes).
+  registry pre-flight, against the URLs the channels define: `registry.npmjs.org`,
+  `pypi.org`, and `rubygems.org` are overridable (private indexes; `targets.rubygems.host`),
+  and the crates.io leg is pinned to public `crates.io` with no override by design.
 - **No credential handling.** Subprocess publishes inherit stdio so tokens and OTP prompts
-  go between you and `npm`/`twine`, never through border.
+  go between you and `npm`/`twine`/`cargo`/`gem`, never through border.
 - **State is inert.** Everything border writes lives in `.border/` (ledger, run archives,
   dist, lock), which carries its own `.gitignore` with `*` so a `git add -A` cannot stage
   it, and which every scan leg refuses to treat as a finding source or an allow-list
   target. A repo that *tracks* `.border/**` is itself a CRITICAL finding. A single-writer
   lock makes concurrent runs exit 2 instead of racing.
+
+## Changelog
+
+### 0.3.0 (2026-09-09)
+
+- **Residue gate (artifact stage).** The blanket install-hook CRITICAL becomes a classified
+  family of seven closed `residue-*` rules across tiers T1–T4 plus cross-manager, pairing,
+  and gem-unmatched lanes (see "The residue scan"): a hook matching the closed T1 safe-shape
+  signature drops to MEDIUM; every unknown shape keeps the original CRITICAL row verbatim.
+  Pairing (`# BEGIN <id>` marker blocks) is **detected only** — `residue-pairing-missing`
+  fires on the orphaned WRITE, a verified pair still pays its T3 HIGH; the waiver downgrade
+  path is the 0.4.0 roundtrip valve. Detection classes: C5 pairing discipline, C9 indirection
+  spellings, C10 comment/quote boundaries — evidence frozen in `src/artifacts/RESIDUE-CONTRACT.md`.
+- New `residue: { enabled }` config key (default on; strict; the ONLY skip path for the family,
+  and flipping it invalidates cached PASS rows because the toggle rides the fingerprint). The
+  residue rule table and classifier sources are now part of the ledger `rulesHash`: editing a
+  signature forces a re-check even at an unchanged commit and tree.
+- Boundary stated plainly: static analysis proves *capability*, not *fact*; border is not a
+  malware sandbox and never executes what it reads.
+
+### 0.2.0 (2026-09-05)
+
+- Two new push channels, same doctrine end to end: **crates** (public crates.io only;
+  literal `Cargo.toml` coordinates; pre-publish repackage digest-assert) and **rubygems**
+  (rubygems.org or any `targets.rubygems.host` gemcutter-compatible host; literal-only
+  gemspecs; `s.date` rejection).
+- Platforms are now descriptors in a channel registry: each channel owns its config schema,
+  env expansion, coordinate reading, probe, artifact stage, publish argv, and ledger fields
+  in one file. The git/npm/pypi legs share the same publish core they already used; their
+  behavior is unchanged.
+- Ledger `confirmedVia` gained `crates-json` and `rubygems-json`; 0.1.x ledgers parse
+  unchanged.
+- New prerequisites when those targets are configured: `cargo` on `PATH` (measured against
+  1.93.1 via rustup) and `gem` (measured against RubyGems 3.6.7 on ruby 3.3.8); other
+  versions are untested by the gate's same-bytes proofs.
+
+### 0.1.0
+
+- Initial release: git, npm, and PyPI push channels behind the fingerprint PASS gate.
 
 ## License
 
@@ -368,4 +549,4 @@ MIT, see [LICENSE](LICENSE).
 
 ## 中文概要
 
-border 是一个 fail-closed(失败即拦截)的推送前门禁 CLI:`npm install -g border-customs` 安装,在仓库里跑 `border check`。它扫描 git 历史、工作区(未跟踪文件同样是一等输入)、归档、tag 注释和将要发布的 npm/PyPI 字节,检出密钥与供应链风险;只有当"当前状态指纹"存在新鲜且完整的 PASS 记录时才允许 `border push --yes` 放行。指纹是 sha256(head、porcelain 摘要、规则哈希、暴露面、ref 集合、有效目标)六元组,任何一处变动,旧的 PASS 立即失效,必须重查。流水线:gitleaks(历史+工作区+tag,内置 8.30.1 规则,仓库自带的 ignore 文件直接判 CRITICAL)+ secretlint(进程内,AWS Key 规则强制开启)+ 原生规则(AI 会话产物闭集、提交身份白名单含传输对象检查)+ 注册表预检(版本已存在=必须 bump,名称被外人占有=拒绝;空响应/超时/解析失败一律 exit 2,沉默绝不等于不存在)。构件只构建一次进 `.border/dist/`,扫描的就是发布的字节,发布时再哈希比对,不一致直接拒发。跳过台账让重复检查不到 1 秒,但回放前先重算指纹并重新 pack 验证新鲜度。报告只输出掩码片段(sha256 摘要 + 前4…后4)。push 是多目标状态机,多 remote 先做全有或全无的 fast-forward 预检,永不 force-push;npm/twine 的凭据经 stdio 透传,border 从不触碰。可选 LLM 层 border 自身从不调用模型 API:`llm-request` 导出掩码审阅包,`llm-ingest` 严格校验 agent 结论并重算裁决。退出码即合同:0 通过、1 拦截、2 门禁无法作答,任何"工具不健康"都不可能被误读为干净。MIT 许可,无遥测,除你配置的注册表预检外不联网。
+border 是一个 fail-closed(失败即拦截)的推送前门禁 CLI:`npm install -g border-customs` 安装,在仓库里跑 `border check`。它扫描 git 历史、工作区(未跟踪文件同样是一等输入)、归档、tag 注释和将要发布的 npm/PyPI/crates/RubyGems 字节,检出密钥与供应链风险;只有当"当前状态指纹"存在新鲜且完整的 PASS 记录时才允许 `border push --yes` 放行。指纹是 sha256(head、porcelain 摘要、规则哈希、暴露面、ref 集合、有效目标)六元组,任何一处变动,旧的 PASS 立即失效,必须重查。流水线:gitleaks(历史+工作区+tag,内置 8.30.1 规则,仓库自带的 ignore 文件直接判 CRITICAL)+ secretlint(进程内,AWS Key 规则强制开启)+ 原生规则(AI 会话产物闭集、提交身份白名单含传输对象检查)+ 注册表预检(版本已存在=必须 bump,名称被外人占有=拒绝;空响应/超时/解析失败一律 exit 2,沉默绝不等于不存在)。构件只构建一次进 `.border/dist/`,扫描的就是发布的字节,发布时再哈希比对,不一致直接拒发。跳过台账让重复检查不到 1 秒,但回放前先重算指纹并重新 pack 验证新鲜度。报告只输出掩码片段(sha256 摘要 + 前4…后4)。push 是多目标状态机,多 remote 先做全有或全无的 fast-forward 预检,永不 force-push;npm/twine/cargo/gem 的凭据经 stdio 透传,border 从不触碰。0.2.0 新增 crates.io 与 RubyGems 通道(公开 crates.io 固定、rubygems 可用 host 覆盖私有镜像),既有配置行为不变。0.3.0 新增残留扫描(residue gate):发布字节里的安装期钩子按 T0-T4 闭集签名表分类(闭集 T1 树内钩子降为 MEDIUM,未知形态原样保留 CRITICAL),外加跨包管理器写入、配对标记缺失(`# BEGIN` 块只检测不豁免)与 gem 不可解析扩展共七条 `residue-*` 规则;`residue.enabled` 是唯一豁免开关且改动指纹使旧 PASS 失效,规则表与分类器源码进入 rulesHash,改一个签名即强制重查。静态分析只证明"能力"不证明"事实",border 不是恶意软件沙箱,从不执行被读代码。可选 LLM 层 border 自身从不调用模型 API:`llm-request` 导出掩码审阅包,`llm-ingest` 严格校验 agent 结论并重算裁决。退出码即合同:0 通过、1 拦截、2 门禁无法作答,任何"工具不健康"都不可能被误读为干净。MIT 许可,无遥测,除你配置的注册表预检外不联网。
