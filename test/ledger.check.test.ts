@@ -197,6 +197,7 @@ test("CLI lifecycle: PASS records, SKIPs, and every plan cause re-triggers a ful
   assert.equal(ledger(dir).length, before, "degraded runs append nothing");
 
   // cached FAIL honesty (plan lookup: verdict PASS only ⇒ FAILs are NEVER skipped):
+  // randAwsPair OK: the cached-FAIL honesty leg rides the deterministic KEY half's verdict
   const planted = randAwsPair();
   writeRel(dir, "config.env", planted.text);
   gitAddCommit(dir, "oops: planted credentials");

@@ -75,6 +75,7 @@ test("filterBorderStateFindings drops engine findings on repo-relative AND absol
 
 test("history leg reports committed .border/ leaks repo-relative; ingest filter empties them (AC1/AC2 basis)", () => {
   const dir = fixture("hist");
+  // randAwsPair OK: only the KEY half must fire (aws-access-token deterministic); no assertion reads planted.secret
   const planted = randAwsPair();
   writeRel(dir, ".border/runs/past.env", planted.text);
   gitAddCommit(dir, "commit border state");
@@ -88,6 +89,7 @@ test("history leg reports committed .border/ leaks repo-relative; ingest filter 
 // gitleaks has no exclude flag for the dir/tree leg — the ingest filter is the only gate
 test("tree leg on a dirty fixture: .border-only secret ⇒ raw nonempty, filtered empty", () => {
   const dir = fixture("tree2");
+  // randAwsPair OK: only the KEY half drives raw.length>=1; the filter assertion never reads planted.secret
   const planted = randAwsPair();
   writeRel(dir, "keep.txt", "clean\n");
   gitAddCommit(dir, "baseline");
@@ -100,6 +102,7 @@ test("tree leg on a dirty fixture: .border-only secret ⇒ raw nonempty, filtere
 
 test("secretlint tracked-file scan skips .border/ at listing time", async () => {
   const dir = fixture("sl");
+  // randAwsPair OK: secretlint's .border skip is path-based — neither value half's flagging is asserted here
   const planted = randAwsPair();
   writeRel(dir, ".border/secret.env", planted.text);
   writeRel(dir, "ok.txt", "nothing to see\n");
