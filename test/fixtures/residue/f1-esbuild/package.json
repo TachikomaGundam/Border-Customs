@@ -1,0 +1,9 @@
+{
+  "name": "spike-fixture-esbuild",
+  "version": "0.25.12",
+  "license": "MIT",
+  "description": "R1 blast-radius fixture: replicates esbuild 0.25.12 postinstall hook string verbatim",
+  "scripts": {
+    "postinstall": "node install.js"
+  }
+}

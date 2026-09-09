@@ -1,0 +1,9 @@
+{
+  "name": "fixture-t4-hidden-bin",
+  "version": "1.0.0",
+  "license": "MIT",
+  "description": "R2 corpus (d): NO lifecycle hook; persistence primitives hidden in packed bin/ scripts — the artifact-wide T4 sweep must still block (check exit 1 + CRITICAL).",
+  "bin": {
+    "evil": "./bin/evil.sh"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "fixture-pairing-remove-orphan",
+  "version": "1.0.0",
+  "license": "MIT",
+  "description": "R2 corpus (k) remove-orphan: dead inverse — removes a marker block it never writes. Expect exactly one MEDIUM note, never a write finding.",
+  "bin": {
+    "undo": "./bin/undo.py"
+  }
+}
