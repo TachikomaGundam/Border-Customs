@@ -159,6 +159,9 @@ jobs:
           grep '^not ok ' "$TEST_LOG" | sed -E 's/^not ok [0-9]+ - //' | sort > /tmp/actual-failures.txt
           sort /tmp/sanctioned.txt > /tmp/sanctioned.sorted.txt
 
+          # TEMP FORENSICS (revert after run 34367243087 follow-up): dump each
+          # failing subtest's error body so runner-only failures are diagnosable.
+          grep -A22 '^not ok ' "$TEST_LOG" | head -240 || true
           if ! diff -u /tmp/sanctioned.sorted.txt /tmp/actual-failures.txt; then
             echo "::error::failing-test set is NOT exactly the sanctioned allowlist (diff above: - expected / + actual) — failing closed"
             exit 1
