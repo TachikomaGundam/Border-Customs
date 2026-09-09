@@ -1,0 +1,157 @@
+# Publish border-customs to npm via Trusted Publishing (OIDC) — zero tokens.
+#
+# Prerequisite (registry side, one-time): the npm package `border-customs`
+# must carry a Trusted Publisher for repo TachikomaGundam/Border-Customs,
+# workflow file .github/workflows/publish.yml, and a matching environment
+# (if one is configured on npm — keep both sides identical or neither).
+# `id-token: write` mints the OIDC assertion npm validates; there is
+# deliberately NO npm auth token of any kind anywhere in this file — one
+# would bypass and defeat Trusted Publishing entirely.
+#
+# Provenance: public repo + public package on GitHub-hosted runners lets npm
+# auto-attest, but reports show auto-provenance flaky on first publishes, so
+# `--provenance` is passed explicitly. `--access public` is harmless for an
+# already-public package and future-proofs a fresh-name publish.
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: # manual run of THIS file only (no workflow_call by design)
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest # GitHub-hosted only — npm TP does not support self-hosted runners
+    permissions:
+      contents: read
+      id-token: write # REQUIRED for npm Trusted Publishing (OIDC)
+    env:
+      REF_NAME: ${{ github.ref_name }}
+      EVENT_NAME: ${{ github.event_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          # explicit registry-url so setup-node writes the runner ~/.npmrc
+          # pointing at registry.npmjs.org (auth stays tokenless — OIDC)
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Version / tag consistency
+        run: |
+          set -eu
+          PKG_VERSION="$(node -p 'require("./package.json").version')"
+          echo "package.json version: ${PKG_VERSION}"
+          if [ "${EVENT_NAME}" = "push" ]; then
+            if [ "${REF_NAME}" != "v${PKG_VERSION}" ]; then
+              echo "::error::git tag '${REF_NAME}' does not match package.json version 'v${PKG_VERSION}'"
+              exit 1
+            fi
+            echo "tag ${REF_NAME} matches v${PKG_VERSION}"
+          else
+            echo "workflow_dispatch: skipping tag compare (untagged ${PKG_VERSION} cut)"
+          fi
+
+      - name: Build
+        run: npm run build
+
+      - name: Post-build smoke
+        run: |
+          set -eu
+          # NOTE: the CLI intentionally has no --version flag (src/cli.ts exits 2
+          # on unknown commands), so the version is proven from package.json here
+          # and the built entry is exercised via --help. Deliberate deviation from
+          # the original brief — do not add --version to the CLI just for CI.
+          node -p 'require("./package.json").version'
+          node dist/index.js --help > /dev/null
+          echo "smoke ok: dist/index.js built, --help exits 0"
+
+      # RELEASE GATE (fail-closed): run the suite, allow ONLY the exact sanctioned
+      # failing tests below. Any other failure, ANY sanctioned test newly passing,
+      # or unparsable TAP counts ⇒ exit 1.
+      #
+      # ALLOWLIST RETIREMENT: these two reds belong to the in-progress push-channels
+      # scope (.omo/plans/border-push-channels.md, C5 cross-channel integration);
+      # replace this step with a plain `npm test` when that scope lands and
+      # C5-1 / C5-4 go green.
+      - name: Release gate (npm test, fail-closed sanctioned-failure allowlist)
+        run: |
+          set -u
+          TEST_LOG="$(mktemp)"; trap 'rm -f "$TEST_LOG"' EXIT
+          npm test > "$TEST_LOG" 2>&1
+          TEST_EXIT=$?
+          tail -n 20 "$TEST_LOG"
+
+          SUM_TESTS="$(sed -n 's/^# tests \([0-9][0-9]*\)$/\1/p' "$TEST_LOG" | tail -n 1)"
+          SUM_PASS="$(sed -n 's/^# pass \([0-9][0-9]*\)$/\1/p' "$TEST_LOG" | tail -n 1)"
+          SUM_FAIL="$(sed -n 's/^# fail \([0-9][0-9]*\)$/\1/p' "$TEST_LOG" | tail -n 1)"
+          if [ -z "$SUM_TESTS" ] || [ -z "$SUM_PASS" ] || [ -z "$SUM_FAIL" ]; then
+            echo "::error::could not parse TAP summary counts (# tests/# pass/# fail) — failing closed"
+            exit 1
+          fi
+
+          # sanctioned-failure allowlist — the ONE obvious constant (exact TAP
+          # titles, compared set-wise against every '^not ok ' line)
+          cat > /tmp/sanctioned.txt <<'SANCTIONED'
+          C5-1 subset discipline: a git-only PASS authorizes NO publish leg; a full PASS authorizes no crates-only push (fingerprint effectiveTargets scope binding)
+          C5-4 ordering: publish legs execute in descriptor order git→npm→pypi→crates→rubygems (exact spawn sequence), all five push-records under ONE key
+          SANCTIONED
+          sed -i 's/^[[:space:]]*//' /tmp/sanctioned.txt
+
+          grep '^not ok ' "$TEST_LOG" | sed -E 's/^not ok [0-9]+ - //' | sort > /tmp/actual-failures.txt
+          sort /tmp/sanctioned.txt > /tmp/sanctioned.sorted.txt
+
+          if ! diff -u /tmp/sanctioned.sorted.txt /tmp/actual-failures.txt; then
+            echo "::error::failing-test set is NOT exactly the sanctioned allowlist (diff above: - expected / + actual) — failing closed"
+            exit 1
+          fi
+
+          ACTUAL_N="$(grep -c . /tmp/actual-failures.txt || true)"
+          if [ "$SUM_FAIL" != "$ACTUAL_N" ] || [ "$((SUM_PASS + SUM_FAIL))" != "$SUM_TESTS" ] || [ "$SUM_FAIL" -eq 0 ]; then
+            echo "::error::TAP counts inconsistent (tests=${SUM_TESTS} pass=${SUM_PASS} fail=${SUM_FAIL} not-ok-lines=${ACTUAL_N}) — failing closed"
+            exit 1
+          fi
+          # with a non-empty allowlist enforced above, a suite carrying exactly the
+          # sanctioned reds must exit 1; exit 0 would mean TAP and the runner disagree.
+          if [ "$TEST_EXIT" -ne 1 ]; then
+            echo "::error::expected 'npm test' to exit 1 (sanctioned reds present); got ${TEST_EXIT} — failing closed"
+            exit 1
+          fi
+          rm -f /tmp/sanctioned.txt /tmp/actual-failures.txt /tmp/sanctioned.sorted.txt
+          echo "release gate green: ${SUM_TESTS} tests / ${SUM_PASS} pass / exactly ${SUM_FAIL} sanctioned failure(s) matching the allowlist"
+
+      - name: Pack and verify tarball
+        run: |
+          set -eu
+          PKG_VERSION="$(node -p 'require("./package.json").version')"
+          # dry-run first: surfaces the file list + counts in the job log
+          npm pack --dry-run
+          TMP="$(mktemp -d)"
+          npm pack --pack-destination "$TMP"
+          TARBALL="$TMP/border-customs-${PKG_VERSION}.tgz"
+          if [ ! -f "$TARBALL" ]; then
+            echo "::error::npm pack did not produce ${TARBALL} (name/version mismatch?)"
+            exit 1
+          fi
+          echo "tarball contents:"
+          tar -tzf "$TARBALL"
+          echo "file count (excluding package/ dir entry): $(tar -tzf "$TARBALL" | grep -vc '^package/$')"
+          rm -rf "$TMP"
+
+      - name: Publish (npm Trusted Publishing / OIDC)
+        run: npm publish --provenance --access public
+
+      - name: Post-publish note
+        run: |
+          PKG_VERSION="$(node -p 'require("./package.json").version')"
+          echo "published border-customs@${PKG_VERSION} — verify at:"
+          echo "  https://www.npmjs.com/package/border-customs/v/${PKG_VERSION}"
+          echo "  provenance: npm audit signatures --package border-customs@${PKG_VERSION}"
