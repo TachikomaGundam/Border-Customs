@@ -413,6 +413,7 @@ test("stage: real gem build lands .border/dist/<name>-<version>.gem, determinist
 
 test("stage honesty: secret listed in s.files lands in the EXTRACTED tree scan (data.tar.gz! path), FAIL verdict, sandbox removed, blob silent", async () => {
   const repo = fixture("stage-honest");
+  // randAwsPair OK: KEY side is the pinned literal; blob-absence of pair.secret is trivially safe (findings never carry raw values)
   const pair = randAwsPair();
   const literal = "AKIAI4Q3EXAMPL3K7X2Q"; // the plan-pinned fixture value — entropy floor already proven in the C2/C3 goldens
   const leak = `# leaked credentials\naws_access_key_id = ${literal}\naws_secret_access_key = ${pair.secret}\n`;
@@ -504,6 +505,7 @@ test("publish --yes with no PASS record: exit 1 'run border check first', zero g
 
 test("publish --yes honest chain: FAIL record from a secret-bearing stage => exit 1 at the gate", async () => {
   const repo = fixture("honest");
+  // randAwsPair OK: FAIL verdict rides the pinned literal KEY; pair.secret is inert ballast
   const pair = randAwsPair();
   writeGemSource(repo, "honest-gem", "1.0.0", `# leaked\naws_access_key_id = AKIAI4Q3EXAMPL3K7X2Q\naws_secret_access_key = ${pair.secret}\n`);
   const cfg = borderCfg();
