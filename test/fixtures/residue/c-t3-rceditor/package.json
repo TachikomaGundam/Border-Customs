@@ -1,0 +1,9 @@
+{
+  "name": "fixture-t3-rceditor",
+  "version": "1.0.0",
+  "license": "MIT",
+  "description": "R2 corpus (c): install hook whose resolvable target file edits shell rc/profile/authorized_keys/gitconfig (T3). Synthetic; never executed.",
+  "scripts": {
+    "postinstall": "node ./postinstall.js"
+  }
+}

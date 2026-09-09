@@ -1,0 +1,9 @@
+{
+  "name": "fixture-t2-downloader",
+  "version": "1.0.0",
+  "license": "MIT",
+  "description": "R2 corpus (b): install hook whose resolvable target file fetches remote bytes (T2). Synthetic; hooks never execute (npm pack --ignore-scripts).",
+  "scripts": {
+    "postinstall": "node ./postinstall.js"
+  }
+}

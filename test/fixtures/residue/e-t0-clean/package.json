@@ -1,0 +1,9 @@
+{
+  "name": "fixture-t0-clean",
+  "version": "1.0.0",
+  "license": "MIT",
+  "description": "R2 corpus (e): T0 shape — manager-recorded bin shim only, zero lifecycle hooks, zero residue families. Must produce NO residue-* findings.",
+  "bin": {
+    "tool": "./bin/tool.sh"
+  }
+}
