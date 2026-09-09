@@ -14,6 +14,10 @@
   },
   "license": "MIT",
   "private": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TachikomaGundam/Border-Customs.git"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "esbuild src/index.ts --bundle --format=esm --platform=node --banner:js='import{createRequire as __borderRequire}from\"node:module\";const require=__borderRequire(import.meta.url);' --outfile=dist/index.js && node tools/copy-assets.mjs",
