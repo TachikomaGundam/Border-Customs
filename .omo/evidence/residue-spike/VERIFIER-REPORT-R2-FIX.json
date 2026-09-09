@@ -1,0 +1,205 @@
+{
+  "verdict": "needs-fix",
+  "confidence": "high",
+  "round": "R2-fix verification",
+  "plan": "border-residue-gate",
+  "task": "R2-fix",
+  "verifier_session": "opencode:ses_f7ee6b9dbffeQppClnn4YHlWWl",
+  "date": "2026-09-08",
+  "summary": "B1/B2 fixed for all syntactic shapes: mutants M3/M4/M5 now emit the verbatim pinned lifecycle-script CRITICAL (digest=61415faf...c512) with ZERO residue-in-tree-hook row; golden a-opencode-t1 stays T1/PASS; 8/10 new attacks fail closed; full suite 405/407 with ONLY pre-existing C5-1+C5-4 red; typecheck+build clean; hygiene clean. BUT two lane-B attacks still ride the gate as silent MEDIUM (verdict PASS, no CRITICAL): eval-obfuscated dynamic import and alias-bound write calls.",
+  "per_blocker_status": {
+    "B1": "fixed-for-syntactic-forms / partially-mitigated: T1_DYNAMIC_REF + T1_MODULE_REF + t2 backtick/dynamic arm close every textual import()/require() shape (M4, M5, static node:net import, require(\"net\"), backtick plain literal, variable specifier all fail closed; allowlisted plain-string dynamic import(\"node:fs\") correctly keeps T1 per contract clause 2). RESIDUAL: eval(\"im\"+\"port\")(\"node:net\") never presents an import( token — still T1 MEDIUM (blocker NB1).",
+    "B2": "fixed-for-direct-calls / partially-mitigated: T1_WRITE_CALL enumeration + closed T1_WRITE_ARGV0_FORMS=[source,target,temp,path.dirname(target)] make EVERY direct write-family call with a non-anatomy first arg void T1 (M3, writeFileSync(\"out.txt\"), path.resolve(__dirname,\"..\",\"..\",\"e.txt\"), rmSync(tempDir) all fail closed with pinned CRITICAL; mkdtempSync correctly excluded, golden anatomy unaffected). RESIDUAL: alias binding const w = fs.writeFileSync; w(...) evades the call-name regex entirely; no other clause catches process.cwd() (blocker NB2)."
+  },
+  "new_attack_matrix": [
+    {
+      "id": "A-M3",
+      "mutation": "fs.writeFileSync(path.join(__dirname,'..','..','escaped.txt'),'pwned')",
+      "result": "FAIL-CLOSED",
+      "rows": [
+        "lifecycle-script|CRITICAL|digest=PIN"
+      ],
+      "no_t1_badge": true
+    },
+    {
+      "id": "A-M4",
+      "mutation": "await import(\"node:net\")",
+      "result": "FAIL-CLOSED",
+      "rows": [
+        "lifecycle-script|CRITICAL|digest=PIN",
+        "residue-install-download|HIGH|package/postinstall.mjs"
+      ],
+      "no_t1_badge": true
+    },
+    {
+      "id": "A-M5",
+      "mutation": "await import(`node:${x}`)",
+      "result": "FAIL-CLOSED",
+      "rows": [
+        "lifecycle-script|CRITICAL|digest=PIN",
+        "residue-install-download|HIGH|package/postinstall.mjs"
+      ],
+      "no_t1_badge": true
+    },
+    {
+      "id": "B1-static-net-import",
+      "mutation": "import { connect } from \"node:net\"",
+      "result": "FAIL-CLOSED",
+      "rows": [
+        "lifecycle-script|CRITICAL|digest=PIN",
+        "residue-install-download|HIGH"
+      ]
+    },
+    {
+      "id": "B2a-alias-cwd-write",
+      "mutation": "const w = fs.writeFileSync; w(path.join(process.cwd(),\"..\",\"x\"),\"p\")",
+      "result": "FAIL-OPEN (T1 MEDIUM, verdict PASS, no CRITICAL)",
+      "rows": [
+        "residue-in-tree-hook|MEDIUM"
+      ],
+      "severity_judgement": "CRITICAL blocker NB2. Precise answer to task question: NO other clause already voids T1 via process.cwd() — T1_FORBIDDEN_USER_PATH_MARKS = {os.homedir(, process.env.HOME, USERPROFILE, APPDATA, XDG_*} and T1_ABS_PATH_LITERAL only inspects quoted \"/...\" string literals; path.join(process.cwd(),\"..\",\"x\") trips neither."
+    },
+    {
+      "id": "B2b-direct-literal-write",
+      "mutation": "fs.writeFileSync(\"out.txt\",\"p\")",
+      "result": "FAIL-CLOSED",
+      "rows": [
+        "lifecycle-script|CRITICAL|digest=PIN"
+      ]
+    },
+    {
+      "id": "B3-eval-concat-import",
+      "mutation": "eval(\"im\"+\"port\")(\"node:net\")",
+      "result": "FAIL-OPEN (T1 MEDIUM, verdict PASS, no CRITICAL, no family row)",
+      "rows": [
+        "residue-in-tree-hook|MEDIUM"
+      ],
+      "severity_judgement": "CRITICAL blocker NB1 — this is the exact composition the ORIGINAL B1 finding cited as the motivation (\"anatomy+eval/child_process-of-dynamically-fetched-bytes rides through the gate at MEDIUM\"); syntactic fix leaves it open; contract clause 2 'Nothing else' violated silently."
+    },
+    {
+      "id": "B4-path-resolve-write",
+      "mutation": "fs.writeFileSync(path.resolve(__dirname,\"..\",\"..\",\"e.txt\"),\"p\")",
+      "result": "FAIL-CLOSED",
+      "rows": [
+        "lifecycle-script|CRITICAL|digest=PIN"
+      ]
+    },
+    {
+      "id": "B5-rmsync-tempDir-identifier",
+      "mutation": "fs.rmSync(tempDir, { recursive: true, force: true })",
+      "result": "FAIL-CLOSED (proves enumeration grants no blanket rm-family exemption; golden rmSync(temp) stays T1)",
+      "rows": [
+        "lifecycle-script|CRITICAL|digest=PIN"
+      ]
+    },
+    {
+      "id": "B6-dynamic-allowlisted",
+      "mutation": "await import(\"node:fs\")",
+      "result": "T1 RETAINED — intended: plain-string allowlisted specifier passes per contract clause 2 / worker claim verified",
+      "rows": [
+        "residue-in-tree-hook|MEDIUM"
+      ]
+    },
+    {
+      "id": "B7-require-no-prefix",
+      "mutation": "require(\"net\")",
+      "result": "FAIL-CLOSED",
+      "rows": [
+        "lifecycle-script|CRITICAL|digest=PIN",
+        "residue-install-download|HIGH"
+      ]
+    },
+    {
+      "id": "B8-backtick-plain-literal",
+      "mutation": "await import(`node:net`)",
+      "result": "FAIL-CLOSED (non-quote-char spec form voids; backticks only exempt via t2 family for net-class)",
+      "rows": [
+        "lifecycle-script|CRITICAL|digest=PIN",
+        "residue-install-download|HIGH"
+      ]
+    },
+    {
+      "id": "B9-dynamic-via-var",
+      "mutation": "const m = \"node:net\"; await import(m)",
+      "result": "FAIL-CLOSED",
+      "rows": [
+        "lifecycle-script|CRITICAL|digest=PIN"
+      ]
+    },
+    {
+      "id": "GOLDEN-control",
+      "mutation": null,
+      "result": "T1 PASS (exactly 1 residue-in-tree-hook MEDIUM, no lifecycle row)",
+      "rows": [
+        "residue-in-tree-hook|MEDIUM"
+      ]
+    }
+  ],
+  "regression_sweep": {
+    "unit_residue": "timeout 120 node --import ./tools/register-ts.mjs --test test/residue.npm.test.ts => exit 0, TAP: 15 tests / 15 pass / 0 fail (15 top-level R2-* incl R2-M3/M4/M5; 0 subtests)",
+    "typecheck": "npm run typecheck => exit 0",
+    "build": "npm run build => exit 0 (dist/index.js 1.5mb, assets staged)",
+    "full_suite": "timeout 600 npm test => 407 tests / 405 pass / 2 fail; fails are EXACTLY C5-1 + C5-4 (pre-existing adjudicated); deterministic, no flake, no solo rerun needed; all 15 R2-* rows green inside suite too (ok 349 R2-PIN confirmed)",
+    "total_math": "404 prior + 3 new mutant tests = 407 (consistent)"
+  },
+  "test_count_resolution": "The 54-vs-26 doubled-run claim is NOT reproducible and NODE_OPTIONS-register theory is DISPROVED: (1) env shows NODE_OPTIONS unset; (2) solo run: TAP '# tests 15' / '# pass 15'; (3) forced double-registration NODE_OPTIONS=\"--import ./tools/register-ts.mjs\" + explicit --import => still exactly '# tests 15 / # pass 15' (register() dedups via module cache; --test executes each file once); (4) spec reporter: exactly 15 mark lines; (5) source has 15 top-level test() calls. Authoritative count = 15. Worker's 54/26 figures unexplained by any measurement I could reproduce — treated as a counting artifact in the worker's session, no code defect.",
+  "r2_pin": {
+    "git_diff": "stage-pins-0.2.0.json is untracked (whole test/fixtures/ dir untracked, git diff trivially empty — noted as weak evidence); mtime 2026-09-08 18:17 predates VERIFIER-REPORT-R2.json (20:19) => not touched by fix round",
+    "functional_proof": "R2-PIN tests green (spike fixtures keep byte-identical 0.2.0 lifecycle rows) + MY 9 independent mutants all reproduced valueDigest == 61415faf5c8c08e6bdf6ae2d5166615f1047e7d01a52c757d6633f8d19a6c512 exactly",
+    "golden": "a-opencode-t1/postinstall.mjs mtime 18:15 unchanged; R2-A green"
+  },
+  "hygiene": {
+    "head": "4a8836d unchanged; git log -1 identical; no new commits",
+    "changed_set": "git diff --stat = exactly the 22 pre-existing tracked-dirty files (npm.ts included); git status --short count stable at 86 before/after my entire run; untracked fix set = {src/rules/residueMatchers.ts, src/artifacts/residue.ts, test/residue.npm.test.ts, test/fixtures/residue/SHA256SUMS.local} as expected",
+    "npm_ts_frozen": "CLAIM VERIFIED via mtime: src/artifacts/npm.ts 19:41 predates the prior verdict 20:19 while all four fix files are 20:43-20:51 => npm.ts not touched in round 2",
+    "stash": "empty (0 entries)",
+    "hr": "/home/lab/hr untouched — zero commands in my session wrote there (read-only by construction; also not a git repo)",
+    "tmp": "worker's /tmp/r2c r2f r2g r2v confirmed ABSENT; pre-existing /tmp/r1-verify etc. not mine, left; MY workspace /tmp/residue-r2fix removed with receipt at end of session",
+    "test_tmp": "one leftover test/tmp/golden-channels-PUkFPc from the KNOWN-RED C5 tests' aborted cleanup (created by MY npm test run) removed; test/tmp now empty",
+    "sha256sums_local": "all 14 entries verified OK via sha256sum -c (full check, superset of first/last-3 spot); BUT see nits N2: claimed '34 files' is wrong and coverage has critical gaps"
+  },
+  "nits": [
+    "N1: worker report line-counts wrong: test/residue.npm.test.ts is 264 lines (claimed 533->713 raw); mutant tests are named R2-M3/M4/M5 (report said R2-R1/R2-R2/R2-R3)",
+    "N2: SHA256SUMS.local provenance claim overstated: 14 entries, not 34; omits the two most critical files — golden a-opencode-t1/postinstall.mjs + package.json — plus stage-pins-0.2.0.json, all f1-f4 spike fixtures, b/c/i postinstall bodies, k-paired/bin/setup_env.py (14 of 28 corpus files uncovered)",
+    "N3: T1_WRITE_CALL name-set can over-match comments/strings (e.g. 'rm(' or 'link(' in prose) => voids T1; fail-CLOSED direction, acceptable for gate, worth a code comment",
+    "N4: write-argv0 FORMS share 'source' across ALL write verbs: fs.writeFileSync(source,...) passes — but source is anatomically an in-tree/temp-root binary path, so no root escape; acceptable, document",
+    "N5: recommend bundling process.cwd( into T1_FORBIDDEN_USER_PATH_MARKS as part of the NB2 fix — verified absent from golden anatomy (grep found no process.cwd/eval in a-opencode-t1/postinstall.mjs), so zero golden cost"
+  ],
+  "blockers": [
+    {
+      "id": "NB1",
+      "severity": "CRITICAL",
+      "finding": "eval-obfuscated module load bypasses the ENTIRE closed-signature doctrine: `eval(\"im\"+\"port\")(\"node:net\")` keeps the T1 MEDIUM badge, verdict PASS, zero CRITICAL rows (measured). This is the exact escalation path cited in the original B1 blocker rationale. Contract §1.6 clause 2 ('Nothing else') is silently violated.",
+      "suggested_fix": "in evaluateT1, void T1 on non-anatomy metaprogramming marks — at minimum /\\beval\\s*\\(/, /\\bnew\\s+Function\\b/, /\\bglobalThis\\s*\\[/ (none appear in the blessed anatomy, zero golden cost); add a regression mutant test for the eval(\"im\"+\"port\") shape. Full closure of textual eval is undecidable; state the residual limitation in RESIDUE-CONTRACT §1.6.",
+      "repro": "append line `eval(\"im\"+\"port\")(\"node:net\")` to a copy of test/fixtures/residue/a-opencode-t1/postinstall.mjs; stage via runNpmArtifactStage(skipGitleaks,skipSecretlint) => rows=[residue-in-tree-hook|MEDIUM], verdict PASS"
+    },
+    {
+      "id": "NB2",
+      "severity": "CRITICAL",
+      "finding": "alias-bound write evades T1_WRITE_CALL enumeration: `const w = fs.writeFileSync; w(path.join(process.cwd(),\"..\",\"x\"),\"p\")` keeps T1 MEDIUM, verdict PASS — an out-of-tree write the contract §1.6 clause 5 ('EVERY ... write target') forbids. No compensating clause catches process.cwd() (forbidden-marks set = homedir/HOME/USERPROFILE/APPDATA/XDG_*; abs-path literal check only sees quoted \"/...\" literals).",
+      "suggested_fix": "require every occurrence of a T1_WRITE_CALL name in the normed text to appear in call position — e.g. void T1 when a write-family identifier is preceded by '.' or followed by ')' /','/';'/=' (alias/destructure/property-ref) rather than '('; additionally add process.cwd( to T1_FORBIDDEN_USER_PATH_MARKS (zero golden cost, defense-in-depth); regression mutant for the alias shape.",
+      "repro": "append `const w = fs.writeFileSync; w(path.join(process.cwd(),\"..\",\"x\"),\"p\")` to fixture copy => rows=[residue-in-tree-hook|MEDIUM], verdict PASS"
+    }
+  ],
+  "worker_claims_adjudication": [
+    "fixed B1 for syntactic forms: TRUE (6 independent shapes measured fail-closed; allowlisted dynamic import correctly retained)",
+    "fixed B2 enumeration: TRUE for direct calls (5 shapes measured); INCOMPLETE for aliasing (NB2)",
+    "3 new regression tests M3/M4/M5 RED-first then GREEN: GREEN confirmed (15/15); RED-first taken from ledger claim, not independently re-derivable now",
+    "golden a-opencode-t1 still T1: TRUE (solo control + R2-A)",
+    "original fail-closed set still CRITICAL: TRUE (suite green)",
+    "full suite only C5-1+C5-4 red: TRUE (405/407)",
+    "no npm.ts change: TRUE (mtime evidence)",
+    "SHA256SUMS.local 34 files: FALSE (14 entries, critical coverage gaps — N2)",
+    "54-vs-26 double execution: NOT REPRODUCIBLE (authoritative 15; NODE_OPTIONS theory disproved)"
+  ],
+  "repro_commands": [
+    "cd /home/lab/workspace/harness/border && timeout 300 node --import ./tools/register-ts.mjs /tmp/residue-r2fix/driver.ts   # lanes A+B, 14 cases incl. GOLDEN control",
+    "timeout 120 node --import ./tools/register-ts.mjs --test test/residue.npm.test.ts   # TAP: tests 15 / pass 15",
+    "NODE_OPTIONS=\"--import ./tools/register-ts.mjs\" timeout 120 node --import ./tools/register-ts.mjs --test test/residue.npm.test.ts   # double-registration: still tests 15 (no doubling)",
+    "npm run typecheck && npm run build   # both exit 0",
+    "timeout 600 npm test   # 407/405/2, fails: C5-1, C5-4 only",
+    "cd test/fixtures/residue && sha256sum -c SHA256SUMS.local   # 14/14 OK",
+    "git rev-parse --short HEAD; git status --short | wc -l; git stash list | wc -l   # 4a8836d / 86 / 0",
+    "stat -c '%y %n' src/artifacts/npm.ts src/rules/residueMatchers.ts src/artifacts/residue.ts test/residue.npm.test.ts test/fixtures/residue/SHA256SUMS.local   # round-2 mtimes 20:43-20:51 vs npm.ts 19:41 < verdict 20:19"
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "round": "R3B-FIX4-verify",
+  "date": "2026-09-09",
+  "verifier": "round-5 independent adversarial (fresh context, zero trust)",
+  "subject": "closure of BLK-R3bF4-B (% operand widen) + BLK-R3bF4-A (doc item (9))",
+  "verdict": "needs-fix",
+  "confidence": "high",
+  "blockers": [
+    {
+      "id": "BLK-R3bF5-A",
+      "title": "Bare verb + %x (and any non-q/Q designator) with a NON-PAIRING delimiter silently escapes when the rooted argv starts immediately after the delimiter",
+      "evidence": "Detector (residueGemHits direct seam): `system %x|/usr/local/bin/x|` => 0 rows; `system %x!/usr/local/bin/x!` => 0; `system %W|/usr/local/bin/x|` => 0; `system %x%/usr/local/bin/x%` => 0. Box ruby 3.3.8 liveness (live.rb, per-case marker rm): %x|, %x!, %x%, %x@ under bare system ALL LIVE-EXECUTED the out-of-tree script (LIVE_EXECUTED marker touched each time); %W|/%i! raise ArgumentError (dead shapes, benign).",
+      "root_cause": "The new gemVerbSpan percent branch (residueGem.ts:71-82) matches `system %`, so matchAll's lastIndex consumes the `%` of `%x` and the dedicated `%x[^A-Za-z0-9\\s]` arm can never re-fire; its span INCLUDES the `%x<delim>` prefix (slice(verbEnd-1, j+1)), unlike the %x arm's delimiter-EXCLUDING slice (verbEnd, i) at :88 that anchors a leading `/` at `^`. Bracket-pairing delimiters survive via the boundary class [\\s(\\[{<]; `| ! % @ # -` etc. do not, and GEM_PERCENT_LITERAL expands only %q/%Q.",
+      "asymmetry_proof": "`system(%x|/usr/local/bin/x|)` (parened) => 1 row — verb does not consume the `%`, matchAll re-finds `%x|`, slice excludes delimiters, `^`-anchored ROOTED fires; lone `x = %x|/usr/local/bin/x|` => 1 row. So ONLY the paren-less bare-verb spelling escapes — exactly the BLK-R3bF4-B class the round just widened (live, 0-row, unnamed). §8 item (9) names only `}`/`)`-adjacency; :1090 claims paren-less percent operands 'row' — false for this family.",
+      "suggested_fix": "One-line: in the percent branch return the payload WITHOUT the `%<designator><delim>` prefix (mirror :88), or expand all %[a-zA-Z]? designator literals, or add `:`-free re-scan; pin `system %x!/usr/local/bin/x!` => 1."
+    }
+  ],
+  "nits": [
+    "NIT-R3bF5-1: balanced-brace %q asymmetry — `system %q{a{b}/usr}` (relative argv) => 0 while `system(%q{a{b}/usr})` => 1 (expansion cuts at FIRST `}`, the `\"`-then-`/` artifact trips ABSOLUTE). Safe-side FP + correct-side escape (content relative), but proves 'SAME expansion path' (§8:917-919) is approximate, not identity.",
+    "NIT-R3bF5-2: `Kernel.system %q{/usr/x}` => 0 rows (dot-form); matcher :301-302 documents the design and §8:932 pins the `::`-form ROWING, but the dot-form SILENCE itself appears on no invisible item — standing carry from FIX3, doc could name it once.",
+    "NIT-R3bF5-3: a rooted payload inside ONE backtick exec with embedded %q rows 2x (s1_backtick_plus_pctq: backtick span + fail-closed trailing-backtick span) — double-count on the over-block side, pre-existing.",
+    "NIT-R3bF5-4: `spawn %<newline>w[a]` (delim=space degenerate) => 0 rows — input is a Ruby syntax error, benign; fail-close path (unterminated `system %q{/usr/x` => 1) verified working (q3).",
+    "NIT-6 standing: no ceiling doctrine file; residueGem.ts 287 effective LOC vs claimed ≤290 reproduced exactly (judged against plan text only)."
+  ],
+  "per_attack": {
+    "X1_widen_regression": "PASS. x1 `x = 5 % 2`+system() 0 (no crash); x2 `system( \"%s\" % \"make clean\")` 0; x4 multiline %q{make\\n/usr/...} 1; x5 `system'echo hi'` 0, x6 `system \"make clean\"` 0 (quote arms byte-stable); x7 `microsystem %q{/usr/local/bin/x}` 0 — §8:920 claim reproduced, lookbehind intact; x9 Kernel::system percent 1 — §8:932 reproduced. BUT x8 doc-claim gap -> NIT-2; %x-delimiter family -> BLK-R3bF5-A.",
+    "X2_path_identity": "SHARED downstream path confirmed by code read (both branch outputs feed gemSpanEscapes; q1/q2 divergence shown to be span-EXTRACTION asymmetry, safe-side); q3 unterm fail-close 1; q4 `%x{}` designator skip 1. Identity claim holds for the pinned C12 shapes; degrades for non-pairing delimiters (the blocker) and nested braces (NIT-1).",
+    "X3_doc_truth": "16 numbers independently reproduced: item-(9) set {interp-then-slash 0, backtick `)`-adjacent 0, `#{d}/gen.c` 0, ENV-in-interp 1}; FAIL-CLOSED set {ENV[\"EXTOUT\"] operand 1, make -C /usr/src 1, parened %w cost 1 (C10c), paren-less %w cost 1 (new claim)}; widen-paragraph set {C12a 1 (suite), C12b 1, C12c 0, microsystem 0, Kernel:: 1}. Fixer doc_truth_sweep 16/16: consistent with my 16/16 EXCEPT the :1090 'paren-less percent operands row' over-claim exposed by BLK-R3bF5-A.",
+    "X4_final_sweep": "12 combined shapes probed; all live-escapes found: 1 class (verb+%x+non-pairing delim+leading slash, blocker). Disclosed-0s confirmed still-named-invisible: arr[0] 0 (item 8), splat 0 (item 8), interp 0 (item 9). Newly ROWING: heredoc operand 1 / heredoc non-operand 0 (operand-position-only scope verified), $out-bound-rooted 1, $stdout suppress-0/pay-1 (W1a semantics as §8), ENV.to_h standalone 0 vs in-span 1 (span-scoped marks, documented family), File.join-rooted-operand 1 (ABSOLUTE via full-span test — lane answered), Process.spawn paren-less %w 1 fail-close / parened 1.",
+    "X5_hygiene": "gem 50/50, crates 12, pypi 7, npm 21, channels.rubygems 28, full suite 482 tests / 480 pass / 2 fail = exactly C5-1+C5-4 known env pair. typecheck + build (esbuild errors 0) clean. sha256sum -c 52/52. find -newer FIX3 = {residueGem.ts, residueMatchers.ts, residue.gem.test.ts} + RESIDUE-CONTRACT.md — set-equality EXACT. Ceilings: residueGem 366 total / 287 effective (claim 287≤290 reproduced), residueMatchers 389 total / 159 effective (unchanged)."
+  },
+  "sha_table_11": {
+    "untouchables_MATCH_fix3": {
+      "src/artifacts/rubygems.ts": "f9884da5530f06f9ab1286965428f5dd18ed71903cde72d4182f404fa0cda905",
+      "src/artifacts/npm.ts": "b8b23b5c5f6f76eb8460ea8385f1c9ef33c31afe012973af0b2c08dcf3a93039",
+      "src/artifacts/residue.ts": "15274f7fff4b6ebdffef37dc772cd9efcc38e4a54e21b680714a0e972dad59ed",
+      "src/artifacts/residuePy.ts": "637312a5ffa5231cb166c9c0d03ac78bbc44a84318682e473e145c4fba2ae28f",
+      "src/artifacts/residueRust.ts": "04d87b21ae419ca0eaa92ee74223b0bf21b86d32e5ec2fc6fcf60019c2de8548",
+      "test/residue.npm.test.ts": "bdab5595fbdbb24b40c9f83fbebf7cecadfeab15208841a0cab839ce002b3532"
+    },
+    "fixer_files_drift_new_baseline": {
+      "src/artifacts/residueGem.ts": "15f60b7d957a259d4a9dc46380aed041a302b313e287f44bec15f577f5f97d1e",
+      "src/rules/residueMatchers.ts": "63aed7375768d7671307a68474016b4180c99f9731dc5260eacb9c3a44aacc99",
+      "test/residue.gem.test.ts": "c2e0fe9b0760e22048e49594463858141b5c7bda1cd3395ebcbdb90c65096347",
+      "src/artifacts/RESIDUE-CONTRACT.md": "6fd90ec624caacc137a61e7d32a20a1a1e19802ab6cb20ac48eccc85618a5f40"
+    },
+    "note": "11th key of predecessor tables was a note string (n/a); 6/6 untouchables match FIX3 exactly, 4 fixer files drifted as expected (round-4 edits)."
+  },
+  "suites": { "gem": "50/50", "crates": "12", "pypi": "7", "npm": "21", "channels_rubygems": "28", "full": "482/480 pass, fail = exactly C5-1 + C5-4 (known env pair)", "typecheck": "clean", "build": "clean (0 errors)", "sha256sum_check": "52/52 OK" },
+  "doc_truth": "16/16 claimed R3b numbers independently reproduced on the post-FIX build (see per_attack.X3); one over-claim (:1090 paren-less percent operands 'row') contradicted by live proof => counted on the blocker, not separately.",
+  "convergence_assessment": "NOT YET CONVERGED. The %-widen closed its pinned class (bracket/pair-delimiter percent operands on bare verbs now row; C12 trio + all 16 doc numbers reproduce; no regression on quote arms, modulo noise, lookbehind, or the blessed golden) but re-opened the SAME escape shape one delimiter-class over: `system %x<non-pair-delim>/rooted...` is live-executing, 0-row, unnamed (BLK-R3bF5-A). All OTHER known escapes are now named-invisible with bounded tails: items (1)-(9) each re-probed at their documented counts this round; %W/%i under verbs are runtime-dead. The fix is a span-slice one-liner + one pin; if round-6 closes it with no new live-unnamed escape, the R3b [x] gate can open.",
+  "environment": { "node": "v22.22.1", "ruby": "3.3.8", "gem": "3.6.7" }
+}

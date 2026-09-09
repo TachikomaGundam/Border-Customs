@@ -52,6 +52,15 @@ allow:
   # scanners by construction. Pinned to the signature file, whose sha256 is
   # part of rulesHash — any edit changes the fingerprint and re-runs the scan.
   - { rule: "*", match: "*", file: "assets/gitleaks-defaults-v8.30.1.toml" }
+  # (b-ext) the synthetic R1-spike documentation literal (AKIA… masked here
+  # per this file's own convention — quoting it raw would self-trigger border):
+  # a fabricated fake recorded in CHANNEL-CONTRACTS.md to pin fixture traps,
+  # same class as the test/** planted corpus and the vendored gitleaks TOML
+  # examples. This file is a CONTRACTS doc whose examples must stay
+  # recognizable for the docs tests, so the rule is enumerated (aws-access-token
+  # only, not wildcard) and the file is pinned; unscoped secret rules still
+  # fire everywhere else.
+  - { rule: "aws-access-token", match: "*", file: "src/channels/CHANNEL-CONTRACTS.md" }
   # (b-ext) backslash/home path literals inside the tool's own pattern-aware
   # sources: src/** (regex handling, ADAPTER-CONTRACT.md docs), tools/**
   # (spike scripts) and the prompt template's example paths. Scoped to the

@@ -1,0 +1,418 @@
+TAP version 13
+# Subtest: R3b-PIN: golden pure-ruby gem (console script, no extensions, no plugin) emits ZERO residue rows
+ok 1 - R3b-PIN: golden pure-ruby gem (console script, no extensions, no plugin) emits ZERO residue rows
+  ---
+  duration_ms: 841.4563
+  type: 'test'
+  ...
+# Subtest: R3b-PIN2: confined mkmf extconf (dir_config/have_*/in-tree File.write/create_makefile) emits ZERO rows
+ok 2 - R3b-PIN2: confined mkmf extconf (dir_config/have_*/in-tree File.write/create_makefile) emits ZERO rows
+  ---
+  duration_ms: 822.374312
+  type: 'test'
+  ...
+# Subtest: R3b-B (rubygems_plugin.rb auto-load anywhere ⇒ exactly one persistence CRITICAL, the gem-world lifecycle-hook analog)
+ok 3 - R3b-B (rubygems_plugin.rb auto-load anywhere ⇒ exactly one persistence CRITICAL, the gem-world lifecycle-hook analog)
+  ---
+  duration_ms: 824.765877
+  type: 'test'
+  ...
+# Subtest: R3b-B2 (Gem.post_install token in an ordinary lib file ⇒ persistence CRITICAL even at rest)
+ok 4 - R3b-B2 (Gem.post_install token in an ordinary lib file ⇒ persistence CRITICAL even at rest)
+  ---
+  duration_ms: 810.364673
+  type: 'test'
+  ...
+# Subtest: R3b-C (extconf write to $HOME ⇒ exactly one out-of-tree HIGH)
+ok 5 - R3b-C (extconf write to $HOME ⇒ exactly one out-of-tree HIGH)
+  ---
+  duration_ms: 953.317072
+  type: 'test'
+  ...
+# Subtest: R3b-C2 (extconf write to an absolute /usr/local literal ⇒ out-of-tree HIGH, no family row doubles it)
+ok 6 - R3b-C2 (extconf write to an absolute /usr/local literal ⇒ out-of-tree HIGH, no family row doubles it)
+  ---
+  duration_ms: 825.898382
+  type: 'test'
+  ...
+# Subtest: R3b-D (extconf backtick curl|sh ⇒ exactly one install-download HIGH; the argv URL is not a path write)
+ok 7 - R3b-D (extconf backtick curl|sh ⇒ exactly one install-download HIGH; the argv URL is not a path write)
+  ---
+  duration_ms: 839.211658
+  type: 'test'
+  ...
+# Subtest: R3b-E (extconf spawns npm -g ⇒ cross-manager HIGH naming the foreign ledger)
+ok 8 - R3b-E (extconf spawns npm -g ⇒ cross-manager HIGH naming the foreign ledger)
+  ---
+  duration_ms: 1012.474847
+  type: 'test'
+  ...
+# Subtest: R3b-F (unparseable extconf write argument fails closed: truncated call ⇒ HIGH, never silent)
+ok 9 - R3b-F (unparseable extconf write argument fails closed: truncated call ⇒ HIGH, never silent)
+  ---
+  duration_ms: 941.536634
+  type: 'test'
+  ...
+# Subtest: R3b-G (declared extension with no extconf in data ⇒ EXACTLY ONE MEDIUM note, never silent clean)
+ok 10 - R3b-G (declared extension with no extconf in data ⇒ EXACTLY ONE MEDIUM note, never silent clean)
+  ---
+  duration_ms: 74.479793
+  type: 'test'
+  ...
+# Subtest: R3b-G2 (two declarations resolving to one missing extconf ⇒ still ONE note, never extra notes for the same miss)
+ok 11 - R3b-G2 (two declarations resolving to one missing extconf ⇒ still ONE note, never extra notes for the same miss)
+  ---
+  duration_ms: 71.801397
+  type: 'test'
+  ...
+# Subtest: R3b-H (persistence primitive in an at-rest lib file ⇒ T4 artifact-wide row regardless of reachability)
+ok 12 - R3b-H (persistence primitive in an at-rest lib file ⇒ T4 artifact-wide row regardless of reachability)
+  ---
+  duration_ms: 800.605761
+  type: 'test'
+  ...
+# Subtest: R3b-B3 (BLK-1: double-colon Gem::post_install registers a LIVE hook on box ruby 3.3.8 ⇒ exactly one persistence CRITICAL)
+ok 13 - R3b-B3 (BLK-1: double-colon Gem::post_install registers a LIVE hook on box ruby 3.3.8 ⇒ exactly one persistence CRITICAL)
+  ---
+  duration_ms: 830.138159
+  type: 'test'
+  ...
+# Subtest: R3b-C3 (BLK-2: path-variable indirection — o = absolute literal; File.write(o, …) resolves through the binding map ⇒ HIGH)
+ok 14 - R3b-C3 (BLK-2: path-variable indirection — o = absolute literal; File.write(o, …) resolves through the binding map ⇒ HIGH)
+  ---
+  duration_ms: 1245.50995
+  type: 'test'
+  ...
+# Subtest: R3b-C3b (BLK-2: transitive resolution through nested-call bindings ⇒ HIGH)
+ok 15 - R3b-C3b (BLK-2: transitive resolution through nested-call bindings ⇒ HIGH)
+  ---
+  duration_ms: 821.575124
+  type: 'test'
+  ...
+# Subtest: R3b-C3c (BLK-2: UNRESOLVABLE bareword operand while a slash-rooted literal exists anywhere in the file ⇒ fail-closed HIGH)
+ok 16 - R3b-C3c (BLK-2: UNRESOLVABLE bareword operand while a slash-rooted literal exists anywhere in the file ⇒ fail-closed HIGH)
+  ---
+  duration_ms: 813.709446
+  type: 'test'
+  ...
+# Subtest: R3b-C3d (BLK-2: binding cycle is unresolvable ⇒ fail-closed HIGH while a rooted literal exists in the file)
+ok 17 - R3b-C3d (BLK-2: binding cycle is unresolvable ⇒ fail-closed HIGH while a rooted literal exists in the file)
+  ---
+  duration_ms: 800.996902
+  type: 'test'
+  ...
+# Subtest: R3b-C3e (BLK-2: operand resolving only to relative/in-tree strings stays confined ⇒ ZERO rows)
+ok 18 - R3b-C3e (BLK-2: operand resolving only to relative/in-tree strings stays confined ⇒ ZERO rows)
+  ---
+  duration_ms: 976.615955
+  type: 'test'
+  ...
+# Subtest: R3b-C4 (BLK-4a: %x|install … /usr/local/bin/| exotic delimiter mirrors the backtick fail-closed row ⇒ HIGH)
+ok 19 - R3b-C4 (BLK-4a: %x|install … /usr/local/bin/| exotic delimiter mirrors the backtick fail-closed row ⇒ HIGH)
+  ---
+  duration_ms: 858.240565
+  type: 'test'
+  ...
+# Subtest: R3b-C5 (BLK-4b: File.open(%q{/etc/evil}, 'w') — %q literal text enters the rooted-slash mark test ⇒ HIGH)
+ok 20 - R3b-C5 (BLK-4b: File.open(%q{/etc/evil}, 'w') — %q literal text enters the rooted-slash mark test ⇒ HIGH)
+  ---
+  duration_ms: 986.986591
+  type: 'test'
+  ...
+# Subtest: R3b-C6 (BLK-4c: Dir.chdir anywhere in a reachable extconf is a confinement break ⇒ exactly one HIGH, relative write after it costs no extra row)
+ok 21 - R3b-C6 (BLK-4c: Dir.chdir anywhere in a reachable extconf is a confinement break ⇒ exactly one HIGH, relative write after it costs no extra row)
+  ---
+  duration_ms: 825.00871
+  type: 'test'
+  ...
+# Subtest: R3b-G3 (BLK-3 stage, verifier repro S3: comment line inside the extensions block must NOT terminate collection — declared-but-missing ext ⇒ EXACTLY ONE MEDIUM, never silent clean)
+ok 22 - R3b-G3 (BLK-3 stage, verifier repro S3: comment line inside the extensions block must NOT terminate collection — declared-but-missing ext ⇒ EXACTLY ONE MEDIUM, never silent clean)
+  ---
+  duration_ms: 60.22097
+  type: 'test'
+  ...
+# Subtest: R3b-G4 (BLK-3 unit: gemDeclaredExtensions skips blank+comment lines inside the block, keeps collecting items, stops at the next top-level key)
+ok 23 - R3b-G4 (BLK-3 unit: gemDeclaredExtensions skips blank+comment lines inside the block, keeps collecting items, stops at the next top-level key)
+  ---
+  duration_ms: 0.716213
+  type: 'test'
+  ...
+# Subtest: R3b-G5 (BLK-3 unit: `extensions:` followed by only blanks/comments/EOF is YAML null ⇒ zero declarations legitimately)
+ok 24 - R3b-G5 (BLK-3 unit: `extensions:` followed by only blanks/comments/EOF is YAML null ⇒ zero declarations legitimately)
+  ---
+  duration_ms: 0.297515
+  type: 'test'
+  ...
+# Subtest: R3b-G6 (BLK-3 unit: unrecognized non-blank non-comment line inside the block ⇒ THROW — gate stops, never silent null)
+ok 25 - R3b-G6 (BLK-3 unit: unrecognized non-blank non-comment line inside the block ⇒ THROW — gate stops, never silent null)
+  ---
+  duration_ms: 1.020191
+  type: 'test'
+  ...
+# Subtest: R3b-B4 (BLK-5: `File :: write` — spaced double-colon form, \\s* on BOTH sides — mirrors the dot-form ⇒ HIGH)
+ok 26 - R3b-B4 (BLK-5: `File :: write` — spaced double-colon form, \\s* on BOTH sides — mirrors the dot-form ⇒ HIGH)
+  ---
+  duration_ms: 826.398072
+  type: 'test'
+  ...
+# Subtest: R3b-C7a (BLK-5: Dir::chdir colon-form + later relative write ⇒ exactly one HIGH, the chdir lane is separator-agnostic)
+ok 27 - R3b-C7a (BLK-5: Dir::chdir colon-form + later relative write ⇒ exactly one HIGH, the chdir lane is separator-agnostic)
+  ---
+  duration_ms: 932.360081
+  type: 'test'
+  ...
+# Subtest: R3b-C7b (BLK-5: FileUtils::cp colon-form with ROOTED destination — a rooted operand in ANY argument position escapes the span)
+ok 28 - R3b-C7b (BLK-5: FileUtils::cp colon-form with ROOTED destination — a rooted operand in ANY argument position escapes the span)
+  ---
+  duration_ms: 1010.473449
+  type: 'test'
+  ...
+# Subtest: R3b-C7c (BLK-5: Dir::mkdir colon-form rooted ⇒ HIGH)
+ok 29 - R3b-C7c (BLK-5: Dir::mkdir colon-form rooted ⇒ HIGH)
+  ---
+  duration_ms: 855.09187
+  type: 'test'
+  ...
+# Subtest: R3b-C7d (BLK-5: Open3::pipeline_rw colon-form with rooted argv ⇒ HIGH)
+ok 30 - R3b-C7d (BLK-5: Open3::pipeline_rw colon-form with rooted argv ⇒ HIGH)
+  ---
+  duration_ms: 1003.394075
+  type: 'test'
+  ...
+# Subtest: R3b-C7e (BLK-5 design pin: IO::popen and Kernel::system ::-forms row BY DESIGN, one row each — not via accidental bare-verb fallback)
+ok 31 - R3b-C7e (BLK-5 design pin: IO::popen and Kernel::system ::-forms row BY DESIGN, one row each — not via accidental bare-verb fallback)
+  ---
+  duration_ms: 849.972966
+  type: 'test'
+  ...
+# Subtest: R3b-C4b (BLK-6: %x!…! generic delimiter — box-ruby 3.3.8 executes it live — mirrors the backtick row ⇒ HIGH)
+ok 32 - R3b-C4b (BLK-6: %x!…! generic delimiter — box-ruby 3.3.8 executes it live — mirrors the backtick row ⇒ HIGH)
+  ---
+  duration_ms: 820.954374
+  type: 'test'
+  ...
+# Subtest: R3b-C4c (BLK-6: %x"…" and %x~…~ exotic live delimiters each row ⇒ two HIGH)
+ok 33 - R3b-C4c (BLK-6: %x"…" and %x~…~ exotic live delimiters each row ⇒ two HIGH)
+  ---
+  duration_ms: 1095.005623
+  type: 'test'
+  ...
+# Subtest: R3b-G7 (BLK-7 unit: duplicate top-level `extensions:` keys in EITHER order ⇒ THROW — psych/rubygems is last-wins (box-measured), the closed parser certifies neither)
+ok 34 - R3b-G7 (BLK-7 unit: duplicate top-level `extensions:` keys in EITHER order ⇒ THROW — psych/rubygems is last-wins (box-measured), the closed parser certifies neither)
+  ---
+  duration_ms: 0.501764
+  type: 'test'
+  ...
+# Subtest: R3b-G8 (BLK-7 stage, verifier a5-dupkey: `extensions: []` then block-seq, data lacks the ext ⇒ THROW surfaces as gate stop, never silent clean)
+ok 35 - R3b-G8 (BLK-7 stage, verifier a5-dupkey: `extensions: []` then block-seq, data lacks the ext ⇒ THROW surfaces as gate stop, never silent clean)
+  ---
+  duration_ms: 49.820029
+  type: 'test'
+  ...
+# Subtest: R3b-C8 (BLK-8: @ivar/$global/CONSTANT bindings resolve through the SAME ALL-bindings map — verifier q-ivar-clean2 class ⇒ three HIGH)
+ok 36 - R3b-C8 (BLK-8: @ivar/$global/CONSTANT bindings resolve through the SAME ALL-bindings map — verifier q-ivar-clean2 class ⇒ three HIGH)
+  ---
+  duration_ms: 754.95813
+  type: 'test'
+  ...
+# Subtest: R3b-C9a (BLK-R3bF2-A: Dir::home colon-form user-home mark — live on box ruby 3.3.8 ⇒ exactly one HIGH, meta-lesson :: normalized everywhere)
+ok 37 - R3b-C9a (BLK-R3bF2-A: Dir::home colon-form user-home mark — live on box ruby 3.3.8 ⇒ exactly one HIGH, meta-lesson :: normalized everywhere)
+  ---
+  duration_ms: 815.862787
+  type: 'test'
+  ...
+# Subtest: R3b-C9b (BLK-R3bF2-A: ENV::[] colon-call to the [] method — live on box ruby 3.3.8, ENV['HOME'] analog ⇒ exactly one HIGH)
+ok 38 - R3b-C9b (BLK-R3bF2-A: ENV::[] colon-call to the [] method — live on box ruby 3.3.8, ENV['HOME'] analog ⇒ exactly one HIGH)
+  ---
+  duration_ms: 894.731263
+  type: 'test'
+  ...
+# Subtest: R3b-C9c (BLK-R3bF2-A: ENV::fetch rows via the gem mark lane ITSELF — the T2 fetch( npm-lane collateral must not be the catcher)
+ok 39 - R3b-C9c (BLK-R3bF2-A: ENV::fetch rows via the gem mark lane ITSELF — the T2 fetch( npm-lane collateral must not be the catcher)
+  ---
+  duration_ms: 855.829573
+  type: 'test'
+  ...
+# Subtest: R3b-C9d (BLK-R3bF2-B: Process.spawn dotted-canonical — the most canonical spawn spelling in Ruby — P20 verbatim ⇒ exactly one HIGH)
+ok 40 - R3b-C9d (BLK-R3bF2-B: Process.spawn dotted-canonical — the most canonical spawn spelling in Ruby — P20 verbatim ⇒ exactly one HIGH)
+  ---
+  duration_ms: 826.9242
+  type: 'test'
+  ...
+# Subtest: R3b-C9e (BLK-R3bF2-B: Process::spawn colon-form and Process.spawn dotted-form each pay EXACTLY one row — no double count, no silent pass)
+ok 41 - R3b-C9e (BLK-R3bF2-B: Process::spawn colon-form and Process.spawn dotted-form each pay EXACTLY one row — no double count, no silent pass)
+  ---
+  duration_ms: 777.963648
+  type: 'test'
+  ...
+# Subtest: R3b-C10a (BLK-R3bF2-C: %(/usr/local/bin/x) percent-string with immediate rooted content — ROOTED boundary must accept `(` adjacency ⇒ HIGH)
+ok 42 - R3b-C10a (BLK-R3bF2-C: %(/usr/local/bin/x) percent-string with immediate rooted content — ROOTED boundary must accept `(` adjacency ⇒ HIGH)
+  ---
+  duration_ms: 1076.665212
+  type: 'test'
+  ...
+# Subtest: R3b-C10b (BLK-R3bF2-C: %w[/usr/local/bin/x] — box ruby 3.3.8 executes it with that argv (live-verified) — `[` adjacency pays a row ⇒ HIGH)
+ok 43 - R3b-C10b (BLK-R3bF2-C: %w[/usr/local/bin/x] — box ruby 3.3.8 executes it with that argv (live-verified) — `[` adjacency pays a row ⇒ HIGH)
+  ---
+  duration_ms: 1125.609026
+  type: 'test'
+  ...
+# Subtest: R3b-C10c (BLK-R3bF2-C ACCEPTED COST pin: %w[install -m755 build/x /usr/bin/make]-style argv hints in a whitelisted verb row — exotic-operand cost doctrine, named in §8)
+ok 44 - R3b-C10c (BLK-R3bF2-C ACCEPTED COST pin: %w[install -m755 build/x /usr/bin/make]-style argv hints in a whitelisted verb row — exotic-operand cost doctrine, named in §8)
+  ---
+  duration_ms: 981.178949
+  type: 'test'
+  ...
+# Subtest: R3b-C11a (BLK-R3bF2-D: @@cvar write operand — binding map covers only @ivars/$globals/CONSTANTS/locals, so @@ov is unresolvable ⇒ fail-closed HIGH while a rooted literal exists)
+ok 45 - R3b-C11a (BLK-R3bF2-D: @@cvar write operand — binding map covers only @ivars/$globals/CONSTANTS/locals, so @@ov is unresolvable ⇒ fail-closed HIGH while a rooted literal exists)
+  ---
+  duration_ms: 817.979435
+  type: 'test'
+  ...
+# Subtest: R3b-C11b (BLK-R3bF2-D: $0 builtin-global write operand ($0= is box-verified live on ruby 3.3.8) — outside the LHS grammar ⇒ unresolvable ⇒ fail-closed HIGH)
+ok 46 - R3b-C11b (BLK-R3bF2-D: $0 builtin-global write operand ($0= is box-verified live on ruby 3.3.8) — outside the LHS grammar ⇒ unresolvable ⇒ fail-closed HIGH)
+  ---
+  duration_ms: 818.380661
+  type: 'test'
+  ...
+# Subtest: R3b-C3f (BLK-R3b-FIX2-E: heredoc RHS binding — BINH = <<~EOS is box-verified to hold the multi-line rooted value at File.write time, invisible to the line grammar ⇒ unresolvable ⇒ fail-closed HIGH)
+ok 47 - R3b-C3f (BLK-R3b-FIX2-E: heredoc RHS binding — BINH = <<~EOS is box-verified to hold the multi-line rooted value at File.write time, invisible to the line grammar ⇒ unresolvable ⇒ fail-closed HIGH)
+  ---
+  duration_ms: 827.2064
+  type: 'test'
+  ...
+# Subtest: R3b-C12a (BLK-R3bF4-B: bare `system %q{/usr/local/bin/x}` — verifier payload i4_pctq verbatim — rooted arg visible through the percent-expanded span ⇒ exactly 1 HIGH)
+ok 48 - R3b-C12a (BLK-R3bF4-B: bare `system %q{/usr/local/bin/x}` — verifier payload i4_pctq verbatim — rooted arg visible through the percent-expanded span ⇒ exactly 1 HIGH)
+  ---
+  duration_ms: 843.461161
+  type: 'test'
+  ...
+# Subtest: R3b-C12b (BLK-R3bF4-B: exec %q{/usr/local/bin/x} + system %{touch /tmp/y} (verifier i4_pctq/i4b_pctbrace spellings) ⇒ two HIGH rows, one per call)
+ok 49 - R3b-C12b (BLK-R3bF4-B: exec %q{/usr/local/bin/x} + system %{touch /tmp/y} (verifier i4_pctq/i4b_pctbrace spellings) ⇒ two HIGH rows, one per call)
+  ---
+  duration_ms: 818.291073
+  type: 'test'
+  ...
+# Subtest: R3b-C12c (BLK-R3bF4-B FP guard: relative-operand percent literal `system %q{make clean}` stays ZERO rows — the widen must not turn every bare %q verb into a false alarm)
+ok 50 - R3b-C12c (BLK-R3bF4-B FP guard: relative-operand percent literal `system %q{make clean}` stays ZERO rows — the widen must not turn every bare %q verb into a false alarm)
+  ---
+  duration_ms: 846.135209
+  type: 'test'
+  ...
+# Subtest: R3b-C13a (BLK-R3bF5-A: bare `system %x|/usr/local/bin/x|` — FIX4 payload verbatim — live-execs on box ruby ⇒ exactly 1 HIGH)
+ok 51 - R3b-C13a (BLK-R3bF5-A: bare `system %x|/usr/local/bin/x|` — FIX4 payload verbatim — live-execs on box ruby ⇒ exactly 1 HIGH)
+  ---
+  duration_ms: 880.217641
+  type: 'test'
+  ...
+# Subtest: R3b-C13b (BLK-R3bF5-A: bare `system %x!/usr/local/bin/x!` — bang delimiter verbatim ⇒ exactly 1 HIGH)
+ok 52 - R3b-C13b (BLK-R3bF5-A: bare `system %x!/usr/local/bin/x!` — bang delimiter verbatim ⇒ exactly 1 HIGH)
+  ---
+  duration_ms: 797.447914
+  type: 'test'
+  ...
+# Subtest: R3b-C13c (BLK-R3bF5-A: bare `system %x%/usr/local/bin/x%` — percent delimiter verbatim ⇒ exactly 1 HIGH)
+ok 53 - R3b-C13c (BLK-R3bF5-A: bare `system %x%/usr/local/bin/x%` — percent delimiter verbatim ⇒ exactly 1 HIGH)
+  ---
+  duration_ms: 803.167248
+  type: 'test'
+  ...
+# Subtest: R3b-C13d (BLK-R3bF5-A: bare `system %x@/usr/local/bin/x@` — at delimiter verbatim ⇒ exactly 1 HIGH)
+ok 54 - R3b-C13d (BLK-R3bF5-A: bare `system %x@/usr/local/bin/x@` — at delimiter verbatim ⇒ exactly 1 HIGH)
+  ---
+  duration_ms: 783.154243
+  type: 'test'
+  ...
+# Subtest: R3b-C13e (BLK-R3bF5-A SIBLING-CLASS pin: the fix is designator-agnostic — bare `system %w|/usr/local/bin/x y|` (2-element argv0 form, box-live rooted exec, marker live_w) + designator-less `system %|/usr/local/bin/x|` (string argv, box-live `system %|/bin/true| ⇒ true`) ⇒ two HIGH, one per call)
+ok 55 - R3b-C13e (BLK-R3bF5-A SIBLING-CLASS pin: the fix is designator-agnostic — bare `system %w|/usr/local/bin/x y|` (2-element argv0 form, box-live rooted exec, marker live_w) + designator-less `system %|/usr/local/bin/x|` (string argv, box-live `system %|/bin/true| ⇒ true`) ⇒ two HIGH, one per call)
+  ---
+  duration_ms: 813.235056
+  type: 'test'
+  ...
+# Subtest: R3b-C14a (closure/interpolation-tail adjacency stays SILENT — item (9) complement class): `File.write('\#{p}/tmp/…', …)`, `File.write("a]/tmp/…", …)`, `system "run()/tmp/…"` ⇒ 0 rows
+ok 56 - R3b-C14a (closure/interpolation-tail adjacency stays SILENT — item (9) complement class): `File.write('\#{p}/tmp/…', …)`, `File.write("a]/tmp/…", …)`, `system "run()/tmp/…"` ⇒ 0 rows
+  ---
+  duration_ms: 776.414906
+  type: 'test'
+  ...
+# Subtest: R3b-C14b (shell-metachar adjacency stays SILENT — item (11) complement class, round-8 family sweep): `system "echo x>/tmp/…"`, `"echo x;/tmp/…"`, `"echo x>&/tmp/…"` ⇒ 0 rows, while the string-START control `system "/tmp/…"` rows exactly 1
+ok 57 - R3b-C14b (shell-metachar adjacency stays SILENT — item (11) complement class, round-8 family sweep): `system "echo x>/tmp/…"`, `"echo x;/tmp/…"`, `"echo x>&/tmp/…"` ⇒ 0 rows, while the string-START control `system "/tmp/…"` rows exactly 1
+  ---
+  duration_ms: 1762.557025
+  type: 'test'
+  ...
+# Subtest: R3b-C15a (BLK-7 fd-hijack family, box-live WRITES: `$stdout.reopen("/tmp/r3b8_outro", "w")` + `$stderr.reopen("/tmp/r3b8_errro", "w")` ⇒ two HIGH)
+ok 58 - R3b-C15a (BLK-7 fd-hijack family, box-live WRITES: `$stdout.reopen("/tmp/r3b8_outro", "w")` + `$stderr.reopen("/tmp/r3b8_errro", "w")` ⇒ two HIGH)
+  ---
+  duration_ms: 976.101822
+  type: 'test'
+  ...
+# Subtest: R3b-C15b (reopen family SPELLING matrix: `STDOUT.reopen` / `STDERR.reopen` / `$stdin.reopen` — the read-side hijack is in-family, §8 adjudication ⇒ three HIGH, dot-only receivers never double via the (?<![\\w.?]) guard)
+ok 59 - R3b-C15b (reopen family SPELLING matrix: `STDOUT.reopen` / `STDERR.reopen` / `$stdin.reopen` — the read-side hijack is in-family, §8 adjudication ⇒ three HIGH, dot-only receivers never double via the (?<![\\w.?]) guard)
+  ---
+  duration_ms: 891.439451
+  type: 'test'
+  ...
+# Subtest: R3b-C15c (sysopen family, box-live fd-writes: `File.sysopen(path, File::CREAT|File::WRONLY, 0o644)` + `File::sysopen(…)` colon form + `IO.sysopen(…)` ⇒ three HIGH, File::CREAT/WRONLY constants do NOT re-fire the File arm)
+ok 60 - R3b-C15c (sysopen family, box-live fd-writes: `File.sysopen(path, File::CREAT|File::WRONLY, 0o644)` + `File::sysopen(…)` colon form + `IO.sysopen(…)` ⇒ three HIGH, File::CREAT/WRONLY constants do NOT re-fire the File arm)
+  ---
+  duration_ms: 832.272632
+  type: 'test'
+  ...
+# Subtest: R3b-C15d (IO content-writer family, box-live: `IO.write` + `IO.binwrite` + `IO.copy_stream(src, rooted-dest)` ⇒ three HIGH — IO.read stays OUT (read-only, C15h))
+ok 61 - R3b-C15d (IO content-writer family, box-live: `IO.write` + `IO.binwrite` + `IO.copy_stream(src, rooted-dest)` ⇒ three HIGH — IO.read stays OUT (read-only, C15h))
+  ---
+  duration_ms: 856.703081
+  type: 'test'
+  ...
+# Subtest: R3b-C15e (File-level create/metadata family, all box-live: mkfifo/truncate/utime/chown/lchmod/lchown/lutime = seven NEWLY-covered + symlink/link rooted second-arg = two already-rowing family sweeps ⇒ nine HIGH; ROUND-10 C15e 8→9 adds File.lutime — machine-table LIVE-UNCOVERED, lutimes(2), does NOT follow symlinks so it is strictly more deceptive than File.utime; sibling File.futime is NOT in the table: absent on box ruby 3.3.8, see §8 roster DEAD row)
+ok 62 - R3b-C15e (File-level create/metadata family, all box-live: mkfifo/truncate/utime/chown/lchmod/lchown/lutime = seven NEWLY-covered + symlink/link rooted second-arg = two already-rowing family sweeps ⇒ nine HIGH; ROUND-10 C15e 8→9 adds File.lutime — machine-table LIVE-UNCOVERED, lutimes(2), does NOT follow symlinks so it is strictly more deceptive than File.utime; sibling File.futime is NOT in the table: absent on box ruby 3.3.8, see §8 roster DEAD row)
+  ---
+  duration_ms: 848.801224
+  type: 'test'
+  ...
+# Subtest: R3b-C15f (deletion class COVERED by adjudication — the FileUtils.rm_r/remove wildcard already priced deletion, so File.unlink/File.delete/Dir.rmdir/Dir.delete/Dir.unlink join the same lane, box-live ⇒ five HIGH; consistency, not a new severity; ROUND-10 C15f 3→5 adds the Dir.delete/Dir.unlink aliases that BLK-R3bF9-B caught silent)
+ok 63 - R3b-C15f (deletion class COVERED by adjudication — the FileUtils.rm_r/remove wildcard already priced deletion, so File.unlink/File.delete/Dir.rmdir/Dir.delete/Dir.unlink join the same lane, box-live ⇒ five HIGH; consistency, not a new severity; ROUND-10 C15f 3→5 adds the Dir.delete/Dir.unlink aliases that BLK-R3bF9-B caught silent)
+  ---
+  duration_ms: 790.07962
+  type: 'test'
+  ...
+# Subtest: R3b-C15g (FP guard for the widened table: every NEW verb argued an IN-TREE operand stays confined — IO.write("build/…"), File.unlink("build/tmp.o"), $stdout.reopen("build/log.txt"), File.chmod(mode, "build/libfoo.so"), Dir.rmdir("build/tmpd"), File.mkfifo("build/fifo") + ROUND-10 additions Dir.delete("build/tmpd2"), File.lutime(mode-in-tree), File.copy_stream both in-tree, rm_f("build/tmp.o"), xsystem("make clean"), $>.reopen("build/log2.txt") ⇒ 0 rows)
+ok 64 - R3b-C15g (FP guard for the widened table: every NEW verb argued an IN-TREE operand stays confined — IO.write("build/…"), File.unlink("build/tmp.o"), $stdout.reopen("build/log.txt"), File.chmod(mode, "build/libfoo.so"), Dir.rmdir("build/tmpd"), File.mkfifo("build/fifo") + ROUND-10 additions Dir.delete("build/tmpd2"), File.lutime(mode-in-tree), File.copy_stream both in-tree, rm_f("build/tmp.o"), xsystem("make clean"), $>.reopen("build/log2.txt") ⇒ 0 rows)
+  ---
+  duration_ms: 837.975479
+  type: 'test'
+  ...
+# Subtest: R3b-C15h (read-only primitives stay OUT of the write table by definition, rooted operands included — IO.read/Dir.entries/File.basename ⇒ 0 rows; the IO arm must not swallow readers)
+ok 65 - R3b-C15h (read-only primitives stay OUT of the write table by definition, rooted operands included — IO.read/Dir.entries/File.basename ⇒ 0 rows; the IO arm must not swallow readers)
+  ---
+  duration_ms: 850.423723
+  type: 'test'
+  ...
+# Subtest: R3b-C15a-bis (BLK-R3bF9-A: `$>` is $stdout's one-letter alias — $>.reopen("/tmp/r3b10_gt", "w") dot form + `$>::reopen(...)` scope form + paren-less `$>.reopen "/tmp/…"` fail-closed form ⇒ three HIGH; the round-9 'closed at six members' reopen claim was WRONG, seven members after the machine walk)
+ok 66 - R3b-C15a-bis (BLK-R3bF9-A: `$>` is $stdout's one-letter alias — $>.reopen("/tmp/r3b10_gt", "w") dot form + `$>::reopen(...)` scope form + paren-less `$>.reopen "/tmp/…"` fail-closed form ⇒ three HIGH; the round-9 'closed at six members' reopen claim was WRONG, seven members after the machine walk)
+  ---
+  duration_ms: 758.902139
+  type: 'test'
+  ...
+# Subtest: R3b-C15i (M0 sweep deltas on INHERITED receivers + colon spellings, box-live: File.copy_stream("build/a", rooted-dst) + File.popen("/usr/local/bin/x") argv0-exec (both reach File via IO's singleton — machine-table shows File's own singleton list lacks them, respond_to? proves inheritance) + `Dir::delete(...)` colon form ⇒ three HIGH; the 4th line FileUtils.rm_rf(rooted) re-asserts NO DOUBLE-PRICE once rm_rf joins the bare arm (dotted form stays exactly one row via the [\\w.] lookbehind) ⇒ total four)
+ok 67 - R3b-C15i (M0 sweep deltas on INHERITED receivers + colon spellings, box-live: File.copy_stream("build/a", rooted-dst) + File.popen("/usr/local/bin/x") argv0-exec (both reach File via IO's singleton — machine-table shows File's own singleton list lacks them, respond_to? proves inheritance) + `Dir::delete(...)` colon form ⇒ three HIGH; the 4th line FileUtils.rm_rf(rooted) re-asserts NO DOUBLE-PRICE once rm_rf joins the bare arm (dotted form stays exactly one row via the [\\w.] lookbehind) ⇒ total four)
+  ---
+  duration_ms: 760.543952
+  type: 'test'
+  ...
+# Subtest: R3b-C15j (M0 sweep deltas in the mkmf TOP-LEVEL + confinement-break class, box-live: bare rm_f/rm_rf/xsystem/xpopen are MakeMakefile module_functions promoted to extconf top-level privates by mkmf.rb:2890-2894 (source-proved; box lacks ruby-dev so require aborts early — mechanism simulated in the probe log) + Dir.chroot rooted = the CONFINEMENT BREAK itself (chroots the process; box EPERM non-root, operand-absolute-only) ⇒ five HIGH)
+ok 68 - R3b-C15j (M0 sweep deltas in the mkmf TOP-LEVEL + confinement-break class, box-live: bare rm_f/rm_rf/xsystem/xpopen are MakeMakefile module_functions promoted to extconf top-level privates by mkmf.rb:2890-2894 (source-proved; box lacks ruby-dev so require aborts early — mechanism simulated in the probe log) + Dir.chroot rooted = the CONFINEMENT BREAK itself (chroots the process; box EPERM non-root, operand-absolute-only) ⇒ five HIGH)
+  ---
+  duration_ms: 847.827405
+  type: 'test'
+  ...
+1..68
+# tests 68
+# suites 0
+# pass 68
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 54462.279134

@@ -1,0 +1,85 @@
+{
+  "verdict": "needs-fix",
+  "round": "R3a-fix-round-3 independent adversarial verification (round 3 of checkbox R3a)",
+  "verifier": "independent (wrote none of the code under test; trusted only disk)",
+  "date": "2026-09-09",
+  "confidence": "high — every claim probed against runCargoArtifactStage through the predecessor's fake-cargo harness (build.rs parsed, never executed); scratch removed after",
+  "blockers": [
+    {
+      "id": "R3AFIX3-B1",
+      "title": "Nested block comments fabricate confinement — token-in-comment CAN confine (C1/§8 core claim disproven; same fail-OPEN class as R3AFIX-F1)",
+      "severity": "blocker (fail-open, not contract-named)",
+      "evidence_location": "src/artifacts/residueRust.ts:88-91 — the /* arm is `const end = s.indexOf(\"*/\", i + 2); i = end === -1 ? s.length : end + 2;` with NO depth tracking, while Rust's real lexer nests block comments (Rust Reference: /* /* */ */ is one comment)",
+      "repro": "crates-leg probe (fake-cargo seam, cfg = test/residue.crates.test.ts verbatim): build.rs = `use std::fs;\nfn main() { fs::write(/* /* */ env::var(\"OUT_DIR\") */ \"/tmp/evil/implant.sh\", \"x\").unwrap(); }` — and the obfuscation-realistic binding variant `let o = PathBuf::from(/* /* */ env::var(\"OUT_DIR\") */ \"/tmp/evil\"); fs::write(o.join(\"implant.sh\"), \"x\").unwrap();`",
+      "observed": "residue-rows=0 for BOTH variants (silent pass, no badge, no row) — envRefCall terminates the comment at the FIRST */, resurrecting the commented-out env::var(\"OUT_DIR\") as code, so the literal root \"/tmp/evil...\" scores confined; in real Rust there is no env call at all and the write escapes the tree",
+      "expected": ">=1 HIGH rs-confinement row (the accepted LIVE call must be in real code position, not comment text)",
+      "doc_lies_disproven": [
+        "RESIDUE-CONTRACT.md §8: 'the `envRefCall` scanner skips `\"` strings, `r#\"…\"#` raw strings and line/block comments, meaning the token can never match from literal/comment text'",
+        "residueRust.ts:75-78 envRefCall doc comment: 'line/block comments are skipped, so the token can never be matched from literal or comment text … every mis-parse hides text and can only LOSE a real call ⇒ … never acceptance (fail closed)'",
+        "§8 'Quote-parity mis-parses … never fabricate one: mis-parse ⇒ row, the fail-closed direction by construction' — comment-parity mis-parse DOES fabricate acceptance"
+      ],
+      "fix": "depth-aware block-comment skip in envRefCall (on '/*' enter loop: depth+1 per further '/*', depth-1 per '*/', consume until depth 0; unterminated consumes rest as today); then pin C10 = BOTH repro variants each >=1 HIGH row (red first, green after), and correct the three quoted claims. Plain-comment case already rows (probe v2b: fs::write(/* env::var(\"OUT_DIR\") */ &o, ..) => 1 HIGH row) — only nesting breaks it.",
+      "note": "'strictly fewer shapes than bare regex' still TRUE (substring, plain line/block comment, both raw-string variants all row); the refuted part is the word NEVER."
+    }
+  ],
+  "nits": [
+    {
+      "id": "R3AFIX3-N1",
+      "title": "Root-literal + decorative env interpolation confines silently; predicted EXTRA row, observed ZERO; §8 does not name the concrete shape",
+      "repro_observed": "fs::write via `let o = format!(\"/usr/local/{}\", env::var(\"OUT_DIR\").unwrap()); fs::write(&o, \"x\")` => 0 rows (write lands under /usr/local; the OUT_DIR value is only interpolated). The arg DOES make a live env::var(\"OUT_DIR\") call so this is consistent with §8's origin-only doctrine ('the matcher verifies the root's origin, never normalizes the path' + 'these roots are legitimately reachable ONLY through env::var-family calls'), and the family is routed to the named §1.6-9 lane — but unlike the NAMED traversal example (`env::var(\"OUT_DIR\").unwrap() + \"/../../etc/passwd\"`), the literal-root-first spelling is absent from §8's INVISIBLE list. Not a blocker (origin-check doctrine covers it); fix = one §8 sentence naming `format!(\"/usr/local/{}\", env::var(\"OUT_DIR\")…)` as INVISIBLE, or reject leading absolute-literal outside the interpolation."
+    },
+    {
+      "id": "R3AFIX3-N2",
+      "title": "Exotic legitimate spellings row (accepted direction, one-line doc gap)",
+      "repro_observed": "env::var(r\"OUT_DIR\") and env::var(/* c */ \"OUT_DIR\") make real calls yet envRefCall cannot see them => fail-closed row. §8's 'exotic indirection costs the build a row, never a silent pass' covers indirection, not exotic spellings of the real call; harmless, mention optional."
+    }
+  ],
+  "probes": {
+    "harness": "npx tsx scratch script mirroring test/residue.crates.test.ts stageCrate exactly (tar .crate, scripted fake-cargo, runCargoArtifactStage skipGitleaks/skipSecretlint); fixtures never executed; scratch deleted after",
+    "V1_regression": {
+      "v1-dynregex concat-built var name + rebind": "1 HIGH row PASS",
+      "v1-bare-home rebind (round-1 R3A-V1 shape)": "1 HIGH row PASS",
+      "v1-fmt-embed format!-embed OUT_DIR": "1 HIGH row PASS",
+      "v1-abs-usrl /usr/local/bin/OUT_DIR (k1)": "1 HIGH row PASS",
+      "v1-prefix /tmp/OUT_DIRd (k3)": "1 HIGH row PASS",
+      "v1-pathbuf-abs PathBuf::from(\"/tmp/OUT_DIR\")": "1 HIGH row PASS"
+    },
+    "V2_bypass": {
+      "a string-content 'env::var(\"OUT_DIR\")'": "1 row PASS (does not confine)",
+      "b /* env::var(\"OUT_DIR\") */ plain block comment": "1 row PASS",
+      "c r#\"…\"# raw string": "1 row PASS; c2 r##\"…\"## into binding+chain: 1 row PASS",
+      "d concat!(\"OUT\",\"_DIR\") token": "1 row PASS",
+      "e env::var(concat!(\"OUT_DIR\",\"\"))": "1 row PASS (not confined — correct fail-closed side)",
+      "f legit forms": "env::var().unwrap() chain / std::env::var / &out_dir.clone() / PathBuf::from(&out_dir).join / format!(\"{}/sub\",env::var(\"OUT_DIR\")…) / multi-line fluent chain: ALL 0 rows PASS (no over-tightening; C2 chain walk alive)",
+      "g format!(\"/usr/local/{}\", env::var(\"OUT_DIR\")…)": "0 rows => nit N1 (see above); relative-root control format!(\"{}/gen.txt\", …): 0 rows",
+      "h NESTED block comment (both arg- and binding-position)": "0 rows => BLOCKER B1",
+      "token equality OUT_DIR_X": "1 row PASS (exact-inside-quote, no prefix leak)",
+      "tuple destructure let (o,_)=f() (N-b)": "1 row PASS",
+      "self-refining let o = PathBuf::from(&o) (cycle guard)": "1 row PASS",
+      "o.push() in-place mutation (N-a class)": "0 rows — matches §8 named INVISIBLE class"
+    },
+    "V4_n-c_chain": {
+      "re-run npm-digest-dump.mts": "EXIT 0; rowCount=11; sha256 cf54bc25bf5fc9552dfd048e04297cec14af178dc3ef44767b4cf74526cdb08d EXACT; 11 (fx,rule,path,valueDigest) rows byte-identical to committed .omo/evidence/residue-spike/npm-digest-rows.json; rule split 10+1 (residue-in-tree-hook = the T1-badge row) matches §8",
+      "pre-R3a row-level identity": "test/residue.npm.test.ts pins exactly ONE 64-hex valueDigest (LIFECYCLE_CRITICAL_DIGEST 61415faf…, §3.2-P5) — it derives from the full opencode-0.2.0 tgz, not the 14-fixture corpus, so it is NOT among the 11; verified green in npm 21/21. Row-level pre-R3a identity therefore rests on: npm-leg code untouched (src/artifacts/npm.ts mtime 09-08 19:41, residue.ts shared-key builder unchanged since 00:31 pre-round-3-window, test file 09-08 22:19, fixtures SHA256SUMS.local 36/36 OK) + npm 21/21. No contradiction found; d94ca91c non-reproducibility honestly recorded in §8 (executor did NOT fake) — C6 CONFIRMED as claimed"
+    },
+    "V5_doc_veracity": "§8 confinement para: LIVE-call/chain/ALL-rule/std::-prefix/truncation/tuple/self-refine/multi-line-corrected/quote-parity-direction claims ALL match observations EXCEPT the nested-comment NEVER claims (blocker B1) and the un-named root-literal shape (N1). N-a: §8 class line ('push_str(..) AND `+=` alike') and residueRust.ts:69-71 comment are IDENTICAL in wording and behavior. N-b §8 line present. Escape list admits exactly the observed-silent shapes except N1's spelling. No claim below code reality found."
+  },
+  "claims": {
+    "C1": "PARTIAL FAIL — substring replaced by code-position scanner (true) but 'token text can never confine' false via nested comments (B1)",
+    "C2": "CONFIRMED (behavioral: all chain/ALL/cycle probes match round-2 semantics)",
+    "C3": "CONFIRMED — k1/k2/k3 each exactly 1 HIGH row (probes + C9 test); C4 0 rows; C8 1 row; PIN golden 0 findings; crates 10/10",
+    "C4": "CONFIRMED — push_str AND += both invisible, §8 + code comment identical",
+    "C5": "CONFIRMED — tuple destructure => 1 row unbound-head fail-closed; §8 line exists",
+    "C6": "CONFIRMED — honest non-reproduction + recipe locked + cf54bc25 re-run exact"
+  },
+  "suite_numbers": {
+    "crates": "10/10", "pypi": "7/7", "npm": "21/21",
+    "typecheck": "0 errors", "build": "0 errors",
+    "full_suite": "430 tests / 428 pass / 2 fail — failures are exactly C5-1 + C5-4 (only claimed-red)",
+    "residueRust_LOC": "236 raw / 173 pure (grep -cvE comment-strip), <=300 ceiling; matches DoneClaim exactly",
+    "fixtures": "SHA256SUMS.local 36/36 OK (T1 literals + corpus byte-intact); evidence-root SHA256SUMS.manifest 43/43 OK"
+  },
+  "git_mtime_audit": "round-3 window (01:21-01:48) touches ONLY: test/residue.crates.test.ts, src/artifacts/residueRust.ts, src/artifacts/RESIDUE-CONTRACT.md, .omo/evidence/residue-spike/npm-digest-{dump.mts,rows.json}, ledger (01:48, orchestrator). Untouchables all pre-window: residue.ts 00:31, residueMatchers.ts/pypi.ts/crates.ts/residuePy.ts 09-08 23:2x, npm.ts 09-08 19:41, npm/pypi tests 09-08 22:19/23:30. No commits (HEAD still 4a8836d). C2/C4/C5 claims consistent with file provenance.",
+  "cleanup": "verifier scratch fully deleted: /tmp/opencode/r3afix3 removed after report; test/tmp emptied (c5-*/golden-channels dirs were debris of THIS verifier's suite runs, gitignored, removed); no /tmp/residue-* leakage; repo has no verifier-introduced files besides this report. Predecessor round debris: none found (executor cleanup receipt matches disk).",
+  "decision_rule": "confirmed requires zero fail-OPEN beyond contract-named AND V4 chain holds AND V2f over-strict clean → V4 holds, V2f clean, but R3AFIX3-B1 is an un-named fail-OPEN ⇒ needs-fix. Single contained fix (depth counter in the /* arm + C10 pin + three sentence corrections); everything else green."
+}

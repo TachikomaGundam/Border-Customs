@@ -1,0 +1,31 @@
+File.respond_to?(:copy_stream)             true
+File.copy_stream rooted dest               true
+File.respond_to?(:popen)                   true
+File.popen executes                        true
+File.respond_to?(:sysopen/:write/:binwrite) [true, true, true]
+File.for_fd(fd)                            true
+IO.new(path)                               TypeError: no implicit conversion of String into Integer
+IO.read-only foreach/binread/readlines     [true, true, true]
+IO.pipe/IO.select/IO.try_convert non-rooted [true, true, true]
+Dir.delete removes dir                     false
+Dir.unlink responds                        true
+Dir.chroot live syscall (expect EPERM)     Errno::EPERM: Operation not permitted @ dir_s_chroot - /tmp
+Dir.fchdir arity (fd arg)                  1
+Dir entries/children/foreach/glob/open/getwd/pwd read-only [true, true, true, true, true]
+Dir.home/getwd mark lane                   [true, true, true]
+File.lutime returns+stats                  [1, true]
+File.futime class-level?                   false
+IO#futime instance?                        false
+File.umask takes no path                   [-1, "?"]
+$>.equal?($stdout)                         true
+$< is ARGF, no reopen                      [true, false]
+StringIO.reopen class-level?               false
+StringIO#reopen instance buffer            true
+mkmf include-site reached? (pre)           false
+bare rm_rf after include deletes           true
+bare-call private reachability             true
+bare popen at top level                    false
+bare rename at top level                   false
+Kernel#syscall is fd-based                 "Errno::EBADF"
+FileUtils truncate/split dead (re-prove)   [false, false]
+Fu constant?                               "(not defined on fileutils 1.7.2)"

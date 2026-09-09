@@ -1,0 +1,33 @@
+== ROOTED (expect 1) ==
+ok  p1 $>.reopen rooted: rows=1 expect=1
+ok  p2 $>::reopen rooted: rows=1 expect=1
+ok  p3 $>.reopen paren-less: rows=1 expect=1
+ok  p4 Dir.delete rooted: rows=1 expect=1
+ok  p5 Dir.unlink rooted: rows=1 expect=1
+ok  p6 Dir::delete rooted: rows=1 expect=1
+ok  p7 File.lutime rooted: rows=1 expect=1
+ok  p8 File.copy_stream rooted-dst: rows=1 expect=1
+ok  p9 File.popen rooted argv0: rows=1 expect=1
+ok  p10 Dir.chroot rooted: rows=1 expect=1
+ok  p11 rm_rf rooted (mkmf bare): rows=1 expect=1
+ok  p12 rm_f rooted paren-less: rows=1 expect=1
+ok  p13 xsystem rooted: rows=1 expect=1
+ok  p14 xpopen rooted argv0: rows=1 expect=1
+== CONTROL (expect 1) ==
+ok  c1 $stdout.reopen (must stay 1): rows=1 expect=1
+ok  c2 Dir.rmdir (stay 1): rows=1 expect=1
+ok  c3 File.utime (stay 1): rows=1 expect=1
+ok  c4 IO.popen (stay 1): rows=1 expect=1
+ok  c5 File.write (stay 1): rows=1 expect=1
+ok  c6 FileUtils.rm_rf dotted (stay 1, no double): rows=1 expect=1
+ok  c7 Process.spawn (stay 1): rows=1 expect=1
+== FP GUARD (expect 0) ==
+ok  f1 Dir.delete in-tree: rows=0 expect=0
+ok  f2 File.lutime in-tree: rows=0 expect=0
+ok  f3 File.copy_stream in-tree: rows=0 expect=0
+ok  f4 rm_f in-tree: rows=0 expect=0
+ok  f5 xsystem in-tree: rows=0 expect=0
+ok  f6 $>.reopen in-tree: rows=0 expect=0
+ok  f7 chroot relative (EINVAL shape): rows=0 expect=0
+ok  f8 prose rm_rf no operand: rows=0 expect=0
+ALL AS EXPECTED

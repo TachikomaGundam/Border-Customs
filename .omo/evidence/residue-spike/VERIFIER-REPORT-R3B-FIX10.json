@@ -1,0 +1,98 @@
+{
+  "round": 11,
+  "checkbox": "R3b (rubygems residue leg)",
+  "role": "independent adversarial verifier (did not write the code under review)",
+  "verdict": "needs-fix",
+  "confidence": 0.85,
+  "verdict_one_liner": "needs-fix — the DETECTOR converged (47/47 independent probes, zero refac regressions, all three FIX7 blockers verifiably closed) but §8's blanket 'All remaining invisibles are NOW NAMED-ADJUDICATED' claim is FALSE for the require-gated opt-in stdlib write classes (Pathname/Tempfile/include-FileUtils): live on box, 0 rows, 0 words in the contract.",
+  "per_attack": {
+    "A1_refac_regression": {
+      "result": "PASS — no doubles, no drops; arm-move is byte-for-behavior identical",
+      "method": "wrote own seam harness /tmp/opencode/r11-seam.ts (shipped residueGemHits, temp pkgDir per case, metadata declares the extconf so no unmatched note), 21 A1 cases; counted residue-out-of-tree-write rows AND total rows (equality asserted)",
+      "observed": "ALL ok: File.write/File.binwrite/File.sysopen rooted ⇒ 1 each (moved verbs, no drop); IO.popen/IO.copy_stream ⇒ 1 each; File.popen/File.copy_stream ⇒ 1 each (newly reachable); 8 spaced/:: variants (File . write, File :: write/binwrite/sysopen/popen/copy_stream, IO :: popen/copy_stream) ⇒ 1 each; 4-writer file ⇒ exactly 4; File.sysopen(..., File::CREAT|File::WRONLY, 0o644) ⇒ 1 (constants do NOT re-fire the File arm, C15c mechanism intact); File.open/File.touch ⇒ 2 (old-arm regression check); IO.read ⇒ 0 (C15h); in-tree operands of every moved verb ⇒ 0",
+      "orig_parity": "/tmp/opencode/r11-orig-replay.ts ran the SAME payloads against the .orig-derived seam: File.write/binwrite/sysopen, IO.popen/copy_stream = 1 on ORIG and 1 on SHIP (move parity proven, not asserted)"
+    },
+    "A2_bare_verb_fp": {
+      "result": "PASS",
+      "observed": "my_rm_rf(\"/usr/local/bin/x\") ⇒ 0 and farm_rm_rf(…) ⇒ 0 (inner (?<![\\w.]) holds); def rm_f; end + rm_f \"/usr/local/bin/y\" ⇒ 1 (user-shadow rows — fail-closed direction, costed by the §8 bare-verb prose-FP precedent, nit N4); prose comment '# install rm_rf things' ⇒ 0; xsystem(\"make clean\") ⇒ 0; rm_rf \"/usr/local/bin/x\" paren-less ⇒ 1; xpopen %q{/usr/local/bin/x} ⇒ 1; $>::reopen(\"/tmp/x\",\"w\") ⇒ 1; paren-less $>.reopen \"/tmp/x\", \"w\" ⇒ 1 (fail-close null-span lane); $>.reopen(\"build/log.txt\",\"w\") ⇒ 0; Dir.chroot(\"rel\") ⇒ 0 vs Dir.chroot(\"/escape\") ⇒ 1 vs Dir::chroot(\"/escape\") ⇒ 1 (absolute-only pricing verified)"
+    },
+    "A3_completeness_in_completeness": {
+      "i_independent_m0": "PASS for the walked universe. Own derivation /tmp/opencode/r11_derive.rb on box ruby 3.3.8 using INHERITED=true singleton walks (stronger than their instance_methods(false) walk — File's inherited IO singleton methods appear): write-family union 55 names; NOTHING path-taking+live missing from the matcher or §8. Names missing from their mapping: 13 regex-noise (attr_writer/remove_const/…), reopen-matrix names (mapped in prose rows), and 6 IO-instance handle verbs syswrite/pwrite/write_nonblock/close_write/sysread/sysseek — handle-class, no path operand, opener already priced (nit N3). Kernel strict candidates load/require/fork/syscall/open all carry mapping rows.",
+      "ii_optin": "BLOCKER B1 (see blockers). Also: bare rm_rf after include FileUtils rows 1 (same spelling as mkmf arm — coincidence, not coverage of the class).",
+      "iii_futime": "PASS — box: File.respond_to?(:futime)=false, IO.respond_to?(:futime)=false, IO#futime/fchmod/fchown=false; File.lutime=true, Dir.chroot/delete/unlink=true. reopen matrix 7/7 fixed receivers respond_to?(:reopen)=true, $<.respond_to?(:reopen)=false, $>.equal?($stdout)=true, File/Dir/IO class reopen=false — exactly as §8 claims.",
+      "mkmf_source": "PASS — /usr/lib/ruby/3.3.0/mkmf.rb:252 = module_function :rm_f, :258 = module_function :rm_rf (defs delegate to FileUtils.rm_f/rm_rf over Dir[*glob]), :2891-2894 = Module.new{ include(MakeMakefile); private(*MakeMakefile.public_instance_methods(false)) }; include m. Box rescued-load: MakeMakefile.ancestors=[MakeMakefile] — NO FileUtils include, so bare cp/mv/mkdir_p are NOT mkmf-splice-live (they need require+include = the B1 opt-in class). require mkmf aborts SystemExit(1) pre-splice on this box exactly as declared.",
+      "table_vs_mapping_diff": "alias table singleton sets: File 61/61 mapped, IO 15/15, Kernel filtered 18 rows present, but Dir 20 rows → 19 mapped (missing `[]`) and FileUtils 53 → 51 (missing chmod_R, chown_R). Their mapping header invariant 'every machine-table name appears EXACTLY ONCE; FAILS on any UNMAPPED' + footer 'MAPPING: COMPLETE' are FALSE for those 3 names — detector impact ZERO: chmod_R/chown_R wildcard-covered (seam probe FileUtils.chmod_R(0o777, \"/usr/local/bin/z\") ⇒ 1 row) and Dir[] is read-only, explicitly NAMED in §8:1205 roster line. Recorded as nit N1 (false evidence claim, no silent lane)."
+    },
+    "A4_evidence_integrity": {
+      "orig_sha": "PASS — sha256(.orig)=615212ec1e5098043c522dd94bc72965f401ca3196b455c6baba6e225ae63083 = claimed 615212ec…",
+      "confined_diff": "PASS — diff .orig shipped = ONE hunk 330,332c330,343 (17 diff lines): the GEM_WRITE_CALL docblock ROUND-10 paragraph + the single regex line; every non-gem byte identical (line 343 verbatim matches the shipped constant I probed against).",
+      "seam_before_replay": "PASS — $>.reopen / Dir.delete / File.lutime / rm_rf against the .orig-derived seam: orig=0 ship=1 all four (the four BEFORE claims reproduce against the archived byte image).",
+      "doc_truth_recites": "PASS 10/10 independently recited: (1) seven fixed reopen receivers — matcher literal enumerates exactly $stdout|$stderr|$stdin|$>|STDOUT|STDERR|STDIN and §8:1099 says SEVEN after correcting round-9 SIX; (2) R10 stdout write-STRING ⇒ 0 rows; (3) $</ARGF dead-shape ⇒ 0; (4) File.futime absent-spelling ⇒ 0; (5) backtick+%q double-price ⇒ 2; (6) IO.popen %x|…| double-price ⇒ 2; (7) mid-file %x quoted-word ⇒ 0; (8) EOF %x ⇒ 1; (9) make -C /usr/src bare hint ⇒ 1; (10) multi-target assign lane ⇒ 1. Roster counts C15a-bis=3/C15e=9/C15f=5/C15i=4/C15j=5: RED-first verified (m1-red = exactly 5 not-ok) and GREEN 68/68 in my own solo run. Mapping 174 rows count verified (152 unique, cross-set dups legitimate)."
+    },
+    "A5_hygiene_numbers": "PASS — every claimed number reproduced exactly (see numbers table). Untouchables: npm.ts b8b23b5c…/npm.test bdab5595…/residue.ts 15274f7f…/residuePy.ts 637312a5…/residueRust.ts 04d87b21…/channels.rubygems.test.ts 4f377f07… all byte-identical at my start AND end. ledger.jsonl: claimed ae3e1343… is REPRODUCIBLE as head -n 114 (file had 114 lines at DONECLAIM write 13:41:19); 3 lines (worker-result/verify-dispatch/verify-dispatch-confirmed) appended afterwards by the orchestrator including MY OWN round-11 dispatch — expected per protocol; hash 45715955… stable across my whole session (I touched nothing). Tree: HEAD 4a8836dc8c58…; git diff --cached = 0 bytes; all four gem files untracked (git ls-files errors 'did not match any file(s) known to git'); 22 tracked-dirty files are the pre-existing broader workstream set (boulder/ledger/notepads/README/package.json/push+cli+registry wiring), 96 untracked incl. the whole residue family; porcelain composition unchanged start→end (118 lines).",
+    "A6_adversarial_composition": {
+      "result": "PASS — 7 verifier-invented compositions, all sane row accounting (no swallow, no triple)",
+      "observed": "$>.reopen(\"/tmp/x\",\"w\") + rm_rf \"/tmp/y\" same file ⇒ 2; File.copy_stream(%q{build/a}, %q{/usr/local/bin/c4}) ⇒ 1 (percent-literal expansion through the shared arm); File.write(`echo hi`, \"/usr/local/bin/c5\") ⇒ 1 (backtick subspan relative ⇒ single price — control case); system \"/tmp/x\" + `touch /usr/local/bin/c7` + File.write(\"/usr/local/bin/c8\",\"d\") ⇒ 3; IO.popen %x|/usr/local/bin/x| ⇒ 2 (reproduces the §8-accepted double-price precedent exactly); rm_f(\"/usr/local/bin/a\"); File.write(\"/usr/local/bin/b\",\"c\") same line ⇒ 2; Dir.chroot(\"/jail\") + $stdout.reopen(\"/tmp/l\",\"w\") + IO.copy_stream(\"s\",\"/tmp/d\") ⇒ 3"
+    }
+  },
+  "blockers": [
+    {
+      "id": "BLK-R3bF10-A",
+      "surface": "A3(ii)",
+      "class": "live-unnamed naming obligation (doc lane; no matcher change required to clear)",
+      "claim_falsified": "DONECLAIM-R3B-FIX10 residual_limits: 'All remaining invisibles are NOW NAMED-ADJUDICATED classes, each with a §8 row and (where live) box/machine-table evidence' + §8 machine-derivation declaration implying the roster universe is closed. The opt-in stdlib write-object classes — Pathname (.write/.binwrite/.chmod/.chown/.delete/.unlink/.mkdir/.rmdir/.rename/.symlink/.sysopen/.open via delegation), Tempfile.new([stem, dir]) creating files in an ARBITRARY directory, and the whole bare-FileUtils verb surface after `require \"fileutils\"; include FileUtils` — were never walked (§8's declared universe is File/Dir/IO/Kernel/FileUtils singletons + mkmf) and are NAMED NOWHERE.",
+      "box_proof_live": "timeout 15 ruby -e 'p defined?(Pathname); p defined?(Tempfile); p defined?(FileUtils)' ⇒ nil nil nil (require-gated); ruby -rpathname -e 'Pathname.new(\"/tmp/opencode/r11-pnw\").write(\"x\"); p File.exist?(\"/tmp/opencode/r11-pnw\")' ⇒ true (rooted-path file created; .delete removed it); Tempfile.new([\"x\", \"/tmp/opencode/r11-tfdir\"]) ⇒ file created (true); Pathname.instance_methods(false) write-family list captured.",
+      "seam_proof_uncovered": "r11-seam.ts cases 'A3ii Pathname#write rooted' / 'Pathname#delete rooted' / 'Pathname#chmod rooted' / 'Tempfile rooted dir' / 'include FileUtils bare mkdir_p' ⇒ t3=0 total=0 each on the SHIPPED build (payload e.g. require \"pathname\"\\nPathname.new(\"/usr/local/bin/evil\").write(\"x\")).",
+      "naming_proof_absent": "grep -cE 'Pathname|Tempfile|pathname|tempfile|include FileUtils|opt-in' src/artifacts/RESIDUE-CONTRACT.md ⇒ 0 over all 1264 lines; Pathname/Tempfile appear in NO prior DONECLAIM/VERIFIER-REPORT-R3B* either (grep -l empty) — the class is brand-new to round 11, not a re-wash.",
+      "severity_adjudication": "These are REQUIRE-GATED (box-proven undefined without explicit stdlib require), so the 'reachable-without-require ⇒ blocker' form does NOT apply; but the task-level obligation is explicit: '§8 must NAME this opt-in class', and the auditee's blanket named-adjudicated claim is verifiably false against its own text. Per the do-not-soften rule (live-unnamed ⇒ needs-fix), filed as a blocker. It is the weakest blocker kind: a completeness-of-naming defect, zero effect on any fixture/pin/CI number.",
+      "minimal_fix": "Append one naming row to §8 (sibling of the R10 STDOUT.write-STRING / open(\"|cmd\",\"w\") namings): e.g. 'OPT-IN STDLIB WRITE OBJECTS — require-gated, machine-table-unwalked by scope declaration: Pathname#write/binwrite/chmod/chown/delete/unlink/mkdir/rmdir/rename/symlink (require pathname), Tempfile.new([stem, dir]) (require tempfile; the DIR element is a creation at an arbitrary path), and the bare-verb surface after require fileutils + include FileUtils (mkdir_p/cp/mv/rm/…): none is in the closed table, none rows; require-gated ⇒ accepted invisible lane per the opt-in doctrine.' Optional hardening: extend the mapping footer to state the walk scope ('machine-table universe = the five walked constants; opt-in classes named, not walked')."
+    }
+  ],
+  "nits": [
+    {
+      "id": "N1",
+      "what": "m0-to-roster-mapping-round10.md footer 'MAPPING: COMPLETE — no unmapped machine-table member' is false for 3 of its OWN machine-table names: Dir set table row `[]` unmapped (19/20), FileUtils set rows `chmod_R`, `chown_R` unmapped (51/53).",
+      "proof": "python diff of ruby-alias-table-3.3.8.txt singleton sets vs mapping backticked rows: DIR table-only=['[]'], FU table-only=['chmod_R','chown_R'].",
+      "impact": "zero — Dir[] read-only and explicitly named in §8:1205; chmod_R/chown_R row via the FileUtils wildcard (own seam probe: 1 row). Fix: add 3 mapping rows."
+    },
+    {
+      "id": "N2",
+      "what": "DONECLAIM-R3B-FIX10 sweep_deltas[2] reads 'mkmf top-level bare verbs rm_f/rm_f/xsystem/xpopen' — rm_f twice; should be rm_rf/rm_f (matcher and §8 line 1216 are correct)."
+    },
+    {
+      "id": "N3",
+      "what": "IO-instance handle writers syswrite/pwrite/write_nonblock/close_write (my inherited walk finds them) are not individually enumerated in §8's handle/content-write naming (they sit compositionally in items (2)+(12): no path operand, opener already priced). One clause naming the IO#sys* family would close the machine walk verbatim."
+    },
+    {
+      "id": "N4",
+      "what": "User-defined rm_f/rm_rf SHADOWING rows (own seam probe: def rm_f; end; rm_f \"/usr/local/bin/y\" ⇒ 1). Fail-closed direction and cost-consistent with the named bare-verb prose-FP doctrine (microsystem/system-prose precedent), but the shadow class itself is unnamed — one §8 clause would make it named-adjudicated like the rest."
+    },
+    {
+      "id": "N5",
+      "what": "Observation (accepted, no action): spaced-call form `rm_f (3+4)` pays 1 row via the tail-branch '(' hop — same blessed fail-closed shape as `File.write (…)`; §8's exotic-operand cost paragraph already covers the class."
+    }
+  ],
+  "numbers": {
+    "solo_gem": "68/68 (RC0)",
+    "crates": "12/12",
+    "pypi": "7/7",
+    "npm": "21/21",
+    "channels_rubygems": "28/28",
+    "full_suite": "500 tests, 498 pass, 2 fail — exactly 'not ok 53 - C5-1 subset discipline…' + 'not ok 56 - C5-4 ordering…', RC1, 152s < 600s timeout",
+    "typecheck": "RC0",
+    "build": "RC0 (dist/ gitignored, tracked tree untouched)",
+    "fixtures": "sha256sum -c SHA256SUMS.local: 52 OK / 0 FAIL",
+    "ceilings": "matcher 159, residueGem 287 (grep -cvE '^\\s*(//|/\\*|\\*|$)')",
+    "post_shas": "matcher 64f7d94de991c274…, gem.test 722dbae0a3c671f2…, contract 294576fed62fb0b2…, residueGem 93307d7d758c37b4… — all match DONECLAIM at BOTH my start and my end",
+    "orig_archive": "615212ec1e509804… = claimed 615212ec… ✓",
+    "untouchables": "7/7 (6 byte-identical; ledger ae3e1343… reproducible at 114-line claim-time prefix, +3 expected orchestrator appends incl. my own dispatch event, stable during my run)",
+    "tree": "HEAD 4a8836dc8c58… + zero staged bytes + 22M/96?? porcelain composition unchanged start→end; the 4 gem-under-review files untracked-not-committed (git ls-files error-unmatch proof)",
+    "own_probe_matrix": "47 shipped-seam cases ALL AS EXPECTED (t3==total==expect) + 9 .orig/ship replay+recite cases ALL ok (incl. 4 BEFORE-replay 0/1 lines and 5 move-parity 1/1 lines)"
+  },
+  "convergence_assessment": {
+    "three_fix7_blockers": "ALL CLOSED with captured observables: $> reopen 0→1 (×3 spellings, own seam), Dir.delete/unlink 0→1, File.lutime 0→1; RED-first transcripts genuine (exactly 5 not-ok), GREEN 68/68 reproduced.",
+    "refac_safety": "round-10's arm MOVE + new shared (?:File|IO) arm introduced NO regression: orig-vs-ship parity 1/1 on every moved spelling, no doubles on 4-writer and constant-adjacent payloads, every ::/spaced variant rows once.",
+    "spelling_completeness": "MACHINE-PROVEN WITHIN THE DECLARED UNIVERSE (File/Dir/IO/Kernel singleton + FileUtils + mkmf splice + reopen matrix): my independent INHERITED-union walk — strictly stronger than the auditees' false-arity walk — found no live, require-free, path-taking name missing from matcher or §8. Residual, stated honestly: (a) the universe is scoped by CONSTRUCTION, and the scope seam is exactly where BLK-R3bF10-A lives — opt-in require-gated classes (Pathname/Tempfile/include-FileUtils) were never walked AND never named, so the blanket named-adjudicated claim overreaches; (b) the mapping artifact itself has 3 unmapped table members (N1) — cosmetic but it is the artifact that vouches for '174/0'; (c) handle-instance writers (N3) and the user-shadow class (N4) sit in named lanes only by composition, not by letter. None of (a-c) lets a WITHOUT-require rooted write escape silently; all are closable by naming text in one round.",
+    "recommendation": "round 12: fix BLK-R3bF10-A (one §8 naming clause), N1 (3 mapping rows), optionally N2-N4 wording. After that the R3b naming doctrine becomes literally true and the leg can be considered converged."
+  }
+}

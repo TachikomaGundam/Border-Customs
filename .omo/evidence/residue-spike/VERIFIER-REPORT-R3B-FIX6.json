@@ -1,0 +1,84 @@
+{
+  "round": 7,
+  "verdict": "needs-fix",
+  "confidence": "very-high",
+  "headline": "PHANTOM FIX ROUND: none of the fixer's claimed doc/test changes exist in the repo. RESIDUE-CONTRACT.md (c9833d39…) and test/residue.gem.test.ts (95b0580e…) are BYTE-IDENTICAL to the FIX5 baseline; find src test -newer VERIFIER-REPORT-R3B-FIX5.json is EMPTY (all mtimes 09:17–09:27 precede the FIX5 report at 10:13). BLK-R3bF6-A and BLK-R3bF6-B therefore remain OPEN — the §8:971-972 doc-lie ('%w[/usr/local/bin/x]' claimed box-live) is still verbatim in the doc.",
+  "per_attack": {
+    "W1_sha_identity": {
+      "result": "PARTIAL-PASS, CLAIM FALSIFIED",
+      "detail": "6/6 untouchables MATCH the FIX5 table AND residueGem.ts/residueMatchers.ts MATCH their claimed shas — so 'zero code changes this round' is trivially TRUE. But test/residue.gem.test.ts and RESIDUE-CONTRACT.md also match the FIX5 baseline, which falsifies the md+test-only-work claim: this round changed NOTHING at all. grep -c '^test(' = 55 (claim: 57); no 'C14' token in the suite; no '(11)' item, no 'doc_truth_sweep', no 'never re-widen', no 'complement class', no 'N=100'/'PFX_' anywhere in the doc; §1.6 item 10 does not exist; NIT-1/NIT-2/NIT-3 closures absent (doc byte-identical). Stray-work search found nothing: no newer copies of md/test under /tmp or the repo, no notes containing C14a/doc_truth_sweep."
+    },
+    "W2_complement_class_truth": {
+      "result": "ESCAPE CONFIRMED, STILL UNNAMED; CLAIMED ENUMERATION NOT IN REPO",
+      "detail": "Independent ruby 3.3.8 + direct-seam harness (residueGemHits on extconf.rb payloads, metadata empty ⇒ all rows are lane rows). Matcher rows for char c adjacent to rooted /usr in three spellings (dq 'system \"echo xC/usr/…\"', pctq %q{…}, backtick): 0 rows EVERYWHERE for c ∈ {%,+,,$,`,>,;,|,&,*,},],)} — the claimed complement set AND, beyond it, {, ,= ,! ,: } also 0 rows (probed extra). Controls confirm the lane is alive: c ∈ {space,(,[,{,<,\\t} ⇒ 1 row; c=' ⇒ 1 (quote+slash ABSOLUTE_LITERAL); c=\" ⇒ 1 via pctq/backtick, 0 via dq (verb-span truncation — the span ends at the closing quote). String-start rooted path MUST row: system \"/usr/…\" ⇒ 1, system %q{/usr/…} ⇒ 1 ((?:^|[\\s(\\[{<]) anchor verified). Two-char adjacency: 'x>&/usr/…' ⇒ 0, 'make 2>&1>/usr/…' ⇒ 0. Liveness on box (writable rooted dir /tmp/opencode/r3bv7/live; /usr/local/bin is root-owned NOT writable — FIX5-era materialization claims necessarily used another rooted dir): > redirects materialized REDIR_GT + REDIR_BT (dq and backtick spellings); ; executed mk.sh (SEMI_OK); & executed (AMP_OK, async); 2>&1-shape ok; NOTE x$/usr is NOT an escape at runtime — Ruby does not interpolate bare $/ (only #{}), shell keeps it one literal word. Independent recount of 15 inline §8 numbers: 15/15 OK (dangling-%q 1, spawn-syntax-err 0, parened-nested 1, parenless-nested 0, File.open(%q{/etc/evil}) 1, %(/usr…) 1, %w 1-elem 1, %w 2-elem 1, C12a 1, C12b-exact-payload 2 (my first-line Kernel::system substitution gave 1 — not C12b; the pinned exec+system pair rows 2), Kernel.system 0, ENV-mark 1, relative-interp 0, %x| 1, microsystem 0). Baseline §8 counts are truthful EXCEPT the BLK-B dead-form claim at :971-972."
+    },
+    "W3_dead_form_safety": {
+      "result": "FIX5 TRUTH REPRODUCED; FIXER'S OWN CLAIMED WORDING ALSO WRONG ON ONE CELL",
+      "detail": "Box ruby 3.3.8 verbatim: system(%w[/nonexistent/xyz]) ⇒ RAISED ArgumentError: wrong first argument (1-elem DEAD, as FIX5 proved); system(%w[]) ⇒ RAISED ArgumentError: wrong first argument — NOT a silent no-op as the fixer's claim states (still dead/silent-safe, but their claimed BLK-B wording '0-elem no-op' would have been a NEW small doc error if it had landed); system(%W[<path> w2ok]) 2-elem argv0 pair ⇒ executed (true, live); system(%i[/bin/true]) ⇒ RAISED ArgumentError wrong first argument (argument-order check fires before symbol-type check); File.write(%(/path/QOPEN_OK),'y') ⇒ QOPEN_OK materialized (paren %() literal is live String — the live C10a shape). Doc §8:971-972 unchanged: still asserts the 1-elem %w form is 'box-live rooted argv' ⇒ BLK-R3bF6-B doc-lie REMAINS."
+    },
+    "W4_c14_regression_value": {
+      "result": "IMPOSSIBLE — C14a/b DO NOT EXIST",
+      "detail": "Gem suite runs 55/55 in 41.7s (no C14 to run). The claim 'C14a/b tripwire pins (6 rooted call-sites, 0 rows)' has no referent. Method note for the NEXT round's tripwire (demonstrated by regex mutation in /tmp, no repo write): boundary class mutation /(?:^|[\\s(\\[{<])\\// → /(?:^|[\\s(\\[{<>])\\// flips 'echo x>/usr/local/bin/PFX' from 0 rows to 1 (base.test=false, mut.test=true), so a pinned-0 assertion on the > spelling is a genuine tripwire against silent re-widening; ';' '|' '&' spellings need their own pins (mutating > alone does not guard them — the named closed class must pin each complement member the doc relies on)."
+    },
+    "W5_hygiene": {
+      "result": "EXACTLY THE FIX5 BASELINE — PROVES NO CHANGE LANDED",
+      "detail": "gem 55/55 (claim 57 FALSE), crates 12/12, pypi 7/7, npm 21/21, channels.rubygems 28/28; full timeout-600 npm test = 487 tests / 485 pass / 2 fail with fails = known env pair C5-1 + C5-4 (claim 489/487/2 FALSE); typecheck RC0, build RC0; test/fixtures/residue/SHA256SUMS.local 52/52 OK and the file's own sha256 7225aca3f7dfafb7c03dbf4b5df24d6a34fd895f222765f2594949f40b05be57 identical to FIX5 (no fixture moved); .omo manifest 43/43 OK; ceilings residueGem.ts 287 effective/371 total, residueMatchers.ts 159 effective/396 total — both unchanged (method grep -cvE '^\\s*(//|/\\*|\\*|$)'); mtime audit: find src test -newer VERIFIER-REPORT-R3B-FIX5.json ⇒ EMPTY (claim of exactly {RESIDUE-CONTRACT.md, residue.gem.test.ts} newer is FALSE — nothing is newer)."
+    }
+  },
+  "sha_table": {
+    "untouchables_vs_FIX5_table": {
+      "src/artifacts/rubygems.ts": "f9884da5530f06f9ab1286965428f5dd18ed71903cde72d4182f404fa0cda905 MATCH",
+      "src/artifacts/npm.ts": "b8b23b5c5f6f76eb8460ea8385f1c9ef33c31afe012973af0b2c08dcf3a93039 MATCH",
+      "src/artifacts/residue.ts": "15274f7fff4b6ebdffef37dc772cd9efcc38e4a54e21b680714a0e972dad59ed MATCH",
+      "src/artifacts/residuePy.ts": "637312a5ffa5231cb166c9c0d03ac78bbc44a84318682e473e145c4fba2ae28f MATCH",
+      "src/artifacts/residueRust.ts": "04d87b21ae419ca0eaa92ee74223b0bf21b86d32e5ec2fc6fcf60019c2de8548 MATCH",
+      "test/residue.npm.test.ts": "bdab5595fbdbb24b40c9f83fbebf7cecadfeab15208841a0cab839ce002b3532 MATCH"
+    },
+    "code_unchanged_claimed": {
+      "src/artifacts/residueGem.ts": "93307d7d758c37b49c2597fa3df172a4076276c301d25fb6bfde638bbc703f52 = FIX5 baseline",
+      "src/rules/residueMatchers.ts": "75baae071ed3b56553e3388a8e9d56b2b6f62d5a0eb9ef8af57f9be0490f3819 = FIX5 baseline"
+    },
+    "should_have_moved_but_did_not": {
+      "test/residue.gem.test.ts": "95b0580e36406f9da2d800a45f392e6a320a4f7cbaca93df28e66d33a8e4c69f = FIX5 baseline (claim: C14a/b added ⇒ 57 tests)",
+      "src/artifacts/RESIDUE-CONTRACT.md": "c9833d3956ef88c8806dddf0fb77acaa814d6a15652a1056477d58e47aa04c99 = FIX5 baseline (claim: item (11) + BLK-B rewrite + NIT-1/2/3 + §1.6-10)"
+    }
+  },
+  "suites": {
+    "gem": "55/55", "crates": "12/12", "pypi": "7/7", "npm": "21/21", "channels.rubygems": "28/28",
+    "full": "487 tests / 485 pass / 2 fail (C5-1, C5-4 known env pair)",
+    "typecheck": "RC0", "build": "RC0", "sums_local": "52/52 (file sha 7225aca3… unchanged)", "sums_manifest": "43/43",
+    "ceilings": "residueGem 287/371, residueMatchers 159/396 (both unchanged)"
+  },
+  "blockers": [
+    {
+      "id": "BLK-R3bF7-A",
+      "severity": "BLOCKER",
+      "summary": "The claimed FIX6 fix round never landed: RESIDUE-CONTRACT.md and test/residue.gem.test.ts are byte-identical to the FIX5 baseline and no src/test file is newer than VERIFIER-REPORT-R3B-FIX5.json. Every claimed closure (BLK-A item (11) named complement class, BLK-B §8:971-972 dead-form rewrite, NIT-1 nested-backtick 2-row note, NIT-2 wording, NIT-3 cites, §1.6-10 never-re-widen decision, C14a/b pins, doc_truth_sweep 41/41) is absent from the repo. Carry forward UNCHANGED: BLK-R3bF6-A (>/;/|/& + newly-noted ,=!: adjacency to rooted / = 0 rows at all spellings, live on box — file materialization proven for > and execution for ;/&; two-char >& and 2>&1> shapes also 0; unnamed) and BLK-R3bF6-B (the doc-lie sentence is verbatim at :971-972)."
+    }
+  ],
+  "nits": [
+    {
+      "id": "NIT-R3bF7-1",
+      "summary": "When BLK-B gets rewritten, the claim '0-elem %w is a no-op' is itself wrong on box 3.3.8: system(%w[]) RAISES ArgumentError: wrong first argument (identical to the 1-elem case). Write '0- and 1-element %w/%i under system all raise ArgumentError ⇒ dead ⇒ silence safe', not 'no-op'."
+    },
+    {
+      "id": "NIT-R3bF7-2",
+      "summary": "The complement enumeration should cover , = ! : too (all 0 rows in my probe) even though only >/;/|/& (+| pipe-into, already in BLK-A) are shell-live word splitters — naming the FULL class 'any char outside [\\s(\\[{<] and not a quote-then-slash pair' (which is what the matcher actually implements) is smaller than enumerating characters and immune to the next round adding a char to my probe set."
+    },
+    {
+      "id": "NIT-R3bF7-3",
+      "summary": "The dq spelling 'x\"/usr' shows 0 rows only because the verb span truncates at the closing quote — the quote-adjacent case is boundary-class-adjacent to ABSOLUTE_LITERAL in the pctq/backtick spellings (1 row). A named-class doc sentence should not conflate c=\" with the rest of the complement without noting the span-truncation nuance."
+    },
+    {
+      "id": "NIT-R3bF7-4",
+      "summary": "/usr/local/bin is root-owned and NOT writable by user lab on this box; any doc sentence claiming files 'materialize under /usr/local/bin' on this box should instead cite the rooted dir actually used for the proof (my replication used /tmp/…/live and got REDIR_GT/REDIR_BT/QOPEN_OK materialized)."
+    }
+  ],
+  "convergence_assessment": "R3b [ ] gate OPEN — no fix work landed at all this round (phantom claims); baseline is intact and clean (15/15 §8 recounts, 55/55, sums/ceilings byte-stable), so closure is still exactly one real doc round away: name the closed complement class (BLK-A), correct :971-972 dead-form wording per box truth incl. the 0-elem ArgumentError nuance (BLK-B), add the C14a/b 0-row tripwire pins (each named char individually guarded), NIT-1/2/3 from FIX5 still owed.",
+  "verifier_environment": {
+    "box": "ruby 3.3.8 (2025-04-09 revision b200bad6cd) x86_64-linux-gnu; node v22.22.1; user lab; /usr/local/bin root-owned",
+    "scratch": "/tmp/opencode/r3bv7 (harness.ts complement probe, recount.ts 15-cell §8 recount, c12b.ts pinned-payload recheck, probe.rb liveness) — deleted after report",
+    "read_only": true,
+    "method": "residueGemHits(pkgDir, ['extconf.rb'], '') direct seam for row counts (lane-clean: empty metadata ⇒ no unmatched-ext rows); ruby -e/system side-effect files for liveness; sha256sum + stat -c %y + find -newer for landing proof; regex mutation in node -e for W4 (no repo write)"
+  }
+}

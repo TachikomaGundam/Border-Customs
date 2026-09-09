@@ -1,0 +1,57 @@
+{
+  "verdict": "needs-fix",
+  "confidence": 0.9,
+  "reviewer": "oracle (fresh R2 gate-review session, opencode)",
+  "reviewed_at": "2026-09-08T12:19:53Z",
+  "base_commit": "4a8836d",
+  "per_claim_status": {
+    "claim1_classifiers_fail_closed": "REFUTED (structure confirmed; fail-closed property broken \u2014 see blockers B1/B2)",
+    "claim2_npm_leg": "CONFIRMED (T1\u21d2MEDIUM naming 'opencode-in-tree-v1'; else byte-identical CRITICAL \u2014 valueDigest 61415faf\u2026 == \u00a73.2 P5 pin reproduced on mutants M1/M2; R2-PIN passes for P1-P4; sweep precedes engine legs). LOC figures overstated (nit N1).",
+    "claim3_test_suite": "CONFIRMED (typecheck+build exit 0; residue.npm.test.ts 12/12 solo; full suite 404 tests, clean run = only C5-1+C5-4 fail). C5-7 flaked once under parallel load (nit N3).",
+    "claim4_corpus_sha": "PARTIAL (a-opencode-t1/b-t2/c-t3/d-t4 payload files + stage-pins-0.2.0.json byte-verified against SHA256SUMS.manifest; but 14/28 corpus files \u2014 all 9 fixture package.json stubs, k-* trio payloads, e-t0-clean bin, j-winpath payload \u2014 exist NOWHERE in evidence, so 'sha256-verified copies from {fixtures,planted}' overstates).",
+    "claim5_mutation_probes": "UNVERIFIABLE + SUPERSEDED (no 10-probe list found in repo/evidence; my 5 independent probes show 3 silent-MEDIUM fail-opens).",
+    "claim6_hygiene": "CONFIRMED (packOnce uses npm pack --ignore-scripts --json (src/artifacts/npmPack.ts:82); no lifecycle code executed in any of my runs; HEAD 4a8836d unchanged; stash empty; 21 baseline dirty WIP files intact \u2014 git status shows exactly those + src/artifacts/npm.ts; mtime spot-5 all pre-R2 window)."
+  },
+  "static_checks": {
+    "rule_id_sole_home": "PASS \u2014 grep of the 6 exact residue-* ids across src/: only src/rules/residueMatchers.ts (L11-16); mentions in RESIDUE-CONTRACT.md are the spec text.",
+    "fallback_row_byte_identical": "PASS \u2014 npm.ts:222-230 else-branch is the verbatim 0.2.0 block (rule 'lifecycle-script' via npmPack.ts:26, CRITICAL, target 'artifact' npmPack.ts:28, path package/package.json, engine native, message template incl tail(sanitizeOut), digest input identity:lifecycle:key); pins re-run green.",
+    "t1_hook_grammar": "PASS \u2014 T1_HOOK_GRAMMAR=^node \\.\\/[A-Za-z0-9._-]+\\.mjs$ (residueMatchers.ts:33), metachar void (L40), subpaths rejected (M1 proven).",
+    "import_allowlist": "PRESENT but NOT AIRTIGHT \u2014 T1_ALLOWED_MODULES matches \u00a71.6-2 set (L47, node: stripped at residue.ts:149) BUT T1_MODULE_REF (L107) never sees dynamic import('node:net') / require(`\u2026`) (blocker B1).",
+    "frozen_npm_fallback_argv": "PASS \u2014 T1_REQUIRED_LITERALS L84 pins '\"npm\", [\"install\", \"--ignore-scripts\", \"--no-save\", \"--loglevel=error\", \"--prefix\"'; dropping it exits T1.",
+    "pairing_trio_5_3": "PASS \u2014 residue.ts:238-266: paired\u21d2T3 HIGH + 'pairing=verified' annotation; write-orphan\u21d2T3 HIGH + residue-pairing-missing HIGH naming id; remove-orphan\u21d2single MEDIUM note. K1-K3 tests green.",
+    "reads_per_hook": "PASS \u2014 \u22642 readText calls per hook (residue.ts:142 evaluateT1 + :182 fallback, same file).",
+    "binary_skip": "PASS \u2014 readText: 512KiB cap + NUL-in-first-8192 \u21d2 null; sweep ext whitelist \u222a bin/ prefix (residue.ts:75,88-91,189-191)."
+  },
+  "blockers": [
+    {
+      "id": "B1",
+      "severity": "CRITICAL",
+      "finding": "T1 signature is granted to hook files with UNPROVEN module access: dynamic `await import(\"node:net\")` (M4) and template-literal `await import(`node:${x}`)` (M5) keep the residue-in-tree-hook MEDIUM badge with zero CRITICAL row. \u00a71.6-2 says the allowlist is 'Nothing else'; T1_MODULE_REF only matches static from-strings, require('lit'), bare import 'lit'. Combined with the already-allowed child_process import, anatomy+eval/child_process-of-dynamically-fetched-bytes rides through the gate at MEDIUM (non-blocking).",
+      "evidence": "scanNpmLifecycleHook({pkgDir:'/tmp/r2c/m4-dynamic-import'}) => signatureId 'opencode-in-tree-v1'; full-stage probe printed rows=[residue-in-tree-hook MEDIUM] only; same for m5-template-import."
+    },
+    {
+      "id": "B2",
+      "severity": "CRITICAL",
+      "finding": "T1 signature is granted despite an out-of-tree write: inserting fs.writeFileSync(path.join(__dirname,'..','..','escaped.txt'),'pwned') into the blessed postinstall.mjs (M3) keeps the MEDIUM badge, no CRITICAL. \u00a71.6-5 requires EVERY write/mkdir/unlink/link/copy/chmod target to be the in-tree bin or mkdtemp temp; evaluateT1 only asserts presence of allowed literals + absence of '/'-prefixed string literals \u2014 it never enumerates write call sites.",
+      "evidence": "/tmp/r2c/m3-parent-write => rows=[residue-in-tree-hook MEDIUM]; unit probe signatureId 'opencode-in-tree-v1'."
+    }
+  ],
+  "nits": [
+    "N1 LOC claims: npm.ts pure(non-blank non-comment)=236 not 'exactly 250' (raw 295; HEAD raw 267/pure 217; net +28 raw, +19 pure vs claimed +24); residueMatchers ~149 vs pure-118/nonblank-169/raw-188; residue.ts ~242 vs pure-233/nonblank-250/raw-269. My method: raw=wc-style line split; pure=exclude blank+comment-only lines. No pure-LOC convention found in repo.",
+    "N2 claim4 overstates copy provenance for 14/28 corpus files (new R2 manifests + k-*/e-*/j payloads absent from SHA256SUMS.manifest).",
+    "N3 channels.integration.test.ts C5-7 (:514) failed ONCE in my first full-suite run (exit 2 at checkForce, 13s) under 21-file parallelism, passed solo and on immediate rerun \u2014 pre-existing-flake suspect (untracked push-channels WIP, mtime 2026-09-05, untouched by R2), NOT residue-related, but contradicts deterministic 'only two failures' phrasing.",
+    "N4 doneclaim test anchors ':232/:298' stale vs current WIP channels file (C5-1 now :310, C5-4 now :391); test names identical."
+  ],
+  "repro_commands": [
+    "npm run typecheck && npm run build   # EXIT 0",
+    "timeout 600 npm test   # run#2: 404 tests / 402 pass / fail=C5-1+C5-4; run#1 also failed flaky C5-7",
+    "timeout 60 node --import ./tools/register-ts.mjs --test test/residue.npm.test.ts   # 12/12",
+    "timeout 60 node --import ./tools/register-ts.mjs --test --test-name-pattern 'C5-7' test/channels.integration.test.ts   # pass solo",
+    "cp -a test/fixtures/residue/a-opencode-t1 /tmp/r2c/<mutant>; apply mutations M1-M5 (see report text); timeout 120 node --import ./tools/register-ts.mjs /tmp/r2c/probe.mjs /tmp/r2c/<mutant>",
+    "M1/M2 => lifecycle-script CRITICAL valueDigest 61415faf5c8c08e6bdf6ae2d5166615f1047e7d01a52c757d6633f8d19a6c512 (== P5 pin) [FAIL-CLOSED \u2713]; M3/M4/M5 => residue-in-tree-hook MEDIUM 860b056a\u2026 with NO CRITICAL row [FAIL-OPEN \u2717]",
+    "sha256sum test/fixtures/residue/stage-pins-0.2.0.json  # 222869a2\u2026 == manifest ./stage-pins-0.2.0.json",
+    "sha256sum test/fixtures/residue/b-t2-downloader/postinstall.js  # e35760da\u2026 == manifest ./planted/T2-js/postinstall.js",
+    "git log -1 --oneline; git stash list; git status --short   # HEAD 4a8836d, stash 0, 22 M = 21 baseline + npm.ts"
+  ],
+  "suggested_fix": "residueMatchers.ts: extend T1_MODULE_REF to also match import( / require( in ANY form incl. template-literal and void on non-string-literal or non-allowlisted specifier; add t2-js-net-module alternative for the dynamic form (\\bimport\\s*\\(\\s*[\"'`]node:(?:https?|net|dns)). residue.ts evaluateT1: enumerate write-family call sites (/\\.?(writeFile|writeFileSync|appendFile|appendFileSync|mkdir|mkdirSync|unlink|unlinkSync|rm|rmSync|copyFile|copyFileSync|link|linkSync|chmod|chmodSync|rename|renameSync|symlink|symlinkSync)Sync?\\s*\\(/g) and require every first-arg expression to be one of the closed anatomy forms (target|source|temp literals or exact allowed path.join literals), else return null. Add fail-closed regression corpus tests for exactly M3/M4/M5 shapes."
+}

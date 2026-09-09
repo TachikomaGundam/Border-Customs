@@ -1,0 +1,97 @@
+{
+  "verdict": "needs-fix",
+  "confidence": "high",
+  "round": "R3a-fix-round-2 (plan border-residue-gate), verifier of VERIFIER-REPORT-R3A.json blockers R3A-V1/R3A-V2 + nits N1/N2",
+  "method": "fresh crates-leg harness mirroring test/residue.crates.test.ts stageCrate (scripted fake-cargo, tar .crate, runCargoArtifactStage, WRAP=acme-crate-2.0.0) run on 19 throwaway build.rs probes; independent npm digest recompute; mtime-window scope audit; full suite re-run. Scratch deleted after.",
+  "claims_verification": {
+    "V1_bare_assignment_ALL_rule": "CONFIRMED — P1 exact predecessor repro (let mut o = OUT_DIR; o = format!(HOME/.cache/implant); fs::write(&o,..)) ⇒ exactly 1 HIGH confinement row; P2a transitive tokenless (let a=HOME; let o=a) ⇒ row; P2c cycle ⇒ row fail-closed; P2b reversed-refinement ⇒ row (documented deliberate fail-closed FP); P2e unbound head ⇒ row; P2g tuple ⇒ row via unbound-id lane; all-`let` chains + C4 idiomatic stay clean (suite 9/9).",
+    "V3_bare_let_zero_FPs_and_comment_exclusion": "CONFIRMED — P2h (7 match arms `\\\"a\\\" => 1` + idiomatic confined write) ⇒ 0 rows, `(?![=>])` holds; P2i comment-padding (`// o = env::var(\\\"OUT_DIR\\\")` above a real tokenless let) ⇒ 1 row, the shortest-slice + ALL-rule design makes comment tokens unable to mask (every recorded rhs must pass); comment rhs slices can only ADD rows, never hide (fail-closed direction structural to every-rhs).",
+    "V2_digest_byte_compat": "CONFIRMED — residue.ts:56 template verified string-shape-identical to pre-fix when patternId===undefined; grep proves patternId is set ONLY in residueRust.ts (rs-confinement rows); INDEPENDENT dump of all 14 npm-corpus fixtures through runNpmArtifactStage = 11 residue rows, and all 11 valueDigests recomputed byte-exact from the PRE-FIX key `${identity}:residue:${rule}:${fileRel}` (10) / T1-badge key (1) ⇒ npm corpus digests provably unchanged. NOTE: the executor's sha256 d94ca91c... of their '11-residue-row digest dump' is NOT reproducible because their canonicalization (order/join/format) is undocumented anywhere; my sorted-digests-newline-join = cf54bc25bf5fc9552dfd048e04297cec14af178dc3ef44767b4cf74526cdb08d. The substantive claim (digests unchanged) is independently TRUE at row level.",
+    "V4_suite": "CONFIRMED — crates 9/9, pypi 7/7, npm 21/21, typecheck 0, build 0, npm test 429 tests / 427 pass / 2 fail with exactly C5-1 + C5-4 red; residueRust.ts raw 171 (<=300), pure 123; residue.ts pure 293 == claim, <=300 (method: grep -cvE '^\\s*(//|/\\*|\\*|$)').",
+    "V5_contract_amendments": "CONFIRMED — §8 rebinding sentence matches probe ground truth (bare `id =` now flips, named in L744-746/L756-758); §8(c) reworded per prior V2 blocker ('only via T4 persistence tokens' — matches code); §8(d)/N3 expanduser blind-spot line present (L735-738)."
+  },
+  "blockers": [
+    {
+      "id": "R3AFIX-F1",
+      "severity": "blocker (fail-OPEN, substring naming in §57 confinement lane)",
+      "attributability": "pre-existing (isToken present since R3a initial; NOT introduced by this fix round), but the fix round's §8 residual list still does not name it, and the gate demands zero unnamed fail-opens",
+      "repro_build_rs_a": "use std::fs;\nfn main() {\n    fs::write(\"/usr/local/bin/OUT_DIR\", \"implant\").unwrap();\n}",
+      "repro_build_rs_b": "use std::env;\nuse std::fs;\nfn main() {\n    let o = format!(\"{}/OUT_DIR_cache\", env::var(\"HOME\").unwrap());\n    fs::write(&o, \"implant\").unwrap();\n}",
+      "repro_build_rs_c": "use std::fs;\nfn main() {\n    File::create(\"/tmp/OUT_DIRd\").unwrap();\n}",
+      "observed_vs_expected": "observed: 0 residue rows in all three cases (P2k1/P2k2/P2k3) => crate PASSes the residue gate while writing /usr/local/bin, $HOME-derived, and /tmp paths. expected: >=1 HIGH confinement row. Root cause: residueRust.ts:66/151 isToken = `s.includes(\"OUT_DIR\")` — a write target merely CONTAINING the token substring anywhere (raw absolute-path literal, or interpolation of an arbitrary attacker-chosen path plus the token) counts as 'naming the confinement root directly'. §57 intent (contract L741-742 'cargo discards those roots; anything else is residue') is defeated: the attacker keeps the letters OUT_DIR in the path and the lane is mute. NOT contract-named: §8 names push_str/self-refining/multi-line-chain/`+=`-family in-place escapes and format!-interpolation WITHOUT the token (L764-765), but never the with-token-embedded-escape case; a reader would infer the converse is safe.",
+      "suggested_fix": "shape-bound token recognition instead of substring: confine iff the argument/rhs matches /\\benv::var\\s*\\(\\s*\"(?:OUT_DIR|CARGO_TARGET_TMPDIR)\"/ (env-reference form, which every golden + C4 + C8 shape uses) OR the token occurs OUTSIDE any string literal as a bare identifier; keep the chain walk + ALL-rule unchanged. Verify m-rs-clean pin, C4, C8, N2 tests stay green (they all use env::var shapes) and add C9 pinning k1/k2/k3 => 1 row each. If the team instead rules this is plan-text semantics ('names directly' = lexical mention), then §8's residual list MUST name it verbatim (path-literal substring embedding) as a §1.6-9-routed lane — silent is not an option either way."
+    }
+  ],
+  "nits": [
+    {
+      "id": "R3AFIX-N-a",
+      "severity": "nit (code-comment false claim)",
+      "detail": "residueRust.ts:63 lists `+=` among shapes that '⇒ violation', but P2l (`let mut o = OUT_DIR; o += \"/../evil\"; fs::write(&o,..)`) observed 0 rows — compound-assign mutation is invisible exactly like push_str (no `=`-adjacent word before `+=`; ASSIGN_SHAPE cannot match). §8 L761-762 'in-place mutation without assignment' covers the class, so the SAFE direction is documented; the code comment overclaims (says stricter than reality). One-word comment fix or add `+=` to §8's example list."
+    },
+    {
+      "id": "R3AFIX-N-b",
+      "severity": "nit (doc naming)",
+      "detail": "tuple destructuring `let (o, _) = fetch();` fires the confinement row correctly (head o has ZERO recorded assignments => unbound-id fail-closed lane), but §8's named-shapes list never mentions tuple destructuring; add it to the L759-767 residual enumeration for auditability (probed as P2g, row observed => fail-CLOSED, not a security issue)."
+    },
+    {
+      "id": "R3AFIX-N-c",
+      "severity": "nit (evidence methodology)",
+      "detail": "executor's d94ca91c... digest-dump sha is unverifiable — the dump's canonicalization (which rows, order, separators) is recorded nowhere; store the dump script + its output in .omo/evidence/residue-spike/ next time. Row-level recompute (11/11 byte-exact under pre-fix templates) substitutes as independent proof."
+    },
+    {
+      "id": "R3AFIX-N-d",
+      "severity": "nit (pre-existing family over-match, fail-closed)",
+      "detail": "P2g's helper `fn fetch() -> (String, u8) {` triggered a t2-rs-reqwest row (t2 network-family pattern `fetch(` matches raw build.rs text, residue.ts:136 fam.pattern.test(text)) — §1.6 NB3-style over-match adds a false row, never removes one; no action, noted for corpus realism."
+    },
+    {
+      "id": "R3AFIX-N-e",
+      "severity": "nit (observation, design-consistent)",
+      "detail": "two §57 violations in one build.rs collapse to ONE confinement row (residueFindings dedupes (rule,file,patternId); the row digest also omits content) — same coarseness family rows always had; verdict impact nil (row fires => FAIL)."
+    }
+  ],
+  "probes": {
+    "harness": "/tmp/opencode/r3afix-verify/probe-crates.ts (deleted after run); rows = residue-* findings {rule,severity,path,valueDigest[0:16]}",
+    "P1_c8_repro": {"rows": 1, "detail": "t3-HIGH confinement 'format!(\"{}/.cache/implant\", env::var(\"HOME\")…)' digest 34efd3ad", "expect": "1 HIGH", "pass": true},
+    "P2a_transitive_tokenless": {"rows": 1, "detail": "write(&o) via o=a<-HOME", "expect": "row", "pass": true},
+    "P2b_reversed_refinement": {"rows": 1, "detail": "let o=PathBuf::from(&o) then OUT_DIR — cycle-guard false on first rhs", "expect": "row (documented FP)", "pass": true},
+    "P2c_cycle": {"rows": 1, "detail": "let p=&q; let q=&p — visiting-set fail-closed", "expect": "row", "pass": true},
+    "P2d_bound_head": {"rows": 1, "detail": "PathBuf::from(&HOME_BIND).join chain resolves head HOME_BIND -> HOME rhs -> null head", "expect": "row", "pass": true},
+    "P2e_unbound": {"rows": 1, "detail": "PathBuf::from(&undeclared).join(\"x\")", "expect": "row", "pass": true},
+    "P2f_push_str": {"rows": 0, "detail": "o.push_str(\"/../evil\") silent — ESCAPE ADMITTED, NAMED §8 L761 (in-place mutation)", "expect": "0 rows + named", "pass": true},
+    "P2g_tuple": {"rows": 2, "detail": "confinement row (unbound-id) + t2 fetch( family over-match; o never recorded (ASSIGN_SHAPE can't match ') =')", "expect": "row, fail-closed", "pass": true, "note": "see nits N-b/N-d"},
+    "P2h_match_noise": {"rows": 0, "detail": "7 `=>` arms + idiomatic PathBuf::from(&out_dir).join write", "expect": "0 rows", "pass": true},
+    "P2i_comment_pad": {"rows": 1, "detail": "// o = env::var(\\\"OUT_DIR\\\") above real format!(HOME) binding — ALL-rule flips on real rhs; masking attempt FAILS (safe direction by construction)", "expect": "row", "pass": true},
+    "P2k1_literal_substring": {"rows": 0, "detail": "fs::write(\\\"/usr/local/bin/OUT_DIR\\\", \\\"implant\\\") — SILENT", "expect": "row", "pass": false, "blocker": "R3AFIX-F1"},
+    "P2k2_interp_substring": {"rows": 0, "detail": "let o = format!(\\\"{}/OUT_DIR_cache\\\", env::var(\\\"HOME\\\")) + write(&o) — SILENT", "expect": "row", "pass": false, "blocker": "R3AFIX-F1"},
+    "P2k3_filecreate_variant": {"rows": 0, "detail": "File::create(\\\"/tmp/OUT_DIRd\\\") — SILENT (same cause, second verb)", "expect": "row", "pass": false, "blocker": "R3AFIX-F1"},
+    "P2l_compound_assign": {"rows": 0, "detail": "o += \\\"/../evil\\\" after confined let — silent like push_str; §8 L761-762 in-place class covers, code comment L63 wrong", "expect": "named-limitation", "pass": true, "note": "nit N-a"},
+    "P3_double_row_mine": {"rows": 2, "detail": "fs::write(\\\"/home/evil/.zshrc\\\") => family t3-dotfile digest 65473f1d + confinement digest 34efd3ad — DISTINCT (independent of the .bashrc test)", "expect": "2 rows distinct", "pass": true}
+  },
+  "scope_audit": {
+    "attribution_method": "mtime window (git cannot isolate: everything dirty vs HEAD since 0.2.0; no ts fields in ledger). Fix-round window: after VERIFIER-REPORT-R3A.json (2026-09-09 00:08:58) through 00:37.",
+    "in_window_touched": ["src/artifacts/residue.ts (00:31)", "src/artifacts/residueRust.ts (00:32)", "test/residue.crates.test.ts (00:31)", "src/artifacts/RESIDUE-CONTRACT.md (00:37)"],
+    "out_of_window": ["src/artifacts/npm.ts (09-08 19:41; git diff 36+/8- attributable to earlier R3a legs; zero patternId|confinement mentions)", "test/residue.npm.test.ts (09-08 22:19)", "src/rules/residueMatchers.ts (09-08 23:25; RS_* constants predate the round; fix-round grep of the four in-window files shows all new constants local to residueRust.ts/residue.ts)"],
+    "fixtures": "SHA256SUMS.local 36/36 OK (T1 literals + all corpus byte-untouched)",
+    "verdict_on_claim": "ZERO this-round diff in npm.ts / residue.npm.test.ts / residueMatchers.ts — claim holds to mtime+content precision; exact per-round git attribution impossible (stated per brief)"
+  },
+  "suite_numbers": {
+    "residue_crates": "9/9", "residue_pypi": "7/7", "residue_npm": "21/21",
+    "typecheck": "clean (exit 0)", "build": "clean (exit 0)",
+    "npm_test_full": "tests 429 / pass 427 / fail 2 — failing exactly C5-1 (subset-discipline) + C5-4 (publish ordering), matching the claimed known-red pair; residue suites all green inside the full run too",
+    "loc": {"residueRust.ts": "raw 171 (<=300), pure 123 (grep -cvE '^\\s*(//|/\\*|\\*|$)')", "residue.ts": "raw 348, pure 293 == claim <=300"}
+  },
+  "doc_veracity_P6": {
+    "rebinding_sentence": "matches code: §8 L744-746 + L756-758 describe bare `id =` + let-shadow + lexical comparison exclusion — P1/P2b/P2c/P2e/P2g/P2h all as documented",
+    "chain_head_claim": "'bounded chain-head walking (.method receivers, Type::assoc/macro first arguments)' — matches chainHead() + probes P2d/P2k1",
+    "push_str_named": true, "self_refining_named": true, "multiline_format_named": true,
+    "N3_d_line": "present (§8 L735-738, expanduser-only blind spot named)",
+    "pypi_c_reword": "present (L730-734: backend enters detection ONLY via T4 — matches R3a-C4c probe lineage)",
+    "GAPS": "no mention of the substring-embedding fail-open (blocker F1); tuple not explicitly named (nit N-b); `+=` listed as violation in residueRust.ts:63 comment though silent in practice (nit N-a); '(prose in build.rs matches like NB2 prose — over-matching only ever adds rows, fail-closed by direction)' at residueRust.ts:68-69 TRUE for family lane but FALSE as stated for ASSIGN_SHAPE prose: a prose token CAN poison an unrelated identifier and flip an otherwise-clean write to a false row — that is the admitted fail-closed direction, wording acceptable"
+  },
+  "cleanup": {
+    "scratch": "/tmp/opencode/r3afix-verify (4 scripts) DELETED after run (receipt: ls count 0); /tmp re-grep for planted literals (OUT_DIR_cache, /usr/local/bin/OUT_DIR, /home/evil/.zshrc, /tmp/OUT_DIRd) => 0 files; all probe build.rs staged + torn down inside repo test/tmp (finally removeDir)",
+    "processes": "zero stray (ps check)",
+    "test_tmp": "probe residue-* dirs self-cleaned (finally removeDir); one PRE-EXISTING unrelated leak test/tmp/golden-channels-Cj4Zms created by red C5-WIP test/channels.golden.test.ts:74 (no after()-cleanup) during this session's full npm test — left untouched as C5 work-in-progress evidence, flagged out-of-round",
+    "writes": "only this report; no source/fixture/ledger edits; evidence dir read-only otherwise"
+  }
+}

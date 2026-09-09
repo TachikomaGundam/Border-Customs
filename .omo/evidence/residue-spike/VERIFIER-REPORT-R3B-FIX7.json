@@ -1,0 +1,98 @@
+{
+  "round": 9,
+  "verdict": "needs-fix",
+  "confidence": "high",
+  "auditee": "DONECLAIM-R3B-FIX8.json",
+  "closes": "BLK-7 verification + family-sweep certification for R3b",
+  "environment": {
+    "ruby": "3.3.8 (2025-04-09 revision b200bad6cd) x86_64-linux",
+    "node": "v22.22.1",
+    "scratch": "/tmp/opencode/r3b9/ (live/, probe rows via seam.ts, mut/, subset.ts) — deleted after this report",
+    "seam_method": "residueGemHits(pkgDir, ['extconf.rb'], '') row counts (same method as FIX6/FIX8), plus direct regex-level matchAll on the shipped GEM_WRITE_CALL as an independent cross-check"
+  },
+  "blockers": [
+    {
+      "id": "BLK-R3bF9-A",
+      "title": "$>.reopen — BLK-7's own primitive escapes again via the built-in $stdout alias $>",
+      "primitive": "$>.reopen(\"/tmp/evil\", \"w\")  (+ $>.reopen(\"/tmp/evil\", \"w\") paren-less and $>::reopen forms)",
+      "box_liveness": "ruby 3.3.8: $>.equal?($stdout) => true; `$>.reopen('/tmp/.../alias_out.txt','w'); $>.print('HIJACK'); $>.close` materialized the file with content 'HIJACK'. No prior setup needed — exactly the contract's own criterion for the reopen family ('the ones a fresh extconf process hits without any prior setup', RESIDUE-CONTRACT.md :1090-1093).",
+      "detector_rows": 0,
+      "named": false,
+      "named_evidence": "grep counts in src/artifacts/RESIDUE-CONTRACT.md: 'Dir\\.delete'=0, 'Dir\\.unlink'=0, 'lutime'=0, '\\$>'=0. The single matcher grep hit for $> is HOOK_METACHARS /[;&|`$><...]/ (residueMatchers.ts:45, npm/cargo hook metachar class) — not a naming.",
+      "repro": "mkdir p; printf 'require \"mkmf\"\\n$>.reopen(\"/tmp/r3b9_alias_out\", \"w\")\\n' > p/extconf.rb; node --import ./tools/register-ts.mjs -e 'import {residueGemHits} from \"./src/artifacts/residueGem.ts\"; console.log(residueGemHits(\"p\",[\"extconf.rb\"],\"\").length)' => 0",
+      "why_blocker": "fail-closed doctrine: LIVE + rooted-target + SILENT + UNNAMED is always a blocker; and this is not an exotic form — it is the very BLK-7 primitive ($stdout.reopen) under its documented alias. The roster table claims the reopen receiver family CLOSED at six members; the family was enumerated by hand, not via Ruby's alias table, and $> is member seven. Round-8's own recorded lesson (learnings.md) is 'spelling variants' — the sweep applied aliases to receivers it thought of, not exhaustively.",
+      "fix_hint": "Add `>` and `<`-with-reopen handling is wrong ($< is dead — see roster_gaps); correct fix: extend the fixed-receiver alternation to include \\$> (optionally \\$< / ARGF with a box-DEAD note), pin as C15a-bis, name in the roster table."
+    },
+    {
+      "id": "BLK-R3bF9-B",
+      "title": "Dir.delete and Dir.unlink — covered Dir.rmdir's documented synonyms are silent",
+      "primitive": "Dir.delete(\"/tmp/evil\") / Dir.unlink(\"/tmp/evil\")",
+      "box_liveness": "ruby 3.3.8: Dir.respond_to?(:delete)=>true, Dir.respond_to?(:unlink)=>true; both removed a freshly created directory under the scratch dir.",
+      "detector_rows": 0,
+      "named": false,
+      "named_evidence": "roster :1162 lists only 'File.unlink, File.delete, Dir.rmdir'; no Dir.delete/Dir.unlink anywhere in contract or tests.",
+      "repro": "extconf.rb with Dir.delete(\"/tmp/r3b9_dd\") => seam rows 0; regex-level: shipped GEM_WRITE_CALL matchAll('Dir.delete(\"/x\")') => [].",
+      "why_blocker": "The C15f lane ALREADY prices the synonym doctrine correctly for File (both File.unlink and File.delete were swept — both spellings, both rows). The identical alias pair on Dir (delete/unlink/rmdir are all the same rmdir(2)) was missed. Deletion of rooted paths is the class the round explicitly claims closed.",
+      "fix_hint": "Dir\\s*(?:\\.|::)\\s*(?:mkdir|rmdir|delete|unlink); extend C15f's count pin 3→5 or add C15f-bis."
+    },
+    {
+      "id": "BLK-R3bF9-C",
+      "title": "File.lutime — covered utime/metadata family's synonym is silent",
+      "primitive": "File.lutime(atime, mtime, \"/tmp/evil\")",
+      "box_liveness": "ruby 3.3.8: File.respond_to?(:lutime)=>true; set atime=1000 on a rooted regular file (stat confirmed). lutimes(2) — does NOT follow symlinks, i.e. strictly more malicious than the covered utime for symlink-tree attacks.",
+      "detector_rows": 0,
+      "named": false,
+      "named_evidence": "grep 'lutime' in RESIDUE-CONTRACT.md => 0; roster :1161 explicitly enumerates 'File.truncate | File.chown | File.lchown | File.utime' — the {l,f}-prefix variant sweep stopped at chmod/chown and skipped the utime twin.",
+      "repro": "extconf.rb 'File.lutime(Time.now, Time.now, \"/tmp/r3b9_lt\")' => seam 0 rows; regex matchAll => [].",
+      "why_blocker": "The round's own metadata-verb adjudication ('create-or-modify state AT a rooted path ⇒ covered', covering truncate/utime/chown/lchmod/lchown/mkfifo) makes lutime a mandatory member by the doctrine stated in this very changeset; per-spelling completeness is the doctrine's requirement.",
+      "fix_hint": "add lutime to the File alternation (and check futime: File.futime needs an io handle — adjudicate or name); extend C15e pin count 8→9."
+    }
+  ],
+  "adjudications_not_blockers": [
+    "Kernel#open pipe-exec form open(\"|/usr/bin/x\",\"w\") (+ Kernel.open same): seam 0 rows; pipe-exec confirmed LIVE on box (touch-marker materialized). The bare-`open` CALL FORM is named-invisible under item (2) ('no arm for open( exists for any operand'), and operand shape does not create a new call form — so this is silent-but-§8-named ⇒ OK under the standing rule. NIT: item (2)'s wording says only 'resolving file mode'; round-8's precedent (item (10) naming Kernel.system separately after FIX2 learned operand-adjacent spellings need explicit names) says reword to 'all operand forms incl. pipe-exec open(\"|cmd\",\"w\")' next doc round.",
+    "$<.reopen / ARGF.reopen: seam 0 rows, but box-DEAD on 3.3.8 (NoMethodError; ARGF.class has no reopen method, respond_to? false). Not live ⇒ not a blocker; recorded in roster_gaps as a version-risk with the named $stdout-alias family.",
+    "STDOUT.write(\"/path\", ...) / $stdout.write(...): seam 0 rows; adjudicated NON-PRIMITIVE — fd-1 content write, the rooted string is the payload, not the target (probe proved no file created at that path). The sweep claim 'row with a rooted operand' fails for these because no operand is a path target. NIT: name explicitly in §8 for roster completeness (currently grep-unnamed).",
+    "IO.for_fd(3).reopen(\"/rooted\",\"w\"): seam 0 rows. Requires a pre-opened fd — the contract's 'fresh extconf process without any prior setup' criterion (item (12), :1090-1093) legitimately excludes it; chains off an arbitrary handle, covered by item (12)/composed-operand lanes. OK.",
+    "Double-count hunt (percent branch): IO.popen %q{/tmp/x} => exactly 1 row (fail-closed; the percent branch is not entered because the verb token does not end in '%'); IO.popen %x|touch /tmp/x| => 2 rows (IO.popen fail-closed + the independent %x-exec arm) — over-block-side only, both evidence strings sane, mirrors the ACCEPTED backtick+%q double-price precedent (:1123-1126); DT11 2-row claim independently reconfirmed. Chained receiver File.open(\"/rooted\",\"w\").write(\"d\") => exactly 1 row (opener arm); File.open(\"build/x\",\"w\").write(\"/rooted\") => 0 rows, correct (content arg). No row corruption found.",
+    "IO.new(path,\"w\"): TypeError on box (fd-integer API) — not a path opener, excluded correctly."
+  ],
+  "claims_assessment": {
+    "claim_1_family_sweep_complete": "REFUTED — three live-silent-unnamed members (BLK-R3bF9-A/B/C) remain; 'RED-first evidence in FIX8' holds for what it tested, but the roster was hand-enumerated, not alias-table-derived.",
+    "claim_2_single_hunk": "NOT REPRODUCIBLE at byte level (deviation, not disproof): residueMatchers.ts is git-untracked and NO byte image of old-75baae07 survives anywhere (28 reconstruction variants of comment-region + grammar line, all sha ≠ old). Consistent with every observable artifact: matcher now 615212ec1e5098043c522dd94bc72965f401ca3196b455c6baba6e225ae63083 (== claim), residueGem.ts 93307d7d758c37b49c2597fa3df172a4076276c301d25fb6bfde638bbc703f52 (== claim, UNCHANGED vs FIX6-era value), +10 file lines == 9 new comment lines + relocated '*/', effective-LOC ceiling 159 stable, superset check: reconstructed-old vs shipped-new over 32 samples => 0 old-only matches (the single grammar change is strictly the enumerated arm-widen + reopen arm; leading lookbehind (?<![\\w.?]) verbatim-identical). Old line (character-wise review, reconstructed) vs new line (verbatim from :332, strip one leading space) pasted into my working notes; the shipped new line is: export const GEM_WRITE_CALL = /(?<![\\w.?])(?:File\\s*(?:\\.|::)\\s*(?:open|binwrite|write|sysopen|touch|link|symlink|rename|unlink|delete|truncate|chmod|lchmod|chown|lchown|utime|mkfifo)|FileUtils\\s*(?:\\.|::)\\s*\\w+|Dir\\s*(?:\\.|::)\\s*(?:mkdir|rmdir)|IO\\s*(?:\\.|::)\\s*(?:popen|sysopen|write|binwrite|copy_stream)|Open3\\s*(?:\\.|::)\\s*\\w+|Process\\s*(?:\\.|::)\\s*spawn|(?:\\$(?:stdout|stderr|stdin)|STDOUT|STDERR|STDIN)\\s*(?:\\.|::)\\s*reopen|(?<![\\w.])(?:system|spawn|exec|popen)\\s*(?:\\(|[\"']|%)|%x[^A-Za-z0-9\\s]|`)/g; — note the shipped line carries a LEADING SPACE before 'export' (also on comment lines 322-331), cosmetic. FIX5-round precedent shows reverse-substitution sha proofs ARE achievable — recommend the fix round archive a .orig of pre-change matchers in the evidence dir.",
+    "claim_3_numbers": "ALL REPRODUCED from scratch (see numbers_reproduced).",
+    "claim_4_pins": "GOOD. C15 pins assert exact row COUNTS (t3.length === N) + severity, not mere nonzero; C14a/b and C15g/h are true zero-row complement tripwires (0/0/0 + control 1 reconfirmed via live seam). Mutation tests in /tmp copy (real repo never touched): removing 'sysopen|' from the IO arm => exactly R3b-C15c goes RED; removing '$stdin|' from the reopen receiver alternation => exactly R3b-C15b goes RED (65 tests, 64 pass, 1 fail each). No pin survived a verb deletion. Gap (nit): pins check count+severity but not per-row evidence verb strings — a same-arity verb SWAP (not deletion) would pass; acceptable granularity, worth noting for the fix round which must add rows to C15b/C15c/C15e/C15f or new bis-pins."
+  },
+  "numbers_reproduced": {
+    "gem_suite": "65/65 ✓",
+    "crates": "12/12 ✓",
+    "pypi": "7/7 ✓",
+    "npm": "21/21 ✓",
+    "channels.rubygems": "28/28 ✓",
+    "full_suite_timeout600": "497 tests / 495 pass / 2 fail; failures exactly not ok 53 (C5-1 subset discipline) + not ok 56 (C5-4 ordering) — the env pair ✓",
+    "typecheck": "RC0 ✓",
+    "build": "RC0 ✓",
+    "fixtures_sha256sum_c": "52/52 OK ✓",
+    "ceilings_grep_minus_cvE": "residueGem.ts 287/300 ✓; residueMatchers.ts 159/300 ✓",
+    "untouchables": "6/6 shas exact ✓",
+    "doc_truth_spot_recites": "16/16 seam cases match claimed row counts (incl. the 4 retracted/mid-file %x cases, ENV+mark=1, chdir=1, heredoc=1, multi-target=1, shell-meta adjacency 0 ×4 members); 12 roster-table 'yes' rows re-verified; '65 tests' claim ✓; DEAD-spellings box-verified: FileUtils.truncate respond_to? false (NoMethodError claim holds) ✓, File.lchmod on a regular file: NO raise, mode 644→600 ('mode actually changed') ✓",
+    "git_baseline": "DEVIATION: observed 22 tracked-dirty files (identical set at session entry and exit; 94 untracked incl. the entire residue changeset). The round brief cites '23 dirty' and attributes a baseline to ledger line 107 — ledger L107 (worker-lost event) records NO file count, only 'zero files newer than FIX6.json'. No file in src/ test/ .omo/evidence/ is newer than DONECLAIM-R3B-FIX8.json except ledger.jsonl + run-continuation session metadata (the expected ledger-only exception) — i.e. the changeset tree is proven untouched since the done-claim; the 22-vs-23 figure is a brief/ledger prose discrepancy, not drift.",
+    "doneclaim_prose_nit": "'11 doctrine comment lines' vs observable 9 added + 1 relocated */ (line math 396→406 exact). Cosmetic."
+  },
+  "roster_gaps": [
+    "$<.reopen / ARGF.reopen — DEAD on box 3.3.8 today (ARGF.class has no reopen); if a future Ruby adds it, the $>-alias lane must already cover it; add a box-DEAD note next to $> when fixing BLK-R3bF9-A.",
+    "File.futime(t,t,io) — io-handle variant of the metadata family (not path-rooted; falls under item (12) handle doctrine) — name it in the same roster row as lutime for completeness.",
+    "STDOUT/STDERR/$stdout.write with string operand — adjudicated content-write (not path-rooted) but currently grep-unnamed; add to the named-invisible list so the next sweep inherits the adjudication.",
+    "open(\"|cmd\",\"w\") pipe-exec — named only implicitly under bare-`open` form; reword item (2) explicitly.",
+    "IO.for_fd(n).reopen — excluded by the 'no prior setup' criterion; worth one clause stating that fd-expression-derived handles go to item (12).",
+    "IO.popen %x|...| double-prices to 2 rows (fail-close arm + %x arm) — accepted over-block precedent; state it beside the backtick+%q note."
+  ],
+  "hygiene": {
+    "stray_processes": "none from this session at exit (only pre-existing machine services: codegraph servers, docker)",
+    "tmp_r3b8_absent": "✓ /tmp/r3b8_* not present",
+    "test_tmp": "restored to empty (a golden-channels-XXXX dir was left by MY full-suite re-run; removed — likely leak from the C5-failing env pair path, pre-existing, noted)",
+    "scratch": "/tmp/opencode/r3b9 deleted after report (live box-probe outputs, probe rows, mut/ copy with M2 mutation — real repo never mutated)",
+    "repo_writes": "only this report file"
+  },
+  "convergence_assessment": "NEEDS-FIX but converging on the right doctrine: round-8 fixed the BLK-7 receiver and correctly priced synonym PAIRS for File (unlink+delete, chmod+lchmod, chown+lchown) — proving the alias doctrine was understood — yet applied it per-receiver by recall instead of mechanically, leaving $> (BLK-7's own primitive, alias receiver), the Dir delete/unlink/rmdir triple, and lutime. This is the 9th-round instance of the same meta-failure (hand-built rosters under-enumerate). Recommended fix-round method: derive the roster from Ruby's OWN alias tables (ObjectSpace on File/Dir/IO/Kernel singleton methods + documented aliases + $>-family global aliases), box-probe every spelling for respond_to? + seam rows in one sweep, and cover-or-name each. With that, closing A/B/C + the six roster-gap namings should certify R3b; the matcher ceiling (159/300) absorbs four alternation tokens with room to spare.",
+  "gate_recommendation": "R3b checkbox STAYS CLOSED until a fix round re-sweeps the alias class mechanically and closes BLK-R3bF9-A/B/C with RED-first pins."
+}

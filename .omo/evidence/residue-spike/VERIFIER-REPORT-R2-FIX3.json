@@ -1,0 +1,70 @@
+{
+  "plan": "border-residue-gate",
+  "task": "R2-fix-round3-verify",
+  "verifier": "qwen3.8-flash-next (oracle), fresh independent session",
+  "verifier_session": "opencode:ses_f7fe605bdffeNcjNxkDs5pvOGY (host task session of this verifier run)",
+  "date": "2026-09-08",
+  "round": 3,
+  "verdict": "needs-fix",
+  "confidence": "high",
+  "doctrine": "every row below produced by commands this verifier ran personally against the live working tree; worker DoneClaim (ses_f7f073d45ffeGVWF3fVI8PyuZg) used only as claim list, never as evidence. No extracted lifecycle code was ever executed: all mutations are static text staged through runNpmArtifactStage (npm pack --ignore-scripts), same discipline as test/residue.npm.test.ts stageMutant.",
+  "per_blocker": {
+    "NB1": "CLOSED. Own reproduction of blockers[NB1].repro (appended eval(\"im\"+\"port\")(\"node:net\") to a /tmp copy of test/fixtures/residue/a-opencode-t1, staged with skipGitleaks+skipSecretlint): rows=[lifecycle-script|CRITICAL|package/package.json|61415faf5c8c08e6bdf6ae2d5166615f1047e7d01a52c757d6633f8d19a6c512], zero residue-in-tree-hook, verdict-filtered FAIL. R2-M6 mutant green. New metaprogramming shapes also fail closed: new Function(\"return import('node:net')\")() -> CRITICAL + EXTRA T2 HIGH row (stricter); globalThis[\"fs\"] shape -> CRITICAL. GOLDEN control unchanged: T1 badge digest 860b056a..., no CRITICAL, PASS => marks cost zero (contract-measured 0 occurrences in anatomy).",
+    "NB2": "CLOSED. Own reproduction of blockers[NB2].repro (appended const w = fs.writeFileSync; w(path.join(process.cwd(),\"..\",\"x\"),\"p\")): pinned-digest CRITICAL, no badge, FAIL. R2-M7 green. Attribution probe (unit, src/rules/residueMatchers.ts): destructure-alias 'const {writeFileSync: wf} = fs; wf(\"out.txt\",\"p\")' has forbiddenMarks=[], metaprogramming=false, unallowlistedDynamicRefs=[] and is voided SOLELY by writeVerbsAllCalled()=false (token writeFileSync followed by ':') — proves the call-position rule itself, not the cwd mark, kills alias escapes. Original NB2 has dual defense (process.cwd( mark + call-position). Golden: 6 write-verb tokens, all in call position => zero false-positive cost."
+  },
+  "own_attack_matrix": [
+    {"id": "B1", "mutation": "new Function(\"return import('node:net')\")()", "expected": "void T1", "observed": "lifecycle-script CRITICAL 61415faf... + residue-install-download HIGH 35aeed24... (t2-js-net-module), no badge, FAIL", "direction": "fail-closed, STRICTER than required"},
+    {"id": "B2", "mutation": "globalThis[\"fs\"].writeFileSync(path.join(process.cwd(),\"e.txt\"),\"p\")", "observed": "CRITICAL 61415faf..., no badge, FAIL", "direction": "fail-closed (triple guard: globalThis[ mark, process.cwd( mark, write argv0 form)"},
+    {"id": "B3", "mutation": "const {writeFileSync: wf} = fs; wf(\"out.txt\",\"p\")", "observed": "CRITICAL 61415faf..., no badge, FAIL", "direction": "fail-closed; probe confirms call-position rule is the ONLY voiding clause (no cwd mark present)"},
+    {"id": "B5a", "mutation": "const v = \"writeFile\" + \"Sync\"; globalThis[\"fs\"][v](path.join(process.cwd(),\"z.txt\"),\"p\")", "observed": "CRITICAL 61415faf..., no badge, FAIL", "direction": "fail-closed (concatenated verb token in string non-call-position + globalThis[ + cwd mark)"},
+    {"id": "B5b", "mutation": "// eval(\"x\")  (comment-only)", "observed": "CRITICAL, no badge, FAIL", "direction": "fail-closed over-tight; acceptable per §1.6-9 N3 posture, recorded as nit N1"},
+    {"id": "B6b", "mutation": "childProcess.exec(\"echo pwned > ../../escape.txt\")", "observed": "residue-in-tree-hook MEDIUM 860b056a... retained, NO lifecycle-script row, verdict PASS", "direction": "FAIL-OPEN — new blocker NB3"},
+    {"id": "B6a", "mutation": "require(\"child_process\").exec(\"tee ../../escape.txt\")", "observed": "T1 MEDIUM badge retained, PASS", "direction": "FAIL-OPEN — NB3"},
+    {"id": "B6c", "mutation": "const ex = childProcess.exec; ex(\"echo pwned > ../../escape.txt\")", "observed": "T1 MEDIUM badge retained, PASS", "direction": "FAIL-OPEN — NB3 incl. alias form (exec absent from call-position name set too)"},
+    {"id": "B7", "mutation": "childProcess.fork(\"../../payload.js\")", "observed": "T1 MEDIUM badge retained, PASS", "direction": "FAIL-OPEN — NB3 (fork missing from same enumeration)"},
+    {"id": "B8", "mutation": "childProcess.execFileSync(\"rm\", [\"-rf\", \"../../x\"])", "observed": "CRITICAL 61415faf..., no badge, FAIL", "direction": "fail-closed — control proving clause-4 enumeration is INTACT for covered forms; the gap is purely the exec|fork alternation in T1_SPAWN_CALL"}
+  ],
+  "false_positive_control": "B4 'await import(\"node:fs\")' (plain-string dynamic import of an allowlisted module, contract §1.6-2 explicitly permits): rows=[residue-in-tree-hook|MEDIUM|860b056a... (identical to GOLDEN badge row)], no CRITICAL, verdict-filtered PASS. Probe: all guards green (dynamic ref is allowlisted plain literal, verbs unchanged, 6 golden tokens intact) => the NB1/NB2 fixes are NOT over-tight in the allowlisted direction.",
+  "regression_sweep": {
+    "typecheck": "npm run typecheck exit 0 (tsc --noEmit clean)",
+    "build": "npm run build exit 0 (dist/index.js 1.5mb, assets staged)",
+    "residue_solo_tap": "timeout 180 node --import ./tools/register-ts.mjs --test test/residue.npm.test.ts: tests 17 pass 17 fail 0 — matches source test() count 17; NO doubled-execution artifact this round (round-2 15-vs-30 concern not reproduced)",
+    "full_suite": "timeout 600 npm test: tests 409 pass 407 fail 2; failing = ONLY C5-1 + C5-4 (pre-existing channels-WIP baseline from VERIFIER-REPORT-R2; no other reds, no flakes, solo-rerun not needed)",
+    "stage_pins": "git diff test/fixtures/residue/stage-pins-0.2.0.json empty (file untracked); content sha256 222869a220c5963a3a7c5b0446dea919722f1ecc917774668b37e1bbaf815c6f... re-measured equal to .omo/evidence/residue-spike/SHA256SUMS.manifest entry, round-1/2 digests, and SHA256SUMS.local ./stage-pins-0.2.0.json row",
+    "golden_blessed": "sha256sum test/fixtures/residue/a-opencode-t1/postinstall.mjs = 5a7c990fe552e76b16422cdba3f4b0550590c7a487f7932c773362f74317c87b = contract §1.2/§1.6 embedded hash = evidence ref copy; mtime 18:15 predates round-2 (20:xx) and round-3 (21:29-21:32) edits"
+  },
+  "hygiene": {
+    "file_count": "find test/fixtures/residue -type f | wc -l = 29 = 28 SHA256SUMS.local entries + the sums file itself (self-hash excluded by convention); worker's '28 covering full corpus' CONFIRMED, round-1 '34' and round-2 '14' claims both falsified as stated; sha256sum -c SHA256SUMS.local exit 0 with 28/28 OK (golden postinstall.mjs + package.json + stage-pins + f1-f4 now covered — round-2 nit N2 resolved)",
+    "changed_set": "git diff --name-only = exactly 22 = the 21 pre-existing WIP tracked files + src/artifacts/npm.ts; untracked additions limited to the fix set (src/rules/residueMatchers.ts, src/artifacts/residue.ts, test/residue.npm.test.ts, test/fixtures/ incl SHA256SUMS.local) + contract + pre-existing channels WIP; src/artifacts/npm.ts diff = 4 hunks +36/-8, purely round-1 residue wiring (T1 if/else with the verbatim 0.2.0 CRITICAL row preserved in the else branch, sweep insertion, 2 imports) and mtime 19:41 < round-2 verdict < round-3 files (21:29+) => untouched in rounds 2-3 as claimed",
+    "head_stash": "HEAD 4a8836d (checked twice), git stash list = 0",
+    "tmp_dirs": "ls -d /tmp/r2* /tmp/residue-r2* -> No such file or directory (worker cleanup claim CONFIRMED); verifier's own /tmp/gate-r3 removed post-report (see cleanup_receipt)",
+    "hr_repo": "/home/lab/workspace/harness/hr is a git work tree (HEAD d8f878ff7251); git status --porcelain EMPTY on two separate runs (21:47, 22:05) => stable and untouched, read-only discipline held"
+  },
+  "nits": [
+    "N1: comment-only eval(/new Function/globalThis[ mentions void T1 (B5b reproduced) — textual over-match, fail-CLOSED direction, contract §1.6-9 already sanctions this posture; no action required.",
+    "N2: SHA256SUMS.local has no self-entry; standard practice but worth one comment line in the file so future rounds do not 'fix' the off-by-one (29 find-count vs 28 entries) into a real inconsistency.",
+    "N3: worker ledger line phrased 'suite 409/407' — correct numbers (409 tests, 407 pass); task prompt's '409 pass' is the imprecise quote, not a worker misclaim."
+  ],
+  "blockers": [
+    {
+      "id": "NB3",
+      "summary": "clause-4 spawn enumeration misses child_process async exec/fork: a mutation appended to the byte-blessed golden that keeps ALL §1.6 required literals and adds an arbitrary command/out-of-tree write via exec() or fork() RETAINS the T1 MEDIUM badge with verdict PASS and emits NO lifecycle-script CRITICAL row. The MEDIUM message asserts 'zero network/out-of-tree writes' — false for these shapes. This contradicts the new §1.6-9 sentence that a named primitive 'the moment any such token appears is enumerated by clauses 2/4/5/9' (exec/fork are named primitives: the contract's own §4 anatomy flags msgpackr-extract proc.exec('node-gyp-build-optional-packages-test',...) as spawn-family detection), and it is the same blocker class the gate already ruled twice (B2->NB1 eval, NB1->NB2 alias).",
+      "root_cause": "src/rules/residueMatchers.ts:104 T1_SPAWN_CALL alternation (?:spawnSync|spawn|execSync|execFileSync|execFile) omits \\bexec\\s*\\( and \\bfork\\s*\\(; exec/fork are likewise absent from the T1_WRITE_NAME call-position set, so the alias form (const ex = cp.exec; ex(...)) evades both clause-4 and the NB2 posture. Verified working siblings prove the mechanism (B8 execFileSync -> CRITICAL).",
+      "repro": "cp -r test/fixtures/residue/a-opencode-t1 /tmp/nb3 && printf '%s\\n' 'childProcess.exec(\"echo pwned > ../../escape.txt\")' >> /tmp/nb3/postinstall.mjs; stage /tmp/nb3 via runNpmArtifactStage({cfg from test/residue.npm.test.ts, skipGitleaks:true, skipSecretlint:true}) => observed rows=[residue-in-tree-hook|MEDIUM|package/package.json|860b056a01f98043ab365ad71e2612a10e0f44f017f58b8ca19665294470b7b0], no lifecycle-script row, verdict-filtered PASS",
+      "suggested_fix": "extend T1_SPAWN_CALL with |exec|fork alternatives ordered so longer names are tried first (execFileSync|execFile|execSync|exec and spawnSync|spawn, or rely on backtracking) — captured argv0 strings ('echo pwned...', 'tee...', '../../payload.js') are not in T1_SPAWN_ARGV0_LITERALS so evaluateT1 voids T1 fail-closed; mirror exec/fork into a call-position name rule (NB2 doctrine) to kill the alias form. Zero golden cost MEASURED: grep -oE '\\bexec\\b' and '\\bfork\\b' on the blessed postinstall.mjs both count 0 (word-boundary matching cannot hit 'executable'/'execSync('/'opencode.exe'). Add mutants R2-M8 (cp.exec shell-write) and R2-M9 (cp.fork payload) RED->GREEN, plus keep an allowlisted-control so the message family does not over-tighten.",
+      "severity": "same class as NB1/NB2 (silent fail-open with safety-claiming MEDIUM message)"
+    }
+  ],
+  "repro_commands": [
+    "cd /home/lab/workspace/harness/border",
+    "timeout 60 bash -c 'cd test/fixtures/residue && sha256sum -c SHA256SUMS.local'  # 28/28 OK",
+    "timeout 120 node --import ./tools/register-ts.mjs /tmp/gate-r3/driver.mjs NB1 /tmp/gate-r3/mut/NB1.txt  # -> pinned CRITICAL, no badge (driver = fixture copy to mktemp under /tmp + append mutation file + runNpmArtifactStage skipGitleaks/skipSecretlint; driver source no longer on disk, reconstruct from this report §doctrine + test/residue.npm.test.ts stageMutant)",
+    "timeout 120 node --import ./tools/register-ts.mjs /tmp/gate-r3/driver.mjs NB2 /tmp/gate-r3/mut/NB2.txt  # -> pinned CRITICAL, no badge",
+    "timeout 120 node --import ./tools/register-ts.mjs /tmp/gate-r3/driver.mjs B6b /tmp/gate-r3/mut/B6b.txt  # -> NB3 FAIL-OPEN (MEDIUM badge retained)",
+    "timeout 120 node --import ./tools/register-ts.mjs /tmp/gate-r3/probe.mjs  # guard attribution for GOLDEN/B3/B4/NB2 (imports src/rules/residueMatchers.ts directly)",
+    "timeout 300 npm run typecheck && timeout 300 npm run build",
+    "timeout 180 node --import ./tools/register-ts.mjs --test test/residue.npm.test.ts  # TAP tests 17 pass 17",
+    "timeout 600 npm test  # tests 409 pass 407 fail 2 = C5-1,C5-4 only"
+  ],
+  "cleanup_receipt": "verifier sandbox /tmp/gate-r3 (driver, probes, per-case npm pack workdirs) removed with rm -rf after report; /tmp/r2* and /tmp/residue-r2* verified absent; no files created under repo test/tmp by the verifier driver (all workdirs under /tmp); rm receipt printed in verifier transcript."
+}

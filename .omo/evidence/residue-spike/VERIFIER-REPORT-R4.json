@@ -1,0 +1,113 @@
+{
+  "verdict": "confirmed",
+  "confidence": 0.95,
+  "round": "R4",
+  "checkbox": "border-residue-gate R4 (config/rulesHash/report/README/dogfood)",
+  "verifier": "independent adversarial verifier (disk-only, trust-no-claim)",
+  "date": "2026-09-09",
+  "findings": [
+    {
+      "id": "A1",
+      "severity": "pass",
+      "attack": "PYPI-LEG NON-VACUITY: is the real-aihr 0-residue-rows result a shape-absence or a scan-absence? Prove the classifier is reachable from the pypi leg.",
+      "repro": "wiring: src/channels/pypi.ts:269 configured(cfg.targets.pypi!==undefined) -> pypiStage src/channels/pypi.ts:173 -> scanPyPiArtifacts src/artifacts/pypi.ts:278 -> unconditional residue call at src/artifacts/pypi.ts:313 residueFindings(residuePypiHits(scanRoot, rest), {root:'<archive>', sep:'!'}); central splice at src/check.ts:184 sits AFTER the stage merge so enabled-runs surface rows. (a) worker-evidence re-check: /tmp/opencode/r4-dogfood-hr.json parses to 381 findings / 0 residue / FAIL. (b) my own /tmp-copy dogfood: cp -a harness/hr -> /tmp/r4v-hr, border.yaml (version 1, git remotes [], pypi repository https://pypi.org) written ONLY in the copy, node dist/index.js check --json => 381 findings, 0 residue rows; finding set (rule,path,valueDigest) IDENTICAL to the worker artifact after normalizing the copy-dir path prefix. (c) real aihr sdist classifier pass: residuePypiHits over the extracted sdist (218 files incl. pyproject.toml [build-system], setup.cfg) via node --import tools/register-ts.mjs => 0 rows. (d) PLANTED POSITIVE CONTROL through the same entry: setup.py carrying urllib.request/authorized_keys/.bashrc/'export PATH='/crontab+systemd/user+LaunchAgents/'pip install' inert string shapes => residuePypiHits direct: 4 rows (HIGH residue-install-download, HIGH residue-out-of-tree-write, HIGH residue-cross-manager-write, CRITICAL residue-persistence-primitive); full-CLI control on a dedicated git repo (python3 -m build sdist -> extract -> classify): 4 residue rows surface through node dist/index.js check --json. copy removed after.",
+      "expected": "classifier reachable from pypi leg: planted shapes yield HIGH/CRITICAL rows through the identical entry; real-aihr zero is shape-absence",
+      "observed": "planted control fires 4 rows (3 HIGH + 1 CRITICAL) at BOTH the direct-entry and the full-CLI levels; real aihr sdist genuinely scanned (218 files, pypi leg live: sdist-*/twine rows present in the 381) with 0 residue shapes",
+      "verdict": "PASS — non-vacuous proof. Observation (plan-text, not implementation): the aihr sdist contains NO setup.py (pyproject-only build), so the plan's 'aihr sdist's real setup.py' premise has no such file; the [build-system] lane + whole-file T4 sweep did run over all 218 files."
+    },
+    {
+      "id": "A2",
+      "severity": "pass",
+      "attack": "GATE PLACEMENT: enabled vs residue.enabled:false — off-run zero residue rows in --json AND human artifacts; non-residue rows unchanged; exit math = exactly the residue blocking rows; ledger rulesHash moves on flip; splice precedes allow-list/exposure/verdict/ledger-write.",
+      "repro": "my own CLI pairs (dist/index.js, /tmp copies): plant repo on=8 findings/7 blocking -> off=4/3, the 4 removed = exactly the residue rows (3 HIGH + 1 CRITICAL); non-residue rows deepEqual (rule,severity,path,valueDigest,engine) both plant pair and hr pair (381 vs 381, deepEqual True). rulesHash on=11d260b75149a878d2e3 != off=b6b27c0135748109ebae in both pairs; same-config runs across two different repos produce the same hash (deterministic digest). Off-run .border/runs/<key8>/report.md and report.json contain 0 residue strings (verified in the ledger artifacts on disk). Ordering read: src/check.ts splice :184-189 -> exposure :191 -> applyAllowList :195 -> computeCheckRulesHash :196 -> verdict :216; ledger write recordCheckRun src/commands/check.ts:119 consumes the already-spliced report; human summary sanitizeSummary(report) likewise. Suite test/residue.config.test.ts (9 tests) standalone green incl. R4-PASS: overlay flip at identical HEAD+porcelain invalidates the cached PASS (SKIP line gone, rulesHash and key moved), restore re-honors; seam redirection alone -> new key -> re-check; table mutation -> key moves; stable mutated seam -> new PASS certifies again. R4-GATE/R4-JSON: toggle never launders the surviving lifecycle-script CRITICAL (verdict stays FAIL).",
+      "expected": "off-run hides ONLY the closed residue-* set; everything else byte-stable; cached PASS cannot survive a config flip",
+      "observed": "all five sub-assertions hold at CLI level by my own runs plus at suite level; ledger FAIL-record dirs confirm off-run on-disk cleanliness",
+      "verdict": "PASS"
+    },
+    {
+      "id": "A3",
+      "severity": "pass",
+      "attack": "FAIL-CLOSED FINGERPRINT: unreadable residue fingerprint inputs must exit 2 naming the file — never silent, never a degraded pass; a ledger PASS + missing fingerprint must NOT skip.",
+      "repro": "(1) BORDER_RESIDUE_SRC_DIR=/tmp/r4v-empty node dist/index.js check (clean fixture repo) => RC=2 'border: unexpected error: missing rules input file: /tmp/r4v-empty/residueMatchers.ts'. (2) skip-path: established real PASS (RC=0), re-run SKIPped (SKIP 879cc35c); then seam with 8 of 9 files (residueMatchers.ts deleted) => RC=2, output contains ZERO 'SKIP' lines, same file-naming error. (3) code read: consultSkipLedger src/ledger.ts swallows the fingerprint-phase throw -> { skip: null } -> FULL pipeline -> computeCheckRulesHash src/check/rulesHash.ts:103 -> computeRulesHash src/redact.ts:197 throws MissingRulesInputError -> structured exit 2: swallowing converts skip->recheck only, can never certify. (4) suite R4-HASH fail-closed test asserts MissingRulesInputError.inputPath names the file.",
+      "expected": "exit 2 with the offending fingerprint path; skip->recheck, never skip->certify",
+      "observed": "exactly that, end-to-end on the real CLI including the ledger-PASS-present case",
+      "verdict": "PASS — nit N2 below: the error surfaces under the generic 'border: unexpected error:' prefix rather than a typed config-rules prefix; exit code and file naming are correct, so behavior conforms."
+    },
+    {
+      "id": "A4",
+      "severity": "pass",
+      "attack": "CONFIG STRICTNESS own repro: residue:{enabled:\"yes\"}, residue:true, residue:{bogus:1} each exit 2 naming the key; absence===enabled end-to-end.",
+      "repro": "on /tmp/r4v-gitrepo with node dist/index.js check: enabled:\"yes\" => RC=2 \"invalid config at 'residue.enabled' ... expected boolean, received string\"; residue:true => RC=2 \"invalid config at 'residue' ... expected object, received boolean\"; residue:{bogus:1} => RC=2 \"unknown config key 'bogus'\"; absence => run proceeds and surfaces residue rows (plant repo on-run = 4 residue rows with NO residue key in border.yaml). Schema read src/config.ts:143-148: residue = z.object({enabled: z.boolean().default(true)}).strict().optional(); splice predicate src/check.ts:184 cfg.residue?.enabled === false. Suite R4-CFG pair green incl. residue:{} => {enabled:true}.",
+      "expected": "2/2/2 typed errors naming the key; absence behaves as enabled",
+      "observed": "all four outcomes match; error text names residue.enabled / residue / bogus respectively",
+      "verdict": "PASS"
+    },
+    {
+      "id": "A5",
+      "severity": "pass",
+      "attack": "GOLDEN RE-PIN: channels.golden key = d6b83c4c... stable across two standalone runs; ONLY the literal + provenance comment moved; exposureSet/DRY-RUN goldens untouched; file not among the 5 pinned residue suites.",
+      "repro": "node --import ./tools/register-ts.mjs --test test/channels.golden.test.ts twice => 1/1 pass both times (assert.equal(fp.key, GOLDEN_KEY) pins determinism, test/channels.golden.test.ts:195). GOLDEN_KEY literal :57 = d6b83c4c366a9077e1360247f5a93d8c5026d2ef735809239709578ca5707abc with provenance comment :50-56 recording the old C2-era value 3f167079ac116aadea5fc36ba8bd90f4a24683940a2c6c308eaf8d52c19b6a15 and 'moved by design' rationale. GOLDEN_EXPOSURE :58 and GOLDEN_DRYRUN_STDOUT :59+ intact. The 5 pinned suites (residue.npm/pypi/crates/gem + channels.rubygems) shas: 4 of them re-verified byte-exact in A6; channels.rubygems green 28/28 standalone.",
+      "expected": "re-pin honest, deterministic, scope-limited",
+      "observed": "confirmed. Observation: the file is UNTRACKED (new since W3), so 'git diff' against HEAD is not possible — attribution relies on mtime (16:27, inside the R4 window) + the provenance comment; no pre-R4 baseline exists on disk to diff against.",
+      "verdict": "PASS"
+    },
+    {
+      "id": "A6",
+      "severity": "pass",
+      "attack": "BOUNDARY AUDIT: recompute the 11-file untouchable table; R4-new changes confined to src/config.ts src/check.ts src/check/rulesHash.ts tools/copy-assets.mjs README.md package.json + test/channels.golden.test.ts (untracked) + new test/residue.config.test.ts; nothing else R4-attributable.",
+      "repro": "sha256sum -c on the 11 DONECLAIM values => 11/11 OK, re-verified AFTER the full suite (still 11/11). git status: 124 porcelain lines, 0 staged, 24 tracked-M — identical count before and after all verifier runs; no tracked file changed under me. R4-window attribution by mtime (16:10-16:44 on 09-09): src/config.ts 16:11, src/check.ts 16:12, src/check/rulesHash.ts 16:14, tools/copy-assets.mjs 16:15, package.json 16:19, README.md 16:19, test/residue.config.test.ts 16:10 (new), test/channels.golden.test.ts 16:27 (untracked re-pin), .omo/start-work/ledger.jsonl 16:44 (orchestrator append) — every other tracked-M file carries a 09-04..09-08 mtime (pre-R4 WIP baseline). Content diffs of allowed files verified residue/R4-only: package.json = the single 'version: 0.1.0 -> 0.3.0' line; copy-assets = residue-src staging block of exactly the 9 fingerprint basenames; config.ts = residue schema block; check.ts = RESIDUE_RULE_IDS + splice; rulesHash.ts = fingerprint sources + resolver. README's non-residue hunks (publisher table, crates/rubygems exposure lines) are W1-W3 cumulative against the pre-plan HEAD — consistent with plan/brief expectations, not R4-attributable.",
+      "expected": "untouchables byte-frozen; R4 changes confined",
+      "observed": "all confirmed; no stray tracked modification",
+      "verdict": "PASS"
+    },
+    {
+      "id": "A7",
+      "severity": "nit",
+      "attack": "DOC FIDELITY: README severities verbatim vs RESIDUE_SEVERITIES; 8-row tier table complete; §8 pointer-only; 0.4.0 roundtrip boundary; CHANGELOG style; version 0.3.0; plan-line scope match.",
+      "repro": "README residue tier table (L170-181) rows T1 MEDIUM, T2 HIGH, T3 HIGH, cross-manager HIGH, pairing HIGH, T4 CRITICAL, gem-unmatched MEDIUM == RESIDUE_SEVERITIES (src/rules/residueMatchers.ts:22-30) verbatim; T0 row carries no rule id — 8 rows total, complete. §8 blind-spots: pointer to RESIDUE-CONTRACT.md only, list not restated. 'static proves capability, not fact' + 'gate, not a malware sandbox' + '0.4.0 roundtrip valve' all present. Changelog '### 0.3.0 (2026-09-09)' follows the 0.2.0 dated-header + bold-lead bullet style; lives inside README.md '## Changelog' (no separate CHANGELOG.md exists in this repo — declared deviation, plan text 'README section + CHANGELOG' satisfied by the README changelog). package.json version 0.3.0. Plan R4 line (.omo/plans/border-residue-gate.md:93) scope = config/rulesHash/report/README/dogfood + polarity test + honesty re-run — matches delivered file set. R4-DOC suite test pins all seven ids x severities programmatically (green).",
+      "expected": "docs mirror the single home exactly",
+      "observed": "severities/ids/boundaries all faithful; NIT-1: changelog says 'eight closed residue-* rules' while the closed id table has SEVEN rule ids (eight = tier rows incl. T0, which emits nothing); wording overcount, table itself correct.",
+      "verdict": "PASS with NIT-1"
+    },
+    {
+      "id": "A8",
+      "severity": "pass",
+      "attack": "GRP AC + FLAKE + regression: grep-AC sole-home; fixtures 52/52; typecheck/build RC0; llm.test flake provenance; 6 suites solo at claimed counts; full suite 509/507/2 C5-pair only.",
+      "repro": "grep -rn '\"residue-' src/ => literals only in src/rules/residueMatchers.ts (7 defs); src/check/rulesHash.ts:65 is the ASSET-DIR token \"residue-src\" (not a rule id — judged compliant per plan §57 sole-emitter intent); RESIDUE-CONTRACT.md mention is prose in a contract doc. 'declare' occurrences src/artifacts/pypi.ts:224-233 are an unrelated local variable — no rule-table cross-fire. sha256sum -c test/fixtures/residue/SHA256SUMS.local => 52/52 OK. npm run typecheck RC=0; npm run build RC=0 and dist/index.js sha256 bec1203a810dd64ac27c13f405a49da6414dcedbc5f3a69f367d3db83915651d BYTE-IDENTICAL pre/post build => shipped dist == current sources; copy-assets staged all 9 residue-src files. llm.test.ts standalone 10/10 pass (incl. the 'masking proof' test) => the pre-R4 497/3 observation is a pre-existing parallel-load flake, NOT an R4 blocker; in my full run it passed. Solo suites: residue.gem 68/68, residue.crates 12/12, residue.pypi 7/7, residue.npm 21/21, channels.rubygems 28/28, residue.config 9/9. timeout 600 npm test => # tests 509 / # pass 507 / # fail 2, the two failures being exactly 'C5-1 subset discipline...' and 'C5-4 ordering...' (sanctioned red).",
+      "expected": "AC holds; baseline reproduced to the row",
+      "observed": "509/507/2 reproduced with the identical C5 pair; every claimed count matched",
+      "verdict": "PASS"
+    }
+  ],
+  "untouchable_sha_check": {
+    "method": "sha256sum -c of the 11-file DONECLAIM table, run pre-suite and again post-full-suite",
+    "result": "11/11 OK both times; package.json diff is the version line only; dist/index.js rebuilt byte-identical (bec1203a810dd64a...)"
+  },
+  "hygiene": {
+    "hr_originals": "untouched — /home/lab/workspace/harness/hr: git status --porcelain 0 lines, no border.yaml, no .border/; all dogfood writes happened in /tmp copies, removed after",
+    "device": "192.168.10.70 never contacted; only pypi.org registry probes",
+    "deps": "no new dependencies; verifier scripts used node stdlib + existing dist only",
+    "timeouts": "every command bounded (30s-900s)",
+    "repo_state": "border tracked-M set unchanged by verifier runs (24 files, 124 porcelain lines, 0 staged, identical pre/post); no commits made",
+    "tmp_cleanup": "all verifier-created assets removed and receipted absent: /tmp/r4v-{a1,a1.mjs,plant,plant2,gitrepo,empty,seam8,hr,driver.sh,hr-dogfood.sh,border-{on,off}.yaml,*.json/*.err/*.log scratch}; worker's /tmp/opencode evidence JSONs and pre-existing /tmp/wbuild left in place",
+    "no_fixes": "nothing repaired, staged, reverted, or written inside the repo"
+  },
+  "convergence_assessment": "R4 delivers the whole Wave-4 surface with real teeth: the pypi-leg proof is non-vacuous (planted shapes fire 3 HIGH + 1 CRITICAL through the identical entry at both unit and CLI level while the genuinely-scanned 218-file real aihr sdist yields an honest zero), the central merge-point gate keeps non-residue findings byte-stable across the flip while moving the ledger rulesHash, stale-PASS invalidation holds for both flip and table-edit at identical commit+tree, and missing fingerprint inputs fail closed (exit 2 naming the file) even when a cached PASS exists. Baseline 509/507/2 C5-pair reproduced exactly; untouchables byte-frozen; the llm flake is provenance-cleared as pre-existing. Residual items are wording-level (changelog 'eight closed rules' vs seven ids; MissingRulesInputError rides the generic error prefix) plus a plan-text assumption (aihr sdist 'setup.py') that does not exist in the real artifact — none affects behavior or the AC. VERDICT: confirmed.",
+  "nits": [
+    {
+      "id": "N1",
+      "severity": "low",
+      "note": "README changelog 0.3.0 says 'eight closed residue-* rules'; the closed emitter table (RESIDUE_SEVERITIES) has seven rule ids — eight counts the T0 silent row of the tier table. Table itself is correct and suite-consistent."
+    },
+    {
+      "id": "N2",
+      "severity": "low",
+      "note": "MissingRulesInputError at check time surfaces under 'border: unexpected error:' (generic prefix) rather than a dedicated typed line; exit code (2) and file naming are correct."
+    },
+    {
+      "id": "N3",
+      "severity": "info",
+      "note": "Plan A1 text assumes an aihr-sdist setup.py; the real aihr 0.2.2 sdist is pyproject/setup.cfg-only (no setup.py). The classifier still scanned all 218 files (build-system lane + T4 sweep); zero rows is shape-absence. Plan-text premise, not an implementation gap."
+    }
+  ]
+}

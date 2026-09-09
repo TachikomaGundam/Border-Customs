@@ -1,0 +1,61 @@
+{
+  "round": "R3b-fix-8 (rubygems leg, family-completeness sweep)",
+  "date": "2026-09-09",
+  "verdict_inputs": "BLK-7 (VERIFIER-REPORT-R3B-FIX6): $stdout.reopen(\"/tmp/evil_r7.log\") box-LIVE, silent, UNNAMED — fd-hijack write primitive; nits symlink/sysopen/$stderr/$stdin",
+  "baseline_deviation": {
+    "claim": "orchestrator brief: tree at fix-7 verified state, gem 57/57 incl C14a/b pins, residueMatchers.ts ceiling 271",
+    "measured": "tree sha-verified at the brief's residueMatchers 75baae07…/residueGem 93307d7d…, but gem suite was 55/55 (NO C14a/b in the test file, RESIDUE-CONTRACT.md c9833d39… had no item (11)/complement text — fix-7's test/doc half never landed: another phantom round); grep-method ceiling for residueMatchers.ts measures 159 (not 271) both before and after my change",
+    "response": "C14a/C14b complement-class tripwire pins implemented as part of this round (they were already demanded by the promised 57-state); ceiling headroom 141/13 lines reported honestly"
+  },
+  "changed_files": [
+    { "path": "src/rules/residueMatchers.ts", "effective_loc_before": 159, "effective_loc_after": 159, "total_lines_before": 396, "total_lines_after": 406, "change": "GEM_WRITE_CALL single-line widen at :332 + 11 doctrine comment lines (non-effective) — File verbs += sysopen|unlink|delete|truncate|chmod(lchmod|chown|lchown|utime)|mkfifo; Dir mkdir → (?:mkdir|rmdir); IO popen → (?:popen|sysopen|write|binwrite|copy_stream); NEW arm (?:\\$(?:stdout|stderr|stdin)|STDOUT|STDERR|STDIN)\\s*(?:\\.|::)\\s*reopen before the bare-verb arm; leading lookbehind (?<![\\w.?]), bare-verb/%x/backtick arms and GEM_ROOTED_SLASH_ARG byte-unchanged", "sha256_before": "75baae071ed3b56553e3388a8e9d56b2b6f62d5a0eb9ef8af57f9be0490f3819", "sha256_after": "615212ec1e5098043c522dd94bc72965f401ca3196b455c6baba6e225ae63083" },
+    { "path": "test/residue.gem.test.ts", "total_lines_before": 633, "total_lines_after": 733, "change": "+10 pins: R3b-C14a/C14b (complement tripwires), R3b-C15a…C15h; all 55 pre-existing pins byte-unchanged", "sha256_after": "271b9572a56e32f3e724478998648cad5446266925f1b52c7d21630c50fad889" },
+    { "path": "src/artifacts/RESIDUE-CONTRACT.md", "total_lines_before": 1139, "total_lines_after": 1210, "change": "§8: verb-table disclosure rewritten (full closed roster); residual-limits header gains round-8 zero-drift re-probe sentence; item (2) IO.write retracted to covered; new items (11) shell-meta adjacency + (12) arbitrary-receiver reopen; family-completeness declaration paragraph + full roster table; boundary paragraph cross-refs (11) + C14 tripwires; pins list + counts 55→65", "sha256_before": "c9833d3956ef88c8806dddf0fb77acaa814d6a15652a1056477d58e47aa04c99", "sha256_after": "b8bfb15f26b17cde450331f75a6fc15d6358b97f4f5f6b4918276e3c739e56a8" },
+    { "path": "src/artifacts/residueGem.ts", "change": "NONE — write lane consumes GEM_WRITE_CALL unchanged; row shape/rule ids identical", "sha256": "93307d7d758c37b49c2597fa3df172a4076276c301d25fb6bfde638bbc703f52" }
+  ],
+  "roster": [
+    { "primitive": "File.open|binwrite|write|touch|link|symlink|rename|chmod", "live": true, "rows_before": 1, "disposition": "covered (pre-existing)" },
+    { "primitive": "File.sysopen (+File::sysopen)", "live": true, "rows_before": 0, "disposition": "covered (C15c)" },
+    { "primitive": "IO.sysopen", "live": true, "rows_before": 0, "disposition": "covered (C15c)" },
+    { "primitive": "IO.write / IO.binwrite / IO.copy_stream (rooted dest)", "live": true, "rows_before": 0, "disposition": "covered (C15d; item (2) retraction)" },
+    { "primitive": "File.mkfifo (fifo node) / truncate / utime / chown / lchmod (mode actually changed on box) / lchown", "live": true, "rows_before": 0, "disposition": "covered (C15e)" },
+    { "primitive": "File.symlink / File.link rooted 2nd-arg", "live": true, "rows_before": 1, "disposition": "covered (already rowing; swept in C15e, 8-row matrix)" },
+    { "primitive": "File.unlink / File.delete / Dir.rmdir", "live": true, "rows_before": 0, "disposition": "covered by named adjudication (C15f): rm_r/remove deletion lane ALREADY rowed via FileUtils.* wildcard — excluding the File/Dir twins was inconsistency; unlink/rmdir also free inodes/tree-slots for later plants" },
+    { "primitive": "Dir.mkdir", "live": true, "rows_before": 1, "disposition": "covered (pre-existing)" },
+    { "primitive": "FileUtils.cp/copy/mv/install/touch/mkdir_p/mkpath/ln/ln_s/ln_sf/remove/rm_r/copy_stream/chmod/chown", "live": true, "rows_before": 1, "disposition": "covered (wildcard)" },
+    { "primitive": "FileUtils.truncate / FileUtils.split (roster's 'split_chunk')", "live": false, "rows_before": 1, "disposition": "named-dead (NoMethodError on box 3.3.8); wildcard over-block accepted fail-closed side" },
+    { "primitive": "$stdout.reopen / $stderr.reopen (WRITES) + $stdin.reopen + STDOUT/STDERR/STDIN.reopen, . and :: forms, paren-less operand", "live": true, "rows_before": 0, "disposition": "covered (C15a/C15b) — BLK-7 closed; paren-less falls into fail-close span arm (1 row)" },
+    { "primitive": "arbitrary-receiver f.reopen(io)", "live": true, "rows_before": 0, "disposition": "named-invisible (12) — same arbitrary-receiver doctrine as (10); opener arm still rows rooted paths" },
+    { "primitive": "bare system|spawn|exec|popen (+(/quote/percent), %x<delim>, backtick, Process.spawn, Open3.*, Kernel::system", "live": true, "rows_before": 1, "disposition": "covered (pre-existing)" },
+    { "primitive": "Kernel.system dot-receiver + percent", "live": true, "rows_before": 0, "disposition": "named-invisible (10), re-probed 0" },
+    { "primitive": "File.new paren-less/parened, bare open/rename, Marshal.dump→handle, Gem.open_file, StringIO chains", "live": true, "rows_before": 0, "disposition": "named-invisible (2), re-probed 0/0/0/0" },
+    { "primitive": "IO.read/binread/readlines, Dir.entries, File.basename/dirname/fnmatch/exist?/absolute_path/stat/read", "live": "read-only", "rows_before": 0, "disposition": "excluded by DEFINITION, named non-write, pinned silent (C15h)" },
+    { "primitive": "../../ lexical; #{p}/rooted; shell-meta adjacency > ; >& + full complement class; composed/index/splat operands; method-return/+=-churn bindings; helper home sugar", "live": "mixed", "rows_before": 0, "disposition": "named-invisible (1)(5)(6)(7)(8)(9)(11); tripwired C14a/C14b; ENV-mark-inside-interpolation still rows (1)" }
+  ],
+  "red_transcripts": "RED-first run (tests before regex edit): not ok 58..63 = exactly C15a-f — 'global-fd reopen with a rooted target must never silent-pass, got []' 0!==2; C15b 0!==3; C15c 'sysopen dot/colon/IO spellings must row once each, got []' 0!==3; C15d 0!==3; C15e '2 !== 8' (pre-existing symlink/link 2, six new verbs missing); C15f 'rooted deletion primitives must row like their FileUtils wildcard twins, got []' 0!==3; # tests 65 pass 59 fail 6. C14a/C14b/C15g/C15h passed pre-fix BY DESIGN (0-row silence tripwires; C14b's control half asserts the 1-row direction, so the class is pinned both ways).",
+  "verification": {
+    "gem": "65/65", "crates": "12/12", "pypi": "7/7", "npm": "21/21", "channels_rubygems": "28/28",
+    "full_npm_test": "timeout 600 npm test: 497 tests (=487 baseline+10), 495 pass, fail exactly 2: C5-1 + C5-4 (known env pair)",
+    "typecheck": "RC 0", "build": "RC 0",
+    "fixtures": "sha256sum -c test/fixtures/residue/SHA256SUMS.local 52/52 OK (no fixture changes)",
+    "ceilings_grep_method": "residueGem.ts 287/300, residueMatchers.ts 159/300",
+    "doc_truth_sweep": "28-case §8 row-count re-cite through the detector seam + 71-case before/after table: drift 0/28; every named-invisible count re-probed 0 on the new build; complement class 14/14 still silent; BLK-7 verbatim payload '$stdout.reopen(\"/tmp/evil_r7.log\")' now 1 row rule residue-out-of-tree-write; ::-form and nested-in-if variants 1/1",
+    "untouchable_sha_6of6": {
+      "src/artifacts/npm.ts": "b8b23b5c5f6f76eb8460ea8385f1c9ef33c31afe012973af0b2c08dcf3a93039 OK",
+      "src/artifacts/residue.ts": "15274f7fff4b6ebdffef37dc772cd9efcc38e4a54e21b680714a0e972dad59ed OK",
+      "src/artifacts/residuePy.ts": "637312a5ffa5231cb166c9c0d03ac78bbc44a84318682e473e145c4fba2ae28f OK",
+      "src/artifacts/residueRust.ts": "04d87b21ae419ca0eaa92ee74223b0bf21b86d32e5ec2fc6fcf60019c2de8548 OK",
+      "test/residue.npm.test.ts": "bdab5595fbdbb24b40c9f83fbebf7cecadfeab15208841a0cab839ce002b3532 OK",
+      "test/channels.rubygems.test.ts": "4f377f077ba78d9e39952dfc20ab77b2c6d22c6af260e6caaa7cc3a2c90ef18c OK"
+    },
+    "non_gem_region_identity": "diff before→after on residueMatchers.ts: single hunk 321,322c321,332 — entirely inside the gem region (old :322 GEM_WRITE_CALL + trailing comment line); all 1-320 and post-region bytes unchanged"
+  },
+  "deviations": [
+    "fix-7 half-phantom: test file + contract lacked C14a/b & item (11) despite brief's 57/57 claim — I implemented them (measured shas of both source files matched the brief exactly, so the code half of fix-7… actually the regex at 75baae07 contains no complement-class change either; C14 was purely test/doc work that never landed)",
+    "brief ceiling figure 271 for residueMatchers.ts not reproducible with the stated grep method (measures 159 before and after; sha identical to brief's baseline) — used the grep method as ground truth",
+    "residueGem.ts untouched (write lane consumed the widened table unchanged) — zero diff on that file",
+    "deletion class disposition: brief allowed exclude-or-cover; covered with rm_r-precedent adjudication — strictly safer, zero new rule ids, all 55 legacy pins unchanged",
+    "no new rule ids anywhere: reopen/sysopen/deletion rows all carry residue-out-of-tree-write HIGH patternId gem-confinement"
+  ],
+  "residual_limits_reprobed": "items (1)-(12) all re-cited on the post-fix build, drift 0; newly named: (11) shell-meta adjacency (complement class, runtime-LIVE redirect/chaining text, origin-only blind spot), (12) arbitrary-receiver reopen; accepted over-block unchanged (FileUtils.* wildcard rows dead names; %x anchor-generic closer scan; chdir/ENV-mark FP costs)"
+}
