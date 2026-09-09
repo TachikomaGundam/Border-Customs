@@ -1,0 +1,74 @@
+{
+  "verifier": "independent AdversarialVerify gate, R1 evidence-spike (ses: this session, 2026-09-08 ~18:44-18:55 +0800)",
+  "artifact": "src/artifacts/RESIDUE-CONTRACT.md (672 lines) + .omo/evidence/residue-spike/",
+  "verdict": "confirmed",
+  "confidence": 0.93,
+  "blockers": [],
+  "nits": [
+    "§0.1 cites failing locations 'test/channels.integration.test.ts:232,237'; runner reports C5-1 at 232:1 (correct) but C5-4 at 298:1 — ':237' is wrong; the test IDs, error messages ('exactly one check record, git-scoped: 0 !== 1'), counts and pre-existence claim are all confirmed.",
+    "§0 'R1 touched none' of the 21 dirty files: strictly true for all code/README/package.json (19 files mtime Sep 5); the 2 exceptions .omo/boulder.json (18:06) and .omo/start-work/ledger.jsonl (18:40) are orchestration metadata written by the workflow system ABOUT the R1 session, not production changes.",
+    "§2.3 'same-store bonus' undici@6.28: shape/version/string exact ('husky && node ./scripts/platform-shell.js') but found at ~/.npm-global/lib/node_modules/npm/node_modules/undici (npm's bundled dep), not under ~/.cache/opencode stores; within §2's declared sweep scope, cosmetic wording.",
+    "§1.1 'package.json 34 lines total': live file lacks trailing newline so wc -l says 33; content identical to quote (verified via diff, EOF-newline artifact only).",
+    "§3 regeneration is byte-identical after ONE normalization: P5 publint-fail message embeds the fixture's absolute path (legitimately different when run from /tmp). R2's golden diff must normalize that path or scope the assertion per §6-5."
+  ],
+  "probes": [
+    {
+      "id": 1,
+      "claim": "no production change; 21 dirty tracked files pre-existing",
+      "commands": ["git rev-parse HEAD", "git status --short", "git diff --stat", "git diff --name-only | xargs stat", "git diff | grep -inE 'residue|lifecycle|postinstall'"],
+      "observed": "HEAD=4a8836dc8c587087124781ce093c0c318f0ab835 = contract. Exactly 21 ' M' files = §0 list. Diff 650+/991- all 0.2.0 WIP; no residue-related code in any diff. Only R1 file under src/: untracked RESIDUE-CONTRACT.md (mtime 18:37).",
+      "result": "PASS (see nits 2)"
+    },
+    {
+      "id": 2,
+      "claim": "§0.1 baseline red pre-existing: C5-1/C5-4, file untracked at HEAD",
+      "commands": ["timeout 300 node --import ./tools/register-ts.mjs --test test/channels.integration.test.ts", "git ls-files --error-unmatch test/channels.integration.test.ts", "git ls-tree -r HEAD | grep -c channels|RESIDUE"],
+      "observed": "# tests 8 / # pass 6 / # fail 2 — exactly C5-1 (232:1, 'exactly one check record, git-scoped 0 !== 1') and C5-4 (298:1, publish-ordering). ls-files exit 1 (untracked); HEAD tree has 0 channels/RESIDUE entries. Test file mtime Sep 5 15:50; src/channels/ mtimes Sep 5. No R1-written file participates in the failing path.",
+      "result": "PASS (see nit 1)"
+    },
+    {
+      "id": 3,
+      "claim": "§3 pins reproducible from clean copy",
+      "commands": ["cp -a .omo/evidence/residue-spike /tmp/r1-verify/spike", "sed -i fixturesDir->/tmp in copied spike-runner-inner.ts", "cd repo && timeout 180 node --import ./tools/register-ts.mjs /tmp/r1-verify/spike/run-spike.mjs > /tmp/r1-verify/stage-pins-regen.json (exit 0)", "sed 's|/tmp/r1-verify/spike|<repo>/.omo/evidence/residue-spike|g' regen > normalized.json && diff stage-pins-0.2.0.json normalized.json", "sha256sum -c SHA256SUMS.manifest"],
+      "observed": "PINS_IDENTICAL_EXACT — regenerated 4295 B == pinned 4337 B byte-for-byte after the single fixture-path normalization (path appears only inside P5 publint message). All P1-P5 lifecycle-script rows: rule/severity/target/path/engine/message/valueDigest/snippet + all 5 tarball sha256+bytes reproduce. Evidence-dir SHA256SUMS.manifest: every entry OK (repo copy never touched; runners import repo src read-only).",
+      "result": "PASS — top-priority claim verified"
+    },
+    {
+      "id": 4,
+      "claim": "§4 negative controls hit table real",
+      "commands": ["timeout 60 node /tmp/r1-verify/spike/pattern-proto.mjs | diff vs pinned pattern-proto-results.json", "cat -n planted/T3-rc/postinstall.js planted/T4-unix/postinstall.sh planted/cross-manager/postinstall.js"],
+      "observed": "PATTERN_RESULTS_IDENTICAL (byte-for-byte). Spot-checks: t3-git-global revised regex matches argv-form token at T3-rc:11 ('--global\",') while the discarded shell-text draft provably cannot — §6.7 lesson authentic; t4-unix 7 line-hits confirmed (:3,8,9,10,11,12,13,14 minus line-based dedup = 7); xmgr-spawn 8 hits = spawn/exec-call lines :5,7-13, xmgr-shell 1 = :6 (adjacent 'pip install' only there). All planted files carry 'PLANTED ... Synthetic' headers.",
+      "result": "PASS"
+    },
+    {
+      "id": 5,
+      "claim": "§1 anatomy honesty (top priority)",
+      "commands": ["stat -c '%h %i %n' on hardlink pair", "sha256sum binaries + postinstall live/fixture", "sed -n '107,295p' RESIDUE-CONTRACT.md | diff vs live postinstall.mjs", "grep -c opencode ~/.bashrc ~/.profile", "sed -n '8p;126,144p;151p;158,165p' live postinstall.mjs", "diff <(sed -n '57,90p' contract) live package.json"],
+      "observed": "Hardlink: '2 12607542' BOTH paths exactly as pinned; binary sha ca6c0e1f42be3120595bf6848937e7586ec862c87fa7aa111e89c7cc6e9a4650 both. postinstall.mjs sha 5a7c990fe552e76b16422cdba3f4b0550590c7a487f7932c773362f74317c87b for live == evidence fixture == contract-embedded extraction (EMBEDDED_IDENTICAL, 189 lines, zero drift) — the full-copy claim is real. Line cites exact: L8 url import, L126-144 installPackage, L151 fs.linkSync, L158-165 verifyBinary. rc grep: 0/0, .zshrc/.bash_profile absent. §1.1 manifest quote: identical except live file's missing trailing newline. npm.ts:198 LIFECYCLE loop, npm.ts:204 message template, npmPack.ts:43 tail(): all verbatim.",
+      "result": "PASS — embedded-file honesty confirmed byte-level"
+    },
+    {
+      "id": 6,
+      "claim": "§2 classification spot-checks",
+      "commands": ["sha256sum+sed on node_modules/esbuild/install.js cited lines", "node -e require(msgpackr-extract package.json).scripts", "sha256sum+sed node-gyp-build-optional-packages/bin.js", "require(thread-stream).scripts.prepare", "fixture package.json hook mirrors"],
+      "observed": "esbuild install.js sha 10f6fa36… + 289 lines ✓; L92 zlib / L93 https / L146-150 fetch+https.get / L186-189 execSync npm-install / L213-218 applyManualBinaryPathOverride writing require('child_process').execFileSync JS / L236-243 downloadDirectlyFromNPM registry.tgz+chmodSync(493) — every cited line lands. msgpackr-extract install hook + bin.js sha b6c3ee58… + L3/8/23/34 ✓. thread-stream prepare 'husky install' ✓. Bonus shapes: msgpackr 'npm run build' ✓, uuid lefthook ✓, undici 6.28.0 compound ✓ (location nit 3). Fixture package.json hooks mirror the real strings verbatim.",
+      "result": "PASS"
+    },
+    {
+      "id": 7,
+      "claim": "§5 waiver anchors; hr read-only",
+      "commands": ["sed -n '34,36p;239,245p' hr/hr/setup_env.py", "diff setup_env.py vs hr-setup-env.py.reference", "grep --uninstall cli_setup.py", "find hr -newermt '2026-09-08 17:55' -type f"],
+      "observed": "MARK_BEGIN/MARK_END at :34-35 verbatim ('# BEGIN aihr PATH (hr setup)' / '# END …'); _RC_CANDIDATES :36; HKCU-only OpenKey block :239-245. Reference copy byte-identical (sha 0bd0c05dd90d6831a58410d1f8203c8d645775959602d53005e1104a5990a70a). cli_setup.py --uninstall typer.Option at :295-304 with quoted help text. ZERO files modified in /home/lab/workspace/harness/hr after 17:55 (newest 17:02, earlier session, outside R1 window 18:00-18:40).",
+      "result": "PASS"
+    },
+    {
+      "id": 8,
+      "claim": "zero third-party lifecycle execution",
+      "commands": ["ps aux | grep -E 'npm pack|verdaccio|gitleaks|node-gyp|npm install'", "grep -c spawn|exec on spike scripts", "sed -n '78,86p' src/artifacts/npmPack.ts"],
+      "observed": "No orphan processes (grep empty). run-spike.mjs/spike-runner-inner.ts contain zero spawn/exec (only import repo parseConfig+runNpmArtifactStage); pattern-proto.mjs is pure readdirSync/readFileSync+regex (its 'spawn/exec' occurrences are regex literals). npmPack.ts:82 = ['pack', repoDir, '--ignore-scripts', '--json', ...] — fixture hooks structurally could not run; publint executed by the stage is border's own first-party binary. gitleaks JSON reports are 3-byte '[]' as claimed.",
+      "result": "PASS"
+    }
+  ],
+  "repro": "mkdir -p /tmp/r1-verify && cp -a /home/lab/workspace/harness/border/.omo/evidence/residue-spike /tmp/r1-verify/spike && sed -i 's|const fixturesDir = \"/home/lab/workspace/harness/border/.omo/evidence/residue-spike/fixtures\"|const fixturesDir = \"/tmp/r1-verify/spike/fixtures\"|' /tmp/r1-verify/spike/spike-runner-inner.ts && cd /home/lab/workspace/harness/border && timeout 180 node --import ./tools/register-ts.mjs /tmp/r1-verify/spike/run-spike.mjs > /tmp/r1-verify/stage-pins-regen.json && sed 's|/tmp/r1-verify/spike|/home/lab/workspace/harness/border/.omo/evidence/residue-spike|g' /tmp/r1-verify/stage-pins-regen.json | diff .omo/evidence/residue-spike/stage-pins-0.2.0.json - ; timeout 60 node /tmp/r1-verify/spike/pattern-proto.mjs | diff .omo/evidence/residue-spike/pattern-proto-results.json - ; timeout 300 node --import ./tools/register-ts.mjs --test test/channels.integration.test.ts   # expect: pass 6 fail 2 (C5-1, C5-4)",
+  "note": "Verifier wrote only this file. No repo file modified; evidence SHA256SUMS.manifest re-validated OK post-runs; ~/.npm-global, ~/.bashrc, harness/hr untouched (reads only)."
+}

@@ -9,7 +9,15 @@
 // The file digest was a proxy for the effective config; hashing the effective
 // config directly is its strict superset and works for the inferred fallback
 // (no file exists at all).
-// bundledRulePaths currently = the vendored gitleaks config; promptTemplatePaths
+// bundledRulePaths = the vendored gitleaks config + the R4 residue fingerprint
+// sources (src/rules/residueMatchers.ts and the classifier/scan modules that
+// consume it): the cached PASS is now certified against those bytes, so a
+// one-line rule-table or classifier edit invalidates it even at the same
+// commit+tree (plan AC gate 4). BORDER_RESIDUE_SRC_DIR is the test/ops seam
+// (same spirit as BORDER_PROMPT_TEMPLATE_PATH): it redirects ALL fingerprint
+// reads to one flat dir of copies, letting the suite prove digest sensitivity
+// without mutating the byte-frozen shipped sources.
+// promptTemplatePaths
 // lists assets/prompts/llm-review.md once it exists (todo 18) — computeRulesHash
 // fails closed on missing files, so only existing inputs may be listed. The
 // esbuild dist bundle cannot resolve `../..` walk-ups from dist/index.js, so a
@@ -19,12 +27,44 @@
 import { resolveAsset } from "../assets.ts";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import type { LoadResult } from "../config.ts";
 import { GITLEAKS_VENDORED_CONFIG } from "../engines/gitleaks.ts";
 import { computeRulesHash } from "../redact.ts";
 
 export type LoadedConfig = Extract<LoadResult, { kind: "loaded" }>;
+
+// R4 residue fingerprint inputs (plan gate 4): the rule table + every module
+// that runs or classifies the residue scan. Content here rides the rulesHash,
+// so editing ANY of it invalidates cached PASS rows even at the same HEAD.
+const RESIDUE_FINGERPRINT_SOURCES: ReadonlyArray<{ readonly dir: "rules" | "artifacts"; readonly base: string }> = [
+  { dir: "rules", base: "residueMatchers.ts" },
+  { dir: "artifacts", base: "residue.ts" },
+  { dir: "artifacts", base: "residuePy.ts" },
+  { dir: "artifacts", base: "residueRust.ts" },
+  { dir: "artifacts", base: "residueGem.ts" },
+  { dir: "artifacts", base: "npm.ts" },
+  { dir: "artifacts", base: "pypi.ts" },
+  { dir: "artifacts", base: "crates.ts" },
+  { dir: "artifacts", base: "rubygems.ts" },
+];
+
+export const RESIDUE_FINGERPRINT_BASENAMES: readonly string[] = RESIDUE_FINGERPRINT_SOURCES.map((s) => s.base);
+
+export function resolveResidueFingerprintFiles(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): readonly string[] {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const seam = env.BORDER_RESIDUE_SRC_DIR;
+  return RESIDUE_FINGERPRINT_SOURCES.map(({ dir, base }) => {
+    if (seam !== undefined) return join(seam, base);
+    const live = join(here, "..", dir, base);
+    if (existsSync(live)) return live;
+    return resolveAsset(import.meta.url, ["residue-src", base]);
+  });
+}
 
 /**
  * The llm review template whose bytes are part of the rules fingerprint.
@@ -60,7 +100,7 @@ export async function computeCheckRulesHash(input: {
 }): Promise<string> {
   const template = resolvePromptTemplatePath(input.env ?? process.env);
   return computeRulesHash({
-    bundledRulePaths: [GITLEAKS_VENDORED_CONFIG],
+    bundledRulePaths: [GITLEAKS_VENDORED_CONFIG, ...resolveResidueFingerprintFiles(input.env ?? process.env)],
     configDigest: input.configDigest,
     engineVersions: input.engineVersions,
     promptTemplatePaths: existsSync(template) ? [template] : [],

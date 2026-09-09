@@ -85,7 +85,7 @@ test("--help exits 0 and prints the full G9 flag table + subcommands + exit-code
   assert.equal(r.code, EXIT_PASS);
   assert.equal(r.stdout, `${usage()}\n`);
   const help = usage();
-  for (const flag of ["--config <path>", "--targets <git,npm,pypi>", "--force", "--yes", "--require-engine <list>", "--llm", "--json"]) {
+  for (const flag of ["--config <path>", "--targets <git,npm,pypi,crates,rubygems>", "--force", "--yes", "--require-engine <list>", "--llm", "--json"]) {
     assert.ok(help.includes(flag), `flag table missing ${flag}`);
   }
   for (const cmd of ["check", "push", "status", "llm-request", "llm-ingest"]) {

@@ -9,7 +9,11 @@
 // The table below also pins the adapter-native translations from G11: gitleaks
 // 0⇒clean, 1⇒findings, ANY other code incl. 126 (usage error) ⇒ 2 — never 126 as
 // "clean" (round-3 B1.4); trufflehog 183(findings)⇒findings; secretlint 2⇒2.
-import { ConfigError } from "../config.ts";
+// ConfigError lives in the dependency-free channels/errors leaf (todo C2): the
+// registry subtree here imports exit.ts mid-load, and config.ts's own top-level
+// schema reads channel descriptors — importing it from here would evaluate
+// config.ts before the channels are initialized (load-order cycle).
+import { ConfigError } from "../channels/errors.ts";
 import { EnginePolicyError } from "../engines/policy.ts";
 import { InvalidFindingError, isBlocking, type Finding, type Verdict } from "../findings.ts";
 import { EngineMissingError, EngineRunError } from "../engines/support.ts";

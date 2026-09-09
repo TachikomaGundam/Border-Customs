@@ -1,0 +1,72 @@
+{
+  "rowCount": 11,
+  "rows": [
+    {
+      "fx": "a-opencode-t1",
+      "rule": "residue-in-tree-hook",
+      "path": "package/package.json",
+      "valueDigest": "860b056a01f98043ab365ad71e2612a10e0f44f017f58b8ca19665294470b7b0"
+    },
+    {
+      "fx": "b-t2-downloader",
+      "rule": "residue-install-download",
+      "path": "package/postinstall.js",
+      "valueDigest": "706b453eb8a86e858913290823b503d67fc75db6b42c7ba5778d9c2e79c2c393"
+    },
+    {
+      "fx": "c-t3-rceditor",
+      "rule": "residue-out-of-tree-write",
+      "path": "package/postinstall.js",
+      "valueDigest": "28c071c0ee5ec424eccb58ee576ccbaff4c407a8ff4d88123f1a855310e78d04"
+    },
+    {
+      "fx": "d-t4-bin",
+      "rule": "residue-persistence-primitive",
+      "path": "package/bin/evil.cmd",
+      "valueDigest": "31952b9fa51b20f8a5879004293e32e8822a02dbab99fca827f14cd3e12d6ec2"
+    },
+    {
+      "fx": "d-t4-bin",
+      "rule": "residue-persistence-primitive",
+      "path": "package/bin/evil.sh",
+      "valueDigest": "10c55194af0739e2c4b77ee8513726e6561b2016ce23ada9f7af6315cd5fae9f"
+    },
+    {
+      "fx": "i-crossmgr",
+      "rule": "residue-cross-manager-write",
+      "path": "package/postinstall.js",
+      "valueDigest": "bb3a3cd8fec62ac1f8c084b576e4bef7821dc329edfafa2d18decd87d8fe5a59"
+    },
+    {
+      "fx": "j-winpath",
+      "rule": "residue-out-of-tree-write",
+      "path": "package/postinstall.js",
+      "valueDigest": "eb769a7d86ea51f334b322c905639a34d03bf481df32ab243abe8e4d3f3f7ba8"
+    },
+    {
+      "fx": "k-paired",
+      "rule": "residue-out-of-tree-write",
+      "path": "package/bin/setup_env.py",
+      "valueDigest": "397a09a19694f8910c62315069445dac05c540637eea06e522e07ec9f24e114d"
+    },
+    {
+      "fx": "k-remove-orphan",
+      "rule": "residue-pairing-missing",
+      "path": "package/bin/undo.py",
+      "valueDigest": "facff2c7388a205ca94f52ccaa4a5f31921f8c416d7b454d9304ad46cd6e9ea7"
+    },
+    {
+      "fx": "k-write-orphan",
+      "rule": "residue-out-of-tree-write",
+      "path": "package/bin/writer.py",
+      "valueDigest": "6802c51409995db40622a85d08f8588e8e047a77ee48dd738ab603a948119022"
+    },
+    {
+      "fx": "k-write-orphan",
+      "rule": "residue-pairing-missing",
+      "path": "package/bin/writer.py",
+      "valueDigest": "7e15a02822c96cb5a87d2f3eb7e9942b35e76702fbf18f056452811ad1feb1e7"
+    }
+  ],
+  "sha256": "cf54bc25bf5fc9552dfd048e04297cec14af178dc3ef44767b4cf74526cdb08d"
+}

@@ -2,7 +2,7 @@
 name: border
 description: |
   Operate the `border` push gate: deterministic secret/identity/artifact scanning
-  before any git/npm/PyPI push, plus the optional agent-executed LLM review layer.
+  before any git/npm/PyPI/crates.io/RubyGems push, plus the optional agent-executed LLM review layer.
   Use when asked to check a repo before pushing, run/ingest an llm-review bundle,
   push through the gate with confirmation, or inspect gate status. Triggers:
   border check, border push, llm-request, llm-ingest, push gate, pre-push scan.
@@ -18,7 +18,7 @@ handoffs (`llm-request` / `llm-ingest`). Install: this repo's `npm link` or
 ## The five subcommands
 
 ```
-border check [--config <yaml>] [--targets git,npm,pypi] [--force] [--llm] [--json] [--require-engine <name>]
+border check [--config <yaml>] [--targets git,npm,pypi,crates,rubygems] [--force] [--llm] [--json] [--require-engine <name>]
 border push  [--yes] [--targets ...]
 border status
 border llm-request
@@ -93,8 +93,10 @@ review LLM — because it is.
 mirrors the gate verdict (clean ⇒ 0, blocked ⇒ 1, gate unavailable ⇒ 2). Show
 the human the dry-run plan (targets, refs, versions, the check key it is riding)
 and get explicit confirmation; only then run `border push --yes`, which executes
-git remotes → npm → PyPI in order after an all-or-nothing pre-flight, verifying
-published bytes hash-match the recorded artifacts and writing push records.
+git remotes → npm → PyPI → crates → rubygems in order after an all-or-nothing pre-flight,
+verifying published bytes hash-match the recorded artifacts and writing push records.
+The crates leg re-runs `cargo package` pre-publish and blocks on digest divergence (cargo
+publish always repackages); `gem push` uploads the recorded `.gem` byte-for-byte.
 Never pass `--yes` on a user's behalf without their visible go-ahead, and never
 push over an exit-2 (unavailable) gate.
 

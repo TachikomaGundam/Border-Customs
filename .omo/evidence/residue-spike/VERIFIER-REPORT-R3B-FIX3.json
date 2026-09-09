@@ -1,0 +1,103 @@
+{
+  "round": "R3b-VERIFIER-FIX3 (round 4, fresh context, zero trust)",
+  "verdict": "needs-fix",
+  "verifier": "independent-adversarial-r4",
+  "confidence": "high",
+  "head_under_test_note": "Working tree as of 2026-09-09; find -newer VERIFIER-REPORT-R3B-FIX2.json over src/ test/ = exactly {src/rules/residueMatchers.ts, src/artifacts/residueGem.ts, test/residue.gem.test.ts} plus src/artifacts/RESIDUE-CONTRACT.md (.md) — nothing else touched. 6 untouchables byte-match the FIX2 table; the 4 fixer files drifted as expected.",
+  "claims_re_proved": {
+    "marks_stateless_Regexp": "CLOSED — GEM_OUT_OF_TREE_MARKS RegExp (residueMatchers.ts:318); Dir::home / ENV::[] / ENV::fetch pins R3b-C9a-C9c pass; probes: ENV. dot-form in span ⇒ 1, ENV.to_h via binding resolution ⇒ 1, ENVIRONMENT no false hit ⇒ 0. No /g on mark table (stateless .test verified by repeated invocation).",
+    "Process.spawn_explicit_arm_consume": "CLOSED — R3b-C9d/C9e pass; extra probes: one-line `Process.spawn(…) if Process::spawn(…)` ⇒ exactly 2; spaced `Process . spawn` ⇒ 1; tabbed `Process\\t::\\tspawn` ⇒ 1; `::Process.spawn` leading colon ⇒ 1; paren-less `Process::spawn \"…\"` ⇒ 1 via unparseable fail-close; bare `spawn(` ⇒ 1. Receiver arm consumes the colon form before the bare-spawn arm can re-fire (matchAll verbs observed: [\"Process.spawn\",\"Process::spawn\"]) — no double count, no silent pass.",
+    "ROOTED_boundary_bracket_adjacency": "CLOSED — C10a %(/usr ⇒ 1, C10b %w[/usr ⇒ 1, C10c accepted-FP cost pin ⇒ 1; nested-array [[\"a\"],[\"/usr/bin\"]] ⇒ 1. Residue of the boundary documented under BLK-R3bF4-A (closing-brace/paren adjacency NOT accepted — by design, see blocker).",
+    "sigil_acceptance_grammar": "CLOSED for its named members — @@ov ⇒ unresolvable fail-close 1 (C11a), $0 ⇒ 1 (C11b), $; odd-char operand ⇒ 1 (probe W1a-H); LHS grammar correctly does NOT bind @@/$0/$, so they route to the fail-close lane, §8:962-965. Note: the `File.write($, \"x\")` single-comma shape is a Ruby SyntaxError (box 3.3.8), so the $,-odd-char comma-split interaction is not constructible — the §8:963 enumeration ($0,$!,$:,$-x) is truthful; no finding.",
+    "heredoc_unconditional": "CLOSED — C3f pin; probes: heredoc bound + operand with NO rooted literal anywhere ⇒ 1 (unconditional ✓ §8:1025-1027); heredoc present-but-never-an-operand ⇒ 0; heredoc operand in DATA slot (2nd arg) ⇒ 1 — scope is verb-operand-position only, exactly the §8 sentence ('a heredoc-bound operand rows UNCONDITIONALLY').",
+    "fmt_trio_qualified": "CLOSED — reproduced 0 (mid-file, closer-to-closer span clean) / 1 (EOF, closer scan exhausts ⇒ unparseable fail-close) / 1 (rooted text between the quotes absorbed into span) — §8:1032-1038 verbatim.",
+    "channels_12_to_28": "CLOSED — 28 channels/rubygems tests 28/28 green (incl. G8 stage dup-key ⇒ EngineRunError reject and the exit-2 metadata.gz corruption case).",
+    "NIT_enumerations": "NIT-1 arr[0]/splat ⇒ 0/0 reproduced; NIT-2 File.new paren-less AND parened both ⇒ 0 reproduced and both named §8:991-995; NIT-3 indented-extensions-inside-block ⇒ THROW 'unrecognized line' reproduced.",
+    "doc_truth_sweep_10_numbers": "SPOT-CHECKED 12+ independent reproductions, all match (see doc_truth)."
+  },
+  "per_attack": {
+    "W1_regression_widening": "FAIL-CLOSED-SIDE CLEAN, TWO ESCAPES FOUND. (a) NO sigil row storm: mentions outside verb spans ⇒ 0 even with a rooted literal in the file (W1a-A/B/E/F); operand-position $stdout with rooted ⇒ exactly 1 (documented fail-close, §8:971-973,1023-1025); $stdout bound-then-operand resolves to opaque text ⇒ confined 0 — same class as the §8-6 method-return lane, posture-correct. (b) ENV generalization: plain `environ = ENV.to_h` / `ENV.keys.each` statements ⇒ 0 rows; ENV only rows inside a verb span or via operand resolution — matches §8:938 'any ENV lookup' verbatim, no silent behavior change beyond doc. (c) BOUNDARY ADJACENCY: `#{x}/usr/local/bin/y` ⇒ 0 rows AND the empty-prefix variant `p = \"\"; File.write(\"#{p}/usr/local/bin/ghost\", \"d\")` WRITES LIVE on box ruby 3.3.8 (file created) — `}` and `)` are not in [\\s(\\[{<] (by necessity: `}`-then-`/` is the idiomatic path-join, widening it FPs every real `\"#{dir}/file\"`), yet §8's R3b invisible list does NOT name it while the crates §8 section names the exact twin class for Rust (RESIDUE-CONTRACT.md:792 format!-interpolation invisible). The list header asserts 'every INVISIBLE item below' (§8:982-985) ⇒ completeness violation ⇒ BLK-R3bF4-A. Quoted-shell `run()/usr/bin/thing` inside a backtick/system span ⇒ 0 also lands in the same unnamed `)`-adjacency residue. Note: ENV-inside-interpolation `#{ENV['HOME']}/x` still rows (mark lane independent) — the hole is boundary-adjacency only.",
+    "W2_heredoc_scope": "PASS — operand-position only, two directions pinned: any-file heredoc mention without operand use ⇒ 0; heredoc-bound operand ⇒ 1 unconditional with no rooted literal in the file. §8:1025-1027 sentence exists and matches behavior.",
+    "W3_colon_propagation_final_sweep": "TWO LIVE 0-ROW UNNAMED EXITS + ONE DERIVABLE. Sweep of every gem-adjacent predicate: GEM_WRITE_CALL/GEM_CHDIR_CALL/GEM_HOOK_CALL/marks all carry (?:\\.|::); shared tables the gem leg consumes: familyHits t2/t3/t4 + xmgr rows are CLI/content text patterns (crontab, 'gem install', ~/.bashrc) with NO Ruby constant grammar ⇒ :: N/A; B2 MARKER_* grammar is consumed ONLY by sweepResidueNpmArtifact (src/artifacts/residue.ts:297-315) and rubygems.ts imports none of it ⇒ gem leg unaffected; GEM_PERSISTENCE is basename-exact. Benign confirmed 0: Gem::Specification, FileTest::exist?, Kernel::format (string builder, nested-call shape named via §8-8). Caught confirmations: %x{…}+rooted ⇒ 1, ::Dir.chdir ⇒ 1, File::chmod paren-less ⇒ 1 fail-close, FileUtils :: rm_rf spaced ⇒ 1, ::Gem.post_install spaced ⇒ T4 row, gem-install xmgr row intact. ESCAPES: (i) `system %q{/usr/…}` / `exec %q{…}` / `system %{…}` — box-verified LIVE exec (files created), gate 0 rows; verb is table-listed, closed 'paren-or-quote operand' scope disclosed at §8:912 but the shape is NOT in the invisible list — same adjudication that made Process.spawn a round-3 blocker (live-executing table verb, 0 rows, unnamed) ⇒ BLK-R3bF4-B. (ii) `Kernel.system(\"/usr/…\")` dot-form — live exec, 0 rows; §8:921-923's 'lookbehind deliberately excludes only [\\w.]' design sentence explicitly states the non-matching mechanism (unlike the old Process.spawn claim which asserted coverage) ⇒ NIT (add explicit complement), not blocker. (iii) `IO::write(\"/usr/…\",\"y\")` — 0 rows, symmetric with the named IO.write invisible family (round-3 blockers were caught-vs-escape asymmetries; escape-vs-escape is priced symmetrically) ⇒ NIT: append '(and IO::write)' to §8:989.",
+    "W4_dupkey_throw_trio": "PASS — 3 occurrences with interleaved comments AND other top-level keys between ⇒ THROW 'duplicate extensions: key (3 top-level declarations) — cannot certify which one rubygems loads (psych is last-wins); failing closed' — template byte-matches §8:872-876 incl. the a5 '(2 top-level declarations)' quote; `# extensions:` comment spelling not counted; single-key block ⇒ ['ext/ghost/extconf.rb'], single flow [] ⇒ []; stage path G8 reject green in 47/47 and channels 28/28.",
+    "W5_c9e_consume_logic": "PASS — 7 spelling variants all exact-1-or-exact-2 as claimed (if-form 2, spaced 1, tabbed 1, leading-colon 1, paren-less fail-close 1, bare 1, same-line colon+dot 2); verb arrays confirm single consumption per site.",
+    "W6_doc_truth_rerun": "PASS with the list-completeness exception filed under W1(c)/W3. Independently reproduced (all exact): 47 gem tests; 28 channels; 52/52 fixture SHAs (run from the fixture dir — paths are dir-relative); fmt trio 0/1/1; costs ENV[\"EXTOUT\"] 1, make -C /usr/src 1, FileUtils.cp destination 1, multi-target o,p⇒1, @@ov⇒1, $0⇒1, heredoc-no-rooted⇒1; invisibles ../../⇒0, IO.write⇒0, bare open⇒0, bare rename⇒0, File.new paren-less⇒0, File.new parened⇒0, method-return⇒0, += churn⇒0, nested File.join⇒0, arr[0]⇒0, splat *arr⇒0, config_home⇒0; dup-throw text; indented-extensions THROW; NIT-1 shapes. Fixer's '10 §8 numbers' claim: no mismatch found — the doc-lie axis is CLEAN; blockers are unnamed-invisible-list violations, not false numbers.",
+    "W7_hygiene": "PASS — gem 47/47, crates 12/12, pypi 7/7, npm 21/21, channels.rubygems 28/28; full npm test 479 tests / 477 pass / 2 fail = exactly the documented C5-1 + C5-4 env pair; typecheck (tsc --noEmit) clean; esbuild build OK + assets staged; sha256sum -c 52/52 OK; ceilings: residueGem.ts 351 total / 275 code (was 247→269 code across rounds — growing with BLK doctrine comments), residueMatchers.ts 383 total / 159 code; NIT-6 standing finding unchanged: no ceiling doctrine file exists and the plan text carries no numeric LOC ceiling (grep 'ceiling|LOC' over .omo/plans/border-residue-gate.md: no numeric limit) ⇒ nothing testable, reported for the ledger only."
+  },
+  "sha_table_11": [
+    { "file": "src/artifacts/rubygems.ts", "sha": "f9884da5530f06f9ab1286965428f5dd18ed71903cde72d4182f404fa0cda905", "match": "MATCH (untouchable)" },
+    { "file": "src/artifacts/npm.ts", "sha": "b8b23b5c5f6f76eb8460ea8385f1c9ef33c31afe012973af0b2c08dcf3a93039", "match": "MATCH (untouchable)" },
+    { "file": "src/artifacts/residue.ts", "sha": "15274f7fff4b6ebdffef37dc772cd9efcc38e4a54e21b680714a0e972dad59ed", "match": "MATCH (untouchable)" },
+    { "file": "src/artifacts/residuePy.ts", "sha": "637312a5ffa5231cb166c9c0d03ac78bbc44a84318682e473e145c4fba2ae28f", "match": "MATCH (untouchable)" },
+    { "file": "src/artifacts/residueRust.ts", "sha": "04d87b21ae419ca0eaa92ee74223b0bf21b86d32e5ec2fc6fcf60019c2de8548", "match": "MATCH (untouchable)" },
+    { "file": "test/residue.npm.test.ts", "sha": "bdab5595fbdbb24b40c9f83fbebf7cecadfeab15208841a0cab839ce002b3532", "match": "MATCH (untouchable)" },
+    { "file": "src/artifacts/residueGem.ts", "sha": "0cb6878facdbcccb8f6baef36925266ce306887bde7fa241b8684beb8ac995be", "match": "DRIFT vs FIX2 cacf1834… — EXPECTED (fixer-touched); NEW BASELINE for round 5" },
+    { "file": "src/rules/residueMatchers.ts", "sha": "99688b40851cc38a58593111d252574c0c5bf8615df1c5306690d2b41b73d214", "match": "DRIFT vs FIX2 c0edd1fa… — EXPECTED (fixer-touched); NEW BASELINE" },
+    { "file": "test/residue.gem.test.ts", "sha": "03d62f00497abbafd13f02d94e0e859948fea9bf05120cf9ddc8ea815c836507", "match": "DRIFT vs FIX2 262f4561… — EXPECTED (fixer-touched); NEW BASELINE" },
+    { "file": "src/artifacts/RESIDUE-CONTRACT.md", "sha": "33837b8fece6b571d8edc115cfa727d9175807409ee301bccce8916671d404d9", "match": "DRIFT vs FIX2 655e5af3… — EXPECTED (fixer-touched); NEW BASELINE" },
+    { "file": "(11th baseline key)", "sha": "n/a — baseline's 11th key is the note string, not a file", "match": "n/a" }
+  ],
+  "suites": {
+    "residue.gem": "47/47",
+    "residue.crates": "12/12",
+    "residue.pypi": "7/7",
+    "residue.npm": "21/21",
+    "channels.rubygems": "28/28",
+    "full_npm_test": "479 tests / 477 pass / 2 fail (C5-1, C5-4 — documented environment pair, identical to FIX2 baseline)",
+    "typecheck": "clean",
+    "build": "esbuild OK, dist/assets staged",
+    "fixture_sha": "52/52 OK",
+    "probes": "77/77 (73 matrix + 4 scoping), box ruby 3.3.8 liveness for every escape claim"
+  },
+  "blockers": [
+    {
+      "id": "BLK-R3bF4-A",
+      "title": "Interpolation-adjacent rooted slash silent + unnamed (invisible-list completeness violation)",
+      "evidence": "CLEAN base + `p = \"\"` + `File.write(\"#{p}/usr/local/bin/ghost\", \"d\")` ⇒ 0 rows; box ruby 3.3.8 creates the file at the interpolated path (live-proof /tmp/.../i1_interp.txt). Also backtick/system `run()/usr/bin/thing` ⇒ 0 (`)`-adjacency twin). Boundary class [\\s(\\[{<] (§8:944-949, residueMatchers.ts:333) excludes `}`/`)` — necessarily, since `\"#{dir}/file\"` is the idiomatic in-tree path-join and widening would FP every real extconf. But §8's R3b invisible list (:986-1014) claims to enumerate EVERY invisible item and omits this, while the crates section names the identical Rust class at :792 (format!-interpolation invisible, 'interpolation that never makes the env call').",
+      "required_fix": "Doc-side (no code anchor change, mirroring the crates precedent): add an invisible-list item naming string-interpolation-then-slash (\"#{x}/usr/…\", empty/relative-prefix variants reach rooted paths at runtime) and closing-delimiter adjacency `)`/`}` as priced invisible, with the path-join FP rationale for not widening the boundary; note ENV-marks inside interpolation DO still row (mark lane independent — probe verified)."
+    },
+    {
+      "id": "BLK-R3bF4-B",
+      "title": "Bare table-verbs with percent-literal operands silent + unnamed (Process.spawn precedent)",
+      "evidence": "`system %q{/usr/local/bin/x}`, `exec %q{/usr/local/bin/x}`, `system %{touch …}` ⇒ 0 rows each; box ruby 3.3.8 executes them live (files created: i4_pctq, i4b_pctbrace). The bare arm requires `\\s*(?:\\(|[\"'])` (residueMatchers.ts:309); §8:912 discloses 'bare system|spawn|exec|popen with paren-or-quote operand' but the shape appears in NO invisible item. Round-3 adjudication of BLK-R3bF2-B (Process.spawn — also derivable-from-code, also live, also unnamed) set the precedent: live-executing table verb, 0 rows, unnamed ⇒ blocker. Note `system(%q{…})` PARENED IS caught (span percent-expansion ⇒ 1 row) — the hole is the paren-less percent operand only.",
+      "required_fix": "Either widen the bare-arm operand class by `%` (then span-extraction via GEM_PERCENT_PAIRS handles the rest) + pin, or add an explicit invisible-list item for paren-less percent-operand bare verbs. Fixer adjudicates; the list must stop claiming completeness while omitting it."
+    }
+  ],
+  "nits": [
+    {
+      "id": "NIT-R3bF4-1",
+      "text": "Kernel.system dot-form (live exec, 0 rows) is derivable from §8:921-923's 'lookbehind deliberately excludes only [\\w.]' design sentence (which explicitly documents non-matching, unlike the old false Process.spawn coverage claim) — still worth naming as an explicit invisible complement so both separator spellings' outcomes read in one place."
+    },
+    {
+      "id": "NIT-R3bF4-2",
+      "text": "IO::write colon-form 0 rows, symmetric with the named IO.write family at §8:989 (escape-vs-escape, priced symmetrically — round-3 blockers were caught-vs-escape asymmetries; this is not one). Append '(and IO::write)' for spelling-explicitness."
+    },
+    {
+      "id": "NIT-R3bF4-3",
+      "text": "$, odd-char interaction investigated and dismissed: `File.write($, \"x\")` is a Ruby SyntaxError on 3.3.8, so the comma-splitter can never fragment a legal $, operand; computed forms (`File.write($, + \".tmp\", …)`) fall in the already-named §8-8 composed-operand lane. §8:963's enumeration ($0,$!,$:,$-x) is truthful. No change; recorded so round 5 need not re-derive."
+    },
+    {
+      "id": "NIT-6 (standing)",
+      "text": "No ceiling doctrine file; plan text carries no numeric LOC limit. Current: residueGem.ts 351 total / 275 code (247→269→275 across rounds), residueMatchers.ts 383 total / 159 code (stable at 159 code, doc comments drive the total). Nothing testable fails; report-only."
+    }
+  ],
+  "doc_truth": {
+    "spot_checked_numbers_reproduced": [
+      "47 residue-gem tests (§8:1064) = 47/47 suite green",
+      "28 channels/rubygems tests (§8:1065) = 28/28 green (12→28 claim TRUE)",
+      "52/52 SHA256SUMS.local OK (§8:1069)",
+      "fmt=\"%x\" trio mid-file 0 / EOF 1 / rooted-between 1 (§8:1032-1038)",
+      "ENV[\"EXTOUT\"] cost 1 (§8:1015)",
+      "make -C /usr/src cost 1 (§8:1016)",
+      "%w[install … /usr/bin/make] cost 1 (§8:1017-1018, C10c)",
+      "FileUtils.cp destination rooted 1 (§8:1028-1029)",
+      "multi-target o,p=… ⇒ 1 (§8:1029-1032)",
+      "@@ov 1 / $0 1 (§8:1023-1025)",
+      "heredoc unconditional 1 with no rooted literal (§8:1025-1027)",
+      "invisible list 12 shapes each 0 (§8:986-1014)",
+      "dup-key error text 'duplicate extensions: key (N top-level declarations)' matches §8:876 template (N=3 live repro, N=2 a5 payload)"
+    ],
+    "violations": "None numeric — all cited counts reproduce. Two INVISIBLE-LIST COMPLETENESS violations (list header 'every INVISIBLE item below' vs BLK-R3bF4-A/B) filed as blockers; three explicitness gaps filed as NITs."
+  },
+  "process_notes": "READ-ONLY on repo (all writes under /tmp/opencode/r3bv4/, deleted post-copy; report itself is the sanctioned .omo/evidence write). Test seams: direct residueGemHits + gemDeclaredExtensions (predecessor probe.ts doctrine), plus the full real-gem-build suite re-run as the ground truth. Every escape claim paired with a box ruby 3.3.8 execution proof before filing; $, false-positive escape caught by liveness and retracted to NIT-3 the same round (zero trust cuts both ways). sha256sum -c must run inside test/fixtures/residue (dir-relative paths)."
+}

@@ -1,0 +1,16 @@
+version: 1
+targets:
+  git:
+    remotes: []
+  npm: {}
+rules:
+  authors:
+    emails: []
+    names: []
+  hosts: []
+  ips: []
+  pathPatterns: []
+allow: []
+engines:
+  require: [gitleaks, secretlint]
+  trufflehog: false

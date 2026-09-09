@@ -1,0 +1,9 @@
+# PLANTED negative-control fixture (T2 / Rust build-script network dependency). Synthetic.
+[package]
+name = "planted-t2-rs"
+version = "0.0.0"
+edition = "2021"
+
+[build-dependencies]
+reqwest = "0.12"
+ureq = "2"

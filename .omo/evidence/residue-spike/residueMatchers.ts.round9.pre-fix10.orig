@@ -1,0 +1,406 @@
+// provenance: RESIDUE-CONTRACT.md §1.6 (T1 signature), §4 (family tables + argv-token lesson),
+// §5.3 (marker grammar) — .omo/plans/border-residue-gate.md R2, plan "Must have" signature
+// table. THIS FILE IS THE ONLY home of the residue-* rule ids and pattern families (grep AC 5);
+// classifier logic lives in src/artifacts/residue.ts. Closed lists by design: config can never
+// widen them (plan Must-NOT). Every pattern here has at least one hittable fixture proven by
+// R1 §4 (test/fixtures/residue/) — do not add families without one.
+import type { Severity } from "../findings.ts";
+
+// ------------------------------------------- rule ids (single closed table)
+
+export const RESIDUE_T1_RULE = "residue-in-tree-hook";
+export const RESIDUE_T2_RULE = "residue-install-download";
+export const RESIDUE_T3_RULE = "residue-out-of-tree-write";
+export const RESIDUE_XMGR_RULE = "residue-cross-manager-write";
+export const RESIDUE_PAIRING_RULE = "residue-pairing-missing";
+export const RESIDUE_T4_RULE = "residue-persistence-primitive";
+// R3b (plan R3b AC "unmatchable extension build ⇒ exactly one MEDIUM note, never silent clean"):
+// no existing id carries this semantics (T1 is the in-tree-hook badge, PAIRING the B2 marker lane),
+// so the plan-intent id is appended here — the single home — severity MEDIUM per the plan tier table.
+export const RESIDUE_GEM_UNMATCHED_EXT_RULE = "residue-gem-unmatched-extension";
+
+export const RESIDUE_SEVERITIES: Readonly<Record<string, Severity>> = {
+  [RESIDUE_T1_RULE]: "MEDIUM",
+  [RESIDUE_T2_RULE]: "HIGH",
+  [RESIDUE_T3_RULE]: "HIGH",
+  [RESIDUE_XMGR_RULE]: "HIGH",
+  [RESIDUE_PAIRING_RULE]: "HIGH",
+  [RESIDUE_T4_RULE]: "CRITICAL",
+  [RESIDUE_GEM_UNMATCHED_EXT_RULE]: "MEDIUM",
+};
+
+// ------------------------------------------- T1: closed signature #1 (contract §1.6)
+
+export const RESIDUE_T1_SIGNATURE_ID = "opencode-in-tree-v1";
+
+/** Clause 1 — hook grammar: EXACTLY `node ./<name>.mjs` (adjudication #4: ESM + ./ only;
+ *  CJS `node install.js` stays resolvable-for-scan but is NEVER a T1 lane, §6-4). */
+export const T1_HOOK_GRAMMAR = /^node \.\/([A-Za-z0-9._-]+\.mjs)$/;
+
+/** Resolvable-hook grammar for the per-file family scan (plan "the classifier reads ≤2 files
+ *  per hook"): single command, optional .\, known interpreter, path-safe token. Anything else
+ *  (shell metachars, multi-hop, bare package specifiers) is UNKNOWN ⇒ caller keeps CRITICAL. */
+export const RESOLVABLE_HOOK = /^(?:node|bash|sh) \.\/?([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*\.(?:m?js|cjs|sh))$/;
+/** Shell metachars void resolvability — a hook string carrying any of these is UNKNOWN. */
+const HOOK_METACHARS = /[;&|`$><\n"'\\()]/;
+export function isPlainHookString(hook: string): boolean {
+  return !HOOK_METACHARS.test(hook);
+}
+
+/** Clause 2 — closed import allowlist (exact specifiers; `node:` prefix stripped).
+ *  `url` added per adjudication #2 / §6-2; child_process bounded by clauses 4+6 instead. */
+export const T1_ALLOWED_MODULES: readonly string[] = ["child_process", "fs", "module", "os", "path", "url"];
+
+/** Clause 8 — cap: the hook target is one file, ≤300 lines (R1 threshold from §1.2). */
+export const T1_LINE_CAP = 300;
+
+/** Clause 3/5/6/7 — frozen literals the opencode anatomy carries (whitespace-normalized
+ *  substrings; adjudication #1: the network-fallback argv and the verify-binary spawn are
+ *  embedded here as REQUIRED literals — a future opencode that drops them exits T1). */
+export const T1_REQUIRED_LITERALS: readonly string[] = [
+  // __dirname anchor + CJS interop + host probes
+  'const __dirname = path.dirname(fileURLToPath(import.meta.url))',
+  'createRequire(import.meta.url)',
+  '"/proc/cpuinfo"',
+  '"/etc/alpine-release"',
+  // platform/arch maps + package naming (§1.6-7)
+  'darwin: "darwin"',
+  'linux: "linux"',
+  'win32: "windows"',
+  'x64: "x64"',
+  'arm64: "arm64"',
+  'opencode-${platform}-${arch}',
+  '-baseline',
+  '-musl',
+  // in-tree write roots + hardlink trio (§1.6-5/6)
+  'path.join(__dirname, "bin", "opencode.exe")',
+  'fs.linkSync(source, target)',
+  'fs.copyFileSync(source, target)',
+  'fs.chmodSync(target, 0o755)',
+  // fallback temp root: created under os.tmpdir(), deleted in finally (§1.6-5)
+  'fs.mkdtempSync(path.join(os.tmpdir(), "opencode-install-"))',
+  'fs.rmSync(temp, { recursive: true, force: true })',
+  // frozen spawn argv (§1.6-4, adjudication #1/#3)
+  'spawnSync("sysctl", ["-n", "hw.optional.avx2_0"]',
+  'spawnSync("ldd", ["--version"]',
+  '["powershell.exe", "pwsh.exe", "pwsh", "powershell"]',
+  '["-NoProfile", "-NonInteractive", "-Command"',
+  'IsProcessorFeaturePresent(40)',
+  '"npm", ["install", "--ignore-scripts", "--no-save", "--loglevel=error", "--prefix"',
+  'spawnSync(targetBinary, ["--version"]',
+];
+
+/** §1.6-4 — spawn argv[0] closed set: string literals the anatomy may spawn… */
+export const T1_SPAWN_ARGV0_LITERALS: readonly string[] = [
+  "ldd",
+  "npm",
+  "powershell",
+  "powershell.exe",
+  "pwsh",
+  "pwsh.exe",
+  "sysctl",
+];
+/** …plus identifier-bound spawns, each tied to the frozen definition that proves its target. */
+export const T1_SPAWN_ARGV0_IDENTIFIERS: ReadonlyArray<{ readonly ident: string; readonly proof: string }> = [
+  { ident: "targetBinary", proof: 'path.join(__dirname, "bin", "opencode.exe")' },
+  { ident: "executable", proof: '["powershell.exe", "pwsh.exe", "pwsh", "powershell"]' },
+];
+/** §1.6-4 spawn call shapes to enumerate argv0 positions (regex over normalized text).
+ *  NB3 (VERIFIER-REPORT-R2-FIX3): alternation = the FULL child_process surface, longer names first.
+ *  The argv0 capture also WIDENS to any-quoted string content: the old narrow class
+ *  [A-Za-z0-9._-]+ silently skipped quoted commands containing spaces or `/` —
+ *  `exec("echo pwned > ../../escape.txt")` never reached the allowlist check at all.
+ *  No leading `\b` on purpose: 'myexecSync("evil")' still presents its argv0 to the check. */
+export const T1_SPAWN_CALL = /(?:spawnSync|spawn|execFileSync|execFile|execSync|exec|fork)\(\s*(?:["'`]([^"'`]*)["'`]|([A-Za-z_$][\w$]*))/g;
+/** NB3 (§1.6-9): spawn verbs join the call-position doctrine — `const ex = cp.exec; ex(…)`
+ *  removes the verb from call shape; word-bounded so 'executable'/'opencode.exe'/'spawns' never match. */
+export const T1_SPAWN_NAME = /\b(?:spawnSync|spawn|execFileSync|execFile|execSync|exec|fork)\b/g;
+/** Import/require specifier shapes for clause 2 (literal specifiers only — the template-literal
+ *  require.resolve of own optionalDependencies is §1.6-3 and invisible here by design). */
+export const T1_MODULE_REF = /(?:import|export)[^;\n]*?\bfrom\s+["']([^"']+)["']|\brequire\(\s*["']([^"']+)["']\s*\)|(?:^|[;\n])\s*import\s+["']([^"']+)["']/g;
+/** §1.6-2 clause 2 is EXHAUSTIVE ("nothing else"): B1 fix — dynamic `import(...)` / `require(...)`
+ *  call shapes in ANY quoting form (backticks included) must also be enumerated. `require.resolve(`
+ *  and `import.meta` never match (the `\(` anchor excludes the dot), keeping §1.6-3 one-hop
+ *  resolution invisible here by design. evaluateT1 voids T1 unless the captured specifier is a
+ *  plain '…'/"…" string literal naming an allowlisted module — templates, identifiers, and
+ *  concatenations are all unrecognized shapes ⇒ fail closed. */
+export const T1_DYNAMIC_REF = /\b(?:import|require)\s*\(([^)]*)\)/g;
+/** §1.6-5 (B2 fix): EVERY write-family call site in a T1 candidate is enumerated — write/append/
+ *  mkdir/unlink/rm/copyFile/link/chmod/rename/symlink, sync or async form, with or without an
+ *  `fs.`/`fs.promises.` receiver (`\b` stops 'confirm(' but matches '.rm('). `mkdtemp` is
+ *  deliberately absent: its only legal occurrence is pinned in T1_REQUIRED_LITERALS.
+ *  Round 4: `(?:Sync)?` — the old `Sync?` quantified only 'c', so bare async forms
+ *  (fs.writeFile/fs.rm) escaped this enumeration entirely (R2-M11; golden has zero bare tokens). */
+export const T1_WRITE_CALL = /\b(?:writeFile|appendFile|mkdir|unlink|rm|copyFile|link|chmod|rename|symlink)(?:Sync)?\s*\(/g;
+/** Closed first-argument anatomy observed at the frozen fixture's write sites — the copyBinary
+ *  (source, target) parameters, the finally-cleaned mkdtemp handle, and the dirname-of-target
+ *  mkdir parent. Anything else (path.join escapes like (__dirname,'..','..'), unbound identifiers)
+ *  is an unrecognized shape ⇒ evaluateT1 returns null. Whitespace is stripped before comparison. */
+export const T1_WRITE_ARGV0_FORMS: readonly string[] = ["source", "target", "temp", "path.dirname(target)"];
+/** NB2 (§1.6-9): every WRITE-FAMILY NAME OCCURRENCE — not just call sites — enumerated.
+ *  The name set can over-match comments/strings (verifier nit N3): prose `rm(` or a quoted
+ *  "link" costs the T1 badge, never safety — voiding is the fail-CLOSED direction by design. */
+export const T1_WRITE_NAME = /\b(?:writeFile|appendFile|mkdir|unlink|rm|copyFile|link|chmod|rename|symlink)(?:Sync)?\b/g;
+/** NB2+NB3 (§1.6-9): alias binding (`const w = fs.writeFileSync; w(…)`, `const ex = cp.exec`) hides a
+ *  verb from call-site enumeration, so the stricter posture holds for BOTH name sets: EVERY occurrence
+ *  in the normalized text must be IMMEDIATELY followed by `(` (a direct call). Alias bindings (`;`),
+ *  destructured inits (`}`), arg-passing (`,`/`)`), and property/`[`-string refs all void T1.
+ *  Blessed anatomy verified: 6 write tokens + 5 spawnSync tokens, each in direct call position,
+ *  zero bare forms, zero \bexec\b/\bfork\b ⇒ zero cost. */
+export function verbsAllCalled(namePattern: RegExp, norm: string): boolean {
+  for (const m of norm.matchAll(namePattern)) {
+    if (!norm.startsWith("(", (m.index ?? 0) + m[0].length)) return false;
+  }
+  return true;
+}
+/** NB1 (§1.6-9): textual matchers cannot decide eval-equivalence — `eval("im"+"port")("node:net")`
+ *  never presents an import( token to the clause-2 enumeration. The blessed anatomy contains ZERO
+ *  metaprogramming (verifier-measured), so any of these three marks voids T1 at no golden cost;
+ *  the residual obfuscation families are stated honestly in the contract, not papered over. */
+export const T1_METAPROGRAMMING = /\beval\s*\(|\bnew\s+Function\b|\bglobalThis\s*\[/;
+/** §1.6-5 — literals that would place a path outside the package root. The blessed anatomy
+ *  contains NONE; probe paths are exact literals, everything else starting with `/` voids T1. */
+export const T1_ABS_PATH_LITERAL = /"\/([^"]*)"/g;
+export const T1_ALLOWED_ABS_PATHS: readonly string[] = ["proc/cpuinfo", "etc/alpine-release"];
+export const T1_FORBIDDEN_USER_PATH_MARKS: readonly string[] = [
+  "os.homedir(",
+  "process.env.HOME",
+  "USERPROFILE",
+  "APPDATA",
+  "XDG_",
+  "process.cwd(", // NB2 (verifier nit N5): cwd-relative escapes like path.join(process.cwd(),"..",…)
+];
+
+// ------------------------------------------- T2/T3/T4/cross-manager families (contract §4)
+
+export type FamilyPattern = { readonly id: string; readonly rule: string; readonly pattern: RegExp };
+
+/** §4 lesson: EVERY command family carries both the shell-text and the argv-token form
+ *  (the first t3-git-global draft scored 0 on `["config", "--global", …]` — never again). */
+export const FAMILY_PATTERNS: readonly FamilyPattern[] = [
+  // T2 — install-time network download / fetch of remote bytes
+  // B1 fix (b): the static arm above never sees `import("node:net")` or backtick specifiers; the
+  // dynamic arm catches (require|import)( + any of " ' ` + an unambiguous net-module token or a
+  // `${` interpolation (unknown computed specifier — fail closed).
+  { id: "t2-js-net-module", rule: RESIDUE_T2_RULE, pattern: /(?:require|import)[^;\n]*\bfrom?\s*\(?\s*["'](?:node:)?(?:https?|net|dns)["']|\b(?:import|require)\s*\(\s*["'`](?:node:)?(?:https?|net|dns|\$\{)/ },
+  { id: "t2-js-fetch", rule: RESIDUE_T2_RULE, pattern: /\bfetch\s*\(/ },
+  { id: "t2-curl-wget", rule: RESIDUE_T2_RULE, pattern: /\b(?:curl|wget)(?:\s+|["']\s*,)["' \-]*[^\n]*(?:http:\/\/|https:\/\/|-o\b)/ },
+  { id: "t2-pwsh-download", rule: RESIDUE_T2_RULE, pattern: /Invoke-WebRequest|Invoke-RestMethod/i },
+  { id: "t2-py-net", rule: RESIDUE_T2_RULE, pattern: /\b(?:urllib\.request|urllib\.urlopen|requests\.(?:get|post)|httpx)\b/ },
+  { id: "t2-rs-reqwest", rule: RESIDUE_T2_RULE, pattern: /\b(?:reqwest|ureq)\b/ },
+  // R3a: a Cargo.toml DEPENDENCY DECLARATION (`name = "ver"`) — only ever run over an
+  // extracted [..build-dependencies] block, never over whole manifests (runtime deps are T0).
+  { id: "t2-rs-builddep", rule: RESIDUE_T2_RULE, pattern: /^\s*(?:reqwest|ureq|curl)\s*=/m },
+  { id: "t2-rb-net", rule: RESIDUE_T2_RULE, pattern: /Net::HTTP|open-uri/ },
+  // T3 — writes outside the package root
+  { id: "t3-dotfile", rule: RESIDUE_T3_RULE, pattern: /\.(?:bashrc|zshrc|zshenv|profile)(?![-\w])|\/etc\/profile\.d|authorized_keys|\.gitconfig/ },
+  { id: "t3-git-global", rule: RESIDUE_T3_RULE, pattern: /git\s+config\s+--global|--global["']\s*,|["']\.gitconfig["']/ },
+  { id: "t3-path-export", rule: RESIDUE_T3_RULE, pattern: /export\s+PATH\s*=|setx\s+(?:\/F\s+)?PATH\b|"setx"[^)\n]*"PATH"|SetEnvironmentVariable\s*\(|HKCU:?[\\]{1,2}Environment/ },
+  { id: "t3-win-user-tree", rule: RESIDUE_T3_RULE, pattern: /%APPDATA%|\$env:USERPROFILE|USERPROFILE|\\AppData\\/ },
+  // R3a (plan §57): a setup.py that resolves user-home paths is out-of-tree posture — no T1 lane forgives it.
+  { id: "t3-py-expanduser", rule: RESIDUE_T3_RULE, pattern: /\b(?:os\.path\.expanduser|Path\.home)\s*\(|\.expanduser\s*\(/ },
+  // T4 — OS persistence primitives, artifact-wide, ANY reference (executed or not)
+  { id: "t4-cron", rule: RESIDUE_T4_RULE, pattern: /crontab/ },
+  { id: "t4-systemd-user", rule: RESIDUE_T4_RULE, pattern: /systemctl(?:\s+|["']\s*,\s*["'])--user|systemd\/user/ },
+  { id: "t4-mac", rule: RESIDUE_T4_RULE, pattern: /LaunchAgents|launchctl/ },
+  { id: "t4-autostart", rule: RESIDUE_T4_RULE, pattern: /\.config\/autostart/ },
+  { id: "t4-win", rule: RESIDUE_T4_RULE, pattern: /schtasks|CurrentVersion\\+Run/i },
+  // cross-manager — spawning a FOREIGN package manager at install time (aihr incident shape).
+  // npm itself is NOT foreign here; a global-scope npm write is (ledger re-convergence).
+  { id: "xmgr-pip", rule: RESIDUE_XMGR_RULE, pattern: /\bpip install\b|["']pip["']\s*[,\]]|easy_install/ },
+  { id: "xmgr-python-pip", rule: RESIDUE_XMGR_RULE, pattern: /python[\w.-]*\s+-m\s+pip|"python[3]?",\s*\[\s*"pip"/ },
+  { id: "xmgr-npm-global", rule: RESIDUE_XMGR_RULE, pattern: /npm (?:install|i|add)\s+-g\b|npm\s+install\s+--global|"npm"[^)\n]*"(?:-g|--global)"/ },
+  { id: "xmgr-yarn", rule: RESIDUE_XMGR_RULE, pattern: /yarn\s+global|["']yarn["']\s*,\s*["'](?:global|add)["']/ },
+  { id: "xmgr-pnpm", rule: RESIDUE_XMGR_RULE, pattern: /pnpm\s+add\s+-g|["']pnpm["']\s*,\s*\[[^\]]*"add"/ },
+  { id: "xmgr-gem", rule: RESIDUE_XMGR_RULE, pattern: /\bgem install\b|["']gem["']\s*,\s*\[[^\]]*"install"/ },
+  { id: "xmgr-cargo", rule: RESIDUE_XMGR_RULE, pattern: /\bcargo install\b|["']cargo["']\s*,\s*\[[^\]]*"install"/ },
+  { id: "xmgr-uv", rule: RESIDUE_XMGR_RULE, pattern: /\buv pip\b|["']uv["']\s*,\s*\[[^\]]*"pip"/ },
+  // R3a: Rust's argv-token manager form — `std::process::Command::new("pip")` etc. in a build script.
+  { id: "xmgr-rs-command", rule: RESIDUE_XMGR_RULE, pattern: /Command::new\s*\(\s*["'](?:pip|pip3|conda|npm|npx|yarn|pnpm|gem|cargo|uv)["']/ },
+];
+
+/** Manager labels named in the residue-cross-manager-write message (plan: "the message names
+ *  the foreign ledger"). Keyed by the t2/xmgr family ids above. */
+export const XMGR_LABELS: Readonly<Record<string, string>> = {
+  "xmgr-pip": "pip",
+  "xmgr-python-pip": "python -m pip",
+  "xmgr-npm-global": "npm -g (global install)",
+  "xmgr-yarn": "yarn global",
+  "xmgr-pnpm": "pnpm add -g",
+  "xmgr-gem": "gem install",
+  "xmgr-cargo": "cargo install",
+  "xmgr-uv": "uv pip",
+  "xmgr-rs-command": "foreign manager via Rust Command::new",
+};
+
+// ------------------------------------------- R3a pypi/crates legs (plan §57: closed per-language tables)
+
+/** Files whose packed presence marks a pypi build hook (setup.py + inline cmdclass bodies live there). */
+export const PY_BUILD_HOOK_BASENAMES: readonly string[] = ["setup.py"];
+/** Cargo runs build.rs on every consumer build — the crates analogue of an npm lifecycle hook. */
+export const RS_BUILD_HOOK_BASENAMES: readonly string[] = ["build.rs"];
+/** TOML section headers whose bodies are install-time code: pyproject's backend declaration… */
+export const PY_BUILD_SYSTEM_SECTION = /^\[build-system\]\s*$/;
+/** …and cargo's build-dependency sections ([build-dependencies], [target.*.build-dependencies], [dev-*] excluded). */
+export const RS_BUILD_DEPS_SECTION = /^\[(?:build-dependencies|target\.[^\]]+\.build-dependencies)\]\s*$/;
+/** §57 names exactly these two write verbs; anything else is out of the closed set (documented limitation). */
+export const RS_WRITE_CALL = /\b(?:fs::write|File::create)\s*\(/g;
+/** A build.rs write target must be confined to these cargo-provided roots (directly or via one `let` hop). */
+export const RS_CONFINEMENT_ENV_TOKENS: readonly string[] = ["OUT_DIR", "CARGO_TARGET_TMPDIR"];
+
+// ------------------------------------------- B2 marker grammar (contract §5.3, amendment D3)
+
+/** id-path := token (SP token){0,3}, token = [A-Za-z0-9][A-Za-z0-9._-]{0,63}; the parenthetical
+ *  is a provenance note, NOT part of the id. Matching pairs on the id-path BYTES. */
+export const MARKER_ID_TOKEN = String.raw`[A-Za-z0-9][A-Za-z0-9._-]{0,63}`;
+export const MARKER_BEGIN = new RegExp(String.raw`# BEGIN (${MARKER_ID_TOKEN}(?: ${MARKER_ID_TOKEN}){0,3})(?: \([^)]{0,56}\))?`);
+export const MARKER_END = new RegExp(String.raw`# END (${MARKER_ID_TOKEN}(?: ${MARKER_ID_TOKEN}){0,3})(?: \([^)]{0,56}\))?`);
+
+/** §5.3(i) write-path: a marker-bearing file that APPENDS or string-CONCATENATES into a write
+ *  call. `write_text(text.replace(...))` (a removal) deliberately does NOT match: [^)]*\+ fails
+ *  before the inner close-paren. Remove-orphan files contain neither form. */
+export const MARKER_WRITE_SHAPE = /\.open\(\s*[^)]*["']a["']|appendFile|Add-Content|\.write(?:_text|File|Sync)?\(\s*[^)]*\+|>>\s*\S/;
+/** §5.3(ii) remove-path: deletion/restore verbs per the hr anatomy (replace/unlink/DeleteValue). */
+export const MARKER_REMOVE_SHAPE = /\.replace\(|\bunlink\(|DeleteValue|Remove-Item/;
+/** §5.3(iii) CLI inverse surface reachable from the package bin (depth ≤2). Tightened so the
+ *  word "remove" in prose/comments cannot satisfy it: verb flags and function-call shapes only. */
+export const MARKER_INVERSE_SURFACE = /--uninstall|\buninstall\b|\.remove_\w+\(|remove_path\s*\(|removePath\s*\(/;
+
+// ------------------------------------------- R3b rubygems leg (plan §57 gem clause + R3b AC; closed per-family tables)
+
+/** RubyGems plugin registry: a file at ANY path in the gem data named exactly this is auto-loaded by
+ *  RubyGems itself on EVERY later `gem`/`ruby` process after install (site_ruby plugin scan; gemspec
+ *  `files` shape measured in gem 3.6.7 probe 2026-09-09). Gem-world analog of the npm lifecycle hook
+ *  and strictly worse (it never stops running) ⇒ residue-persistence-primitive CRITICAL, plan R3b (b). */
+export const GEM_PERSISTENCE_BASENAMES: readonly string[] = ["rubygems_plugin.rb"];
+/** Hook-registration class methods on the `Gem` singleton (installer callback registry). Closed
+ *  literal trio from plan R3b (b); code-position regex, receiver must be `Gem` — dynamic dispatch
+ *  (`Gem.public_send("post_" + x)`) is the §1.6-9 obfuscation lane, named in §8, never widened here.
+ *  BLK-1 (VERIFIER-REPORT-R3B): `::` is the static-call spelling and registers a LIVE hook on box
+ *  ruby 3.3.8 (Gem.post_install_hooks 0→1, probe 2026-09-09) — NOT dynamic dispatch, so both `.` and
+ *  `::` separators are in the closed grammar; the send/const_get lane stays invisible and §8-named. */
+export const GEM_HOOK_CALL = /(?<![\w.])Gem\s*(?:\.|::)\s*(?:post_install|post_uninstall|pre_install)\b/;
+/** extconf.rb is EXECUTED by the installer during native build (rubygems MakeMaker phase) — the
+ *  install-time reachability root for the T2/T3/xmgr families and the write-confinement lane. */
+export const GEM_EXTCONF_BASENAME = "extconf.rb";
+/** Write/exec verbs whose first argument (or whole argv span) must stay inside the extension build
+ *  tree. Closed set motivated by real extconf bodies (mkmf-based gems, e.g. nokogiri/bootsnap family
+ *  shapes) plus the plan R3b (a)/(d) enumerations: File.*, FileUtils.*, Dir.mkdir, IO.popen, Open3.*,
+ *  bare system/spawn/exec, backtick and %x() command execution. Read-only mkmf hints (dir_config,
+ *  have_header, have_library, create_makefile) are deliberately NOT in the set — they probe or edit
+ *  the in-tree Makefile only (probe 2026-09-09: create_makefile("acme/ghost") writes no path arg).
+ *  BLK-4a (VERIFIER-REPORT-R3B): `%x` escaped the old `%x\(`-only spelling.
+ *  BLK-6 (VERIFIER-REPORT-R3B-FIX): box ruby 3.3.8 EXECUTES any non-alphanumeric, non-space %x
+ *  delimiter — `%x!cmd!`, `%x~cmd~`, `%x"cmd"`, `%x%cmd%` all ran live commands (probe 2026-09-09) —
+ *  so the enumerated six-class was replaced by the GENERIC `%x[^A-Za-z0-9\s]` arm, mirroring
+ *  GEM_PERCENT_LITERAL's delimiter-agnostic approach; the closer is resolved generically in
+ *  residueGem's gemVerbSpan (pairs for ( [ { <, otherwise the opener char itself).
+ *  BLK-5 (VERIFIER-REPORT-R3B-FIX): every dotted alternative carries `(?:\.|::)` — `File::write`,
+ *  `FileUtils::cp`, `Dir::mkdir`, `IO::popen`, `Open3::pipeline_rw` are the static-call spellings and
+ *  execute identically (box-verified), so the ::-form costs a row exactly like the dot-form; the bare
+ *  system/spawn/exec/popen arm deliberately excludes `:` from its lookbehind, which is the DOCUMENTED
+ *  design by which `Kernel::system` rows (BLK-1 precedent: :: is a live spelling, not obfuscation).
+ *  BLK-R3bF2-B (VERIFIER-REPORT-R3B-FIX2): the dotted-canonical `Process.spawn("…")` matched NOTHING —
+ *  the bare arm's lookbehind (?<![\w.]) refuses the `.`, and there was no Process receiver arm — the most
+ *  canonical spawn spelling in Ruby silent-passed (box ruby 3.3.8 executes it live, probe 2026-09-09).
+ *  An explicit `Process\s*(?:\.|::)\s*spawn` arm now precedes the bare verbs, so both separators pay
+ *  EXACTLY one row each (the receiver match consumes the colon form before the bare-spawn arm can
+ *  re-fire on it; pinned R3b-C9d/C9e).
+ *  BLK-R3bF4-B (VERIFIER-REPORT-R3B-FIX3): the bare arm's operand class gained `%` — box ruby 3.3.8
+ *  executes `system %q{/usr/local/bin/x}`, `exec %q{…}` and `system %{touch /tmp/y}` live (payloads
+ *  i4_pctq/i4b_pctbrace, liveness re-proved 2026-09-09) yet ( [ " ' matched none ⇒ silent escape. The
+ *  lookbehind (?<![\w.]) still refuses `system%` inside an identifier; gemVerbSpan's new percent
+ *  branch feeds the paren-less payload through the SAME expansion path as the parened form, and a
+ *  RELATIVE operand (`system %q{make clean}`) stays zero-row (pinned R3b-C12a…C12c).
+ *  BLK-R3bF5-A (VERIFIER-REPORT-R3B-FIX4): the grammar is UNCHANGED this round — `system %x|…|`,
+ *  `system %x!…!`, `%x%…%`, `%x@…@` bare-verb forms all live-execute on box ruby 3.3.8 yet silent-
+ *  passed because the percent branch consumed the `%` (the dedicated %x arm could not re-fire on that
+ *  text) while its span still carried the `%x<delim>` prefix past the ROOTED `^`-anchor; the fix
+ *  normalizes that branch's span to the quoted payload inside gemVerbSpan (residueGem.ts), covering
+ *  every non-q/Q designator and the designator-less `%|…|` spelling through the ONE existing path
+  *  (pinned R3b-C13a…C13e).
+  *  ROUND 8 / BLK-7 (VERIFIER-REPORT-R3B-FIX6): per-finding naming was not convergence — the whole
+  *  write-primitive call-form ROSTER was box-swept ONCE on ruby 3.3.8 (probe 2026-09-09, scratch-safe)
+  *  and closed in this one table. The File arm gains sysopen, the metadata verbs (chown/lchmod/
+  *  lchown/utime), truncate, mkfifo and the deletion verbs unlink/delete; Dir gains rmdir; the IO arm
+  *  becomes popen|sysopen|write|binwrite|copy_stream; and a NEW fixed-receiver reopen arm
+  *  (`$stdout`/`$stderr`/`$stdin`/STDOUT/STDERR/STDIN + .reopen, both separators) covers the box-live
+  *  fd-hijack writer that silent-passed UNNAMED. Deletion is COVERED by adjudication: the
+  *  FileUtils.rm_r/remove wildcard already priced deletion, so File.unlink/Dir.rmdir join the same
+  *  lane (pinned R3b-C15a…C15f). Readers (IO.read etc.), File.new, bare open and arbitrary-receiver
+  *  `f.reopen(x)` stay the NAMED §8 invisible lanes, never silent ones. */
+ export const GEM_WRITE_CALL = /(?<![\w.?])(?:File\s*(?:\.|::)\s*(?:open|binwrite|write|sysopen|touch|link|symlink|rename|unlink|delete|truncate|chmod|lchmod|chown|lchown|utime|mkfifo)|FileUtils\s*(?:\.|::)\s*\w+|Dir\s*(?:\.|::)\s*(?:mkdir|rmdir)|IO\s*(?:\.|::)\s*(?:popen|sysopen|write|binwrite|copy_stream)|Open3\s*(?:\.|::)\s*\w+|Process\s*(?:\.|::)\s*spawn|(?:\$(?:stdout|stderr|stdin)|STDOUT|STDERR|STDIN)\s*(?:\.|::)\s*reopen|(?<![\w.])(?:system|spawn|exec|popen)\s*(?:\(|["']|%)|%x[^A-Za-z0-9\s]|`)/g;
+/** A write/exec span containing ANY of these marks escapes the build tree ⇒ T3 HIGH (plan R3b (a):
+ *  $HOME, user-home resolution, ENV-driven targets, `~`-rooted paths). BLK-R3bF2-A
+ *  (VERIFIER-REPORT-R3B-FIX2): the plain-substring table was DOT-ONLY, so the live colon spellings
+ *  `Dir::home` (== Dir.home, box ruby 3.3.8) and `ENV::[]("HOME")` / `ENV::fetch` (both read $HOME,
+ *  probe 2026-09-09) silent-passed — the `::`-normalized-everywhere meta-lesson. The table is now
+ *  RegExp: `Dir\s*(?:\.|::)\s*home` covers spaced forms, `ENV\s*(?:\[|\.|::)` covers every ENV lookup
+ *  spelling (and makes ENV::fetch row via THIS lane, killing the accidental dependency on the npm
+ *  fetch( pattern; pinned R3b-C9a…C9c). No /g flag — .test() on a stateful regex would latch. */
+export const GEM_OUT_OF_TREE_MARKS: readonly RegExp[] = [/\$HOME/u, /\bDir\s*(?:\.|::)\s*home/u, /\bENV\s*(?:\[|\.|::)/u, /~\//u];
+/** …and a string literal ROOTED at a slash (`"/usr/local/…"` — the plan's "/usr/local, /opt,
+ *  absolute paths" writes). Root-slash only: a URL inside a curl argv ("https://host/x") is T2
+ *  territory, not a path write, so the quote-content-slash spelling stays confinement-clean. */
+export const GEM_ABSOLUTE_LITERAL = /["']\s*\//;
+/** BLK-4a (VERIFIER-REPORT-R3B): a slash-rooted BARE token in a write/exec span (`%x|install … /usr/…|`,
+ *  shell argv without quotes) — boundary then `/`. URLs stay clean (the slash follows `:`).
+ *  BLK-R3bF2-C (VERIFIER-REPORT-R3B-FIX2, adjudicated WIDEN): the space-or-start boundary missed every
+ *  OPENING-BRACKET adjacency — `File.write(%(/usr/local/bin/x), "d")` and `system(%w[/usr/local/bin/x])`
+ *  (box ruby 3.3.8 executes the %w argv verbatim, probe 2026-09-09) silent-passed. Accepting `[({<`
+ *  adjacency costs FPs on bracket-adjacent rooted argv hints (`%w[install … /usr/bin/make]`-style
+ *  extconf shapes now row) — the verifier's own note: naming the %w argv class silent instead would
+ *  gut the exec-confinement lane, so the exotic-operand FP cost is ACCEPTED (pinned R3b-C10a…C10c).
+ *  No %w-item-join is added: the boundary widening alone catches every rooted %w item. Lookahead (not
+ *  \S) so `/`-then-structure (`//` comments, `/*`) doesn't newly row; /m for line-start spans, no /g. */
+export const GEM_ROOTED_SLASH_ARG = /(?:^|[\s(\[{<])\/(?=[A-Za-z0-9._~-])/m;
+/** NIT-1 (VERIFIER-REPORT-R3B): the former GEM_CONFINED_MARKS table was exported but consumed by no
+ *  predicate — $extout/DISTDIR staging is confinement-legitimate through the ABSENCE-of-marks rule
+ *  itself (they carry no mark), so the table was deleted, not wired; §8 states this. */
+/** BLK-4c: Dir.chdir MOVES the extconf CWD — every later relative write follows it out of the build
+ *  tree, so any occurrence in a reachable extconf is itself a confinement break (HIGH), one row per
+ *  file regardless of argument; false positives (a chdir into an in-tree subdir) are the accepted
+ *  exotic-operand cost. BLK-5 (R3B-FIX): `Dir::chdir("/tmp")` is the same live call on box ruby 3.3.8
+ *  (probe 2026-09-09), so the chdir lane is separator-agnostic like the verb table. */
+export const GEM_CHDIR_CALL = /(?<![\w.])Dir\s*(?:\.|::)\s*chdir\b/;
+/** BLK-2: Ruby literal-text percent arrays `%q{…}` / `%Q(…)` hide paths from the quote-then-slash
+ *  test (P12: File.open(%q{/etc/evil}, "w") silent-passed). The opener char class + bracket pairs are
+ *  here; residueGem extracts the literal text and re-feeds it through the same mark tests. */
+export const GEM_PERCENT_LITERAL = /%[qQ]([^A-Za-z0-9\s])/;
+export const GEM_PERCENT_PAIRS: Readonly<Record<string, string>> = { "(": ")", "[": "]", "{": "}", "<": ">" };
+/** BLK-2 ALL-bindings doctrine (crates §745-747 neighbour, plan exotic-operand rule): every single-`=`
+ *  assignment line `id = <rhs>` is captured (==, =~, +=, <= excluded by shape); a bare-identifier write
+ *  operand resolves through these bindings, transitively, cycle ⇒ null ⇒ fail-closed arm.
+ *  BLK-8 (VERIFIER-REPORT-R3B-FIX): the LHS grammar covers `@ivar`, `$global` and `CONSTANT` names —
+ *  `@o = "/usr/local/bin/x"; File.write(@o, "y")` writes through a live box-verified binding (probe
+ *  2026-09-09), so those names are binding keys too; the map/cycle machinery in residueGem is shared. */
+export const GEM_ASSIGNMENT = /^\s*([@$]?[A-Za-z_][A-Za-z0-9_]*[?!]?)\s*=(?![=~])\s*(.+)$/;
+/** A write operand that is exactly one bare Ruby identifier/method word (no quote, no call, no `/`).
+ *  BLK-8: same `[@$]?…[?!]?` shape as the assignment LHS so ivar/global/CONST operands enter the
+ *  binding lane instead of silently bypassing it.
+ *  BLK-R3bF2-D (VERIFIER-REPORT-R3B-FIX2): the grammar stopped at single-`@`/letter-`$`, so `@@cvar`
+ *  operands and `$`-builtin globals (`$0`, `$!`, `$:`, `$-x` — all assignable, box ruby 3.3.8 live)
+ *  BYPASSED the operand lane entirely and silent-passed (`@@ov = "/usr/…"; File.write(@@ov, "y")` → 0).
+ *  Doctrine-consistent route: these heads are NOT added to the binding LHS grammar (no per-name lists,
+ *  `@@`/special-global binding semantics vary by scope), only to the ACCEPTANCE grammar — an operand
+ *  that matches here but resolves to nothing falls into the EXISTING unresolvable-fail-close lane
+ *  (pinned R3b-C11a/C11b). */
+export const GEM_BARE_IDENTIFIER = /^(?:(?:@{1,2}|\$)?[A-Za-z_][A-Za-z0-9_]*[?!]?|\$[0-9]+|\$-[a-zA-Z0-9]|\$[-!@#$%*?'"&():;,.<>=~^|+\/])$/u;
+/** metadata.gz YAML key whose value is the gem's declared build-extension list (gem 3.6.7 measured:
+ *  `extensions: []` when pure-ruby, `extensions:` + block seq `- ext/foo/extconf.rb` otherwise; flow
+ *  `extensions: ["a", "b"]` tolerated as the YAML-equal spelling). BLK-7 (VERIFIER-REPORT-R3B-FIX):
+ *  the regex is GLOBAL (/gm) so residueGem counts EVERY top-level occurrence — psych/rubygems resolve
+ *  duplicate keys LAST-wins (box-measured 2026-09-09) while a first-wins read silently certifies a
+ *  crafted `extensions: []` + real block-seq container clean, so >1 occurrence THROWS fail-closed. */
+export const GEM_EXTENSIONS_KEYS = /^extensions:[ \t]*(.*)$/gm;
+/** One block-sequence item line under extensions:. */
+export const GEM_YAML_SEQ_ITEM = /^[ \t]*-[ \t]*["']?([^"'\n]+?)["']?[ \t]*$/;
+/** BLK-3 (VERIFIER-REPORT-R3B, plan-AC violation): YAML comments do NOT terminate a block sequence —
+ *  `extensions:\n# packaged by tool\n- ext/ghost/extconf.rb` silently declared NOTHING under the old
+ *  break-on-unrecognized loop. Comment lines are skipped and collection CONTINUES. */
+export const GEM_YAML_COMMENT = /^[ \t]*#/;
+/** …and the sequence ends legitimately only at the next top-level mapping key (column-0 `key:`).
+ *  Anything else non-blank inside the block region is an unrecognized declaration ⇒ THROW (the gate
+ *  stops via EngineRunError; never a silent null). */
+export const GEM_YAML_KEY_TERM = /^[^\s#][^\n]*:(\s|$)/;
+

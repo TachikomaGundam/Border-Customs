@@ -1,0 +1,84 @@
+{
+  "task": "R4-config-ruleshash-docs-dogfood",
+  "plan": "border-residue-gate",
+  "verdict": "DONE",
+  "date": "2026-09-09",
+  "base": "HEAD 4a8836d + dirty WIP preserved (24 tracked M + untracked, 0 staged, no commits)",
+  "deliverables": {
+    "1_config_residue_enabled": {
+      "status": "DONE",
+      "impl": "src/config.ts: `residue: z.object({enabled: z.boolean().default(true)}).strict().optional()` after engines block; outer .optional() so BorderConfig literals (5 pinned suites + inferredConfig) construct without key — absence===enabled (fail-closed default). Unknown sibling / scalar residue: / non-bool enabled all typed exit 2 (strict zod preserved).",
+      "gate_placement": "src/check.ts CENTRAL merge-point filter (RESIDUE_RULE_IDS = Set(Object.keys(RESIDUE_SEVERITIES)) — §57 single home): splice of residue-* findings immediately after channel-stage merge + registry probes, before exposure/applyAllowList/verdict, iff cfg.residue?.enabled === false. NOT in channels/npm.ts, NOT in classifier internals (all byte-frozen). --json schema unchanged (same report+Finding key sets, only rows removed)."
+    },
+    "2_ruleshash_digest": {
+      "status": "DONE",
+      "impl": "src/check/rulesHash.ts: RESIDUE_FINGERPRINT_SOURCES = 9 files (rules/residueMatchers.ts + artifacts/{residue,residuePy,residueRust,residueGem,npm,pypi,crates,rubygems}.ts); resolveResidueFingerprintFiles(env): BORDER_RESIDUE_SRC_DIR seam (explicit dir, missing file still fail-closed) → live src/ paths (src-mode) → dist/assets/residue-src/ (tools/copy-assets.mjs stages the 9 copies); computeCheckRulesHash bundles them into computeRulesHash bundledRulePaths (per-file sha256 lines, existing fail-closed MissingRulesInputError). Config value rides configDigest (already hashed). Signature-compatible for check.ts:177 + ledger.ts computeFingerprint callers.",
+      "stale_pass_tests": "R4-HASH x3 + R4-PASS (real CLI: PASS→SKIP key8; .border/config.local.yaml toggle flip with HEAD+porcelain STABLE ⇒ no SKIP + rulesHash+key moved ⇒ restore ⇒ SKIP; seam mutation of residueMatchers.ts ⇒ key moves ⇒ old PASS refused; stable ⇒ SKIP re-certifies)."
+    },
+    "3_readme_changelog_version": {
+      "status": "DONE",
+      "impl": "README.md: 'The residue scan (0.3.0)' section — 8-row tier table (T1 residue-in-tree-hook MEDIUM … T4 residue-persistence-primitive CRITICAL, cross-manager HIGH, pairing-missing HIGH, gem-unmatched-extension MEDIUM; severities verbatim from RESIDUE_SEVERITIES), C5/C9/C10 one-liners, fail-closed doctrine pointer, boundary honesty (CAPABILITY not FACT; roundtrip valve = 0.4.0; named-invisible list POINTS to RESIDUE-CONTRACT.md §8, never restated; 'NOT a malware sandbox'), residue: enabled: true config example, Changelog '### 0.3.0 (2026-09-09)' entry (README-embedded per repo convention — no CHANGELOG.md exists), 中文概要 sentence. package.json 0.2.0→0.3.0 (plan line 93 pins bump — verified)."
+    },
+    "4_new_tests_only": {
+      "status": "DONE",
+      "impl": "test/residue.config.test.ts NEW (9 tests: R4-CFG x2, R4-GATE, R4-HASH x3, R4-PASS, R4-JSON, R4-DOC). 5 pinned suites untouched (shas below). test/channels.golden.test.ts: GOLDEN_KEY literal re-pinned only (see deviations)."
+    }
+  },
+  "red_to_green": {
+    "red": "First full run of new suite: 9 tests / 1 pass / 8 fail. Test 2 (strict-zod) was accidentally GREEN pre-R4 (entire residue key was unknown-key exit 2 — same exit code as the inner-unknown case); remaining 8 red for legit missing-feature reasons: 'unknown config key residue' x3 (ConfigError), missing exports RESIDUE_FINGERPRINT_BASENAMES/resolveResidueFingerprintFiles x2, README pins x1, gate no-op x1, --json scope bug (git-only fixture yaml ⇒ exit 0 not BLOCKED — test-side fix: baseYaml(extra, withNpm)).",
+    "green": "node --test test/residue.config.test.ts: tests 9 / pass 9 / fail 0 (transcript ok 1..ok 9 in session)."
+  },
+  "gate_numbers": {
+    "typecheck": "RC0 (tsc --noEmit)",
+    "build": "RC0 (esbuild 1.5mb + 'assets staged into dist/assets/')",
+    "suite_baseline_pre_R4": "500 tests / 497 pass / 3 fail (expected 498/2: intermittent flake 'masking proof…' test/llm.test.ts under parallel load — passed standalone 2x and in BOTH final R4 runs)",
+    "suite_final": "509 tests / 507 pass / 2 fail, 146.5s — ONLY C5-1 + C5-4 red (sanctioned pre-existing pair; matches baseline + 9 new)",
+    "pinned_suites": "gem 68, crates 12, pypi 7, npm 21, channels.rubygems 28, channels.golden 1 — all green, all test files unedited (golden key-literal re-pin noted below)",
+    "fixtures": "test/fixtures/residue: sha256sum -c SHA256SUMS.local ⇒ 52/52 OK (RC0)",
+    "grep_AC_57": "no 'residue-*' string literal outside src/rules/residueMatchers.ts (sole match src/check/rulesHash.ts:65 is the 'residue-src' ASSET DIR NAME, not a rule id); exactly 7 closed rule ids in residueMatchers.ts; no new 'declare'/'roundtrip' identifiers — only pre-existing WIP prose in gemspec.ts/pypi.ts (zero cross-fire, files unchanged)"
+  },
+  "untouchable_shas": {
+    "note": "before === after for all 8 (measured pre-implementation and post-final-suite); residue classifier internals + channels/npm.ts + pinned npm suite + RESIDUE-CONTRACT.md byte-identical",
+    "table": {
+      "src/channels/npm.ts": "b6b108667d2b820729fe0d726b95fc944cee63791294f44626bd9680c796d4d6",
+      "src/artifacts/residue.ts": "15274f7fff4b6ebdffef37dc772cd9efcc38e4a54e21b680714a0e972dad59ed",
+      "src/artifacts/residuePy.ts": "637312a5ffa5231cb166c9c0d03ac78bbc44a84318682e473e145c4fba2ae28f",
+      "src/artifacts/residueRust.ts": "04d87b21ae419ca0eaa92ee74223b0bf21b86d32e5ec2fc6fcf60019c2de8548",
+      "src/artifacts/residueGem.ts": "93307d7d758c37b49c2597fa3df172a4076276c301d25fb6bfde638bbc703f52",
+      "src/rules/residueMatchers.ts": "64f7d94de991c274c8d7b75053e41a4997358e5ce3b10707a8ab202be86357b1",
+      "test/residue.npm.test.ts": "bdab5595fbdbb24b40c9f83fbebf7cecadfeab15208841a0cab839ce002b3532",
+      "src/artifacts/RESIDUE-CONTRACT.md": "51306be1e442ae25c7aaa7f286c9dc3fd266bf4d1be48a7c736846f7d937b961",
+      "test/residue.pypi.test.ts": "01fee007b93297acd0424f288f299b9c47f0b908685a9d287a38d88cf673fbfa",
+      "test/residue.crates.test.ts": "3ae1c1e6a33a3142c1deaaca6dc15c4372dd9a3a03f92050dd95a429aeb8c1d9",
+      "test/residue.gem.test.ts": "722dbae0a3c671f2f7982b7a80d22670fc5529c65399b63ad169f6a784ec5142"
+    }
+  },
+  "dogfood": {
+    "own_repo": "node dist/index.js check --json @ border: exit 1, verdict FAIL, findings = 4x aws-access-token CRITICAL (planted doc samples in src/channels/CHANNEL-CONTRACTS.md — pre-existing, R4 structurally cannot alter non-residue findings; residue rows 0 expected: border.yaml targets are git-only, no artifact legs). rulesHash d31432060464e88408f9d6cb72c75d1bc038a5e7363af7576356b7b9abb93f52 (residue fingerprint now digested). Working tree dirty warning printed.",
+    "corpus_fixture_through_cli": "R4-JSON test runs FULL CLI (run()) on corpus b-t2-downloader npm repo via local stub registry: on-run findings include residue-install-download HIGH + lifecycle-script CRITICAL (pre-R4 finding set reproduced byte-for-byte in-suite); off-run zero residue rows, nonResidue(off) deepEqual nonResidue(on).",
+    "hr_readonly": {
+      "method": "cp -a /home/lab/workspace/harness/hr → /tmp/border-hr-dogfood (original verified porcelain-clean AFTER: 0 lines; device 192.168.10.70 never contacted; copy later removed). Wrote border.yaml ONLY in the /tmp copy (git remotes [], pypi repository https://pypi.org — outbound probe GET 200 on aihr/0.2.2/json). First attempt with discard-port repository exited 2 fail-closed 'registry unreachable' (correct doctrine demo, recorded).",
+      "run": "node border/dist/index.js check --json: exit 1, verdict FAIL, total findings 381 (pre-existing detector noise: 132 path-pattern:[A-Za-z]:\\\\, 100 generic-api-key, 100 path-pattern UNC, 22 checked-in-binary, 16 PostgreSQLConnection, 4 jwt, version-exists + name-foreign-owner (aihr 0.2.2 IS on PyPI — probe correct), 1 identity-not-allowlisted, 1 oversized-file, 1 npm-access-token, 2 secretlint-npm, 1 path-pattern /home/)",
+      "residue_inventory_verbatim": "residue-* rows: 0 — Counter({'path-pattern:[A-Za-z]:\\\\\\\\': 132, 'generic-api-key': 100, 'path-pattern:\\\\\\\\\\\\\\\\[^\\\\\\\\]+\\\\\\\\': 100, 'checked-in-binary': 22, '@secretlint/secretlint-rule-database-connection-string/PostgreSQLConnection': 16, 'jwt': 4, 'npm-access-token': 1, 'path-pattern:/home/[a-z]+/': 1, '@secretlint/secretlint-rule-npm/NPM_ACCESS_TOKEN': 1, 'oversized-file': 1, 'identity-not-allowlisted': 1, 'version-exists': 1, 'name-foreign-owner': 1})",
+      "scan_actually_ran_proof": ".border/dist contains aihr-0.2.2-py3-none-any.whl + aihr-0.2.2.tar.gz (pypi channel stage executed end-to-end incl. residue PyPI leg); W1-era planted-corpus shapes absent from real aihr — consistent with plan: aihr's known lesions are B1 xplatform-spawn (0.3.1 scope, NOT in 0.3.0 closed table). No hr false-positive ⇒ NOT BLOCKED-HR-FP."
+    }
+  },
+  "deviations": [
+    "Brief gate said baseline '498 pass / 2 fail'; observed pre-R4 baseline 497/3 due to intermittent test/llm.test.ts 'masking proof' flake under parallel load (passed standalone 2x, passed in both final R4 runs; untouched by R4 — residual repo issue, not R4).",
+    "No CHANGELOG.md exists in repo (git log: never). 0.3.0 entry written into README.md '## Changelog' per established convention ('### 0.2.0 (2026-09-05)' style).",
+    "Gate implemented as check.ts merge-point filter (brief's sanctioned central option) instead of stage() skip: residue scanning still RUNS when residue.enabled:false (cost is performance-only, findings never surface); avoids any plumbing byte-change in the sha-frozen channels/* + artifacts/residue* files.",
+    "residue schema is outer .optional() (vs engines' .default()): required to keep BorderConfig literals in pinned suites + inferredConfig compiling without the key; semantics identical (absence ⇒ enabled).",
+    "test/channels.golden.test.ts GOLDEN_KEY literal re-pinned 3f167079…→d6b83c4c… with provenance comment (old value retained inline): plan Wave-4 gate 4 MANDATES digest extension ⇒ key moves by design; re-captured from two deterministic standalone runs; exposureSet + DRY-RUN stdout goldens untouched (still prove no other drift). This test file is NOT in the untouchables table nor among the 5 pinned residue suites.",
+    "Brief's 'classifier modules (residue.ts/npm.ts/py.ts/rust.ts/gem.ts)' mapped to actual repo files: artifacts/residue.ts + residuePy/residueRust/residueGem.ts; fingerprint set extended with the 4 ecosystem emitter modules (artifacts/npm|pypi|crates|rubygems.ts) + residueMatchers.ts = 9 sources (superset of the brief's intent; classifier content fully covered).",
+    "One leftover test/tmp/golden-channels-* dir found (pre-existing: channels.golden.test.ts never removes its fixture) — removed as part of cleanup receipt; test/tmp now empty."
+  ],
+  "residual_risks": [
+    "BORDER_RESIDUE_SRC_DIR is a test seam honored by check+ledger fingerprint paths: an operator could point it at doctored sources to freeze a custom key — mitigated: seam changes rulesHash visibly in every report row (R4-PASS proves key movement) and CI never sets it; production default path is live-src/dist-staged bytes.",
+    "Golden key is location-dependent by design (absolute vendored-config path hashed — pre-C2 property, unchanged).",
+    "residue.enabled:false removes rows post-scan: consumers diffing --json between runs could read a toggle flip as 'cleaned findings' — allow-hits/ledger rulesHash movement makes the flip auditable.",
+    "0.3.0 closed table proves zero residue findings on real aihr — NOT evidence of innocence for B1/B3/B4 lesions (0.3.1 scope); boundary statement in README covers this.",
+    "llm.test.ts masking-proof parallel-load flake remains upstream of R4 (pre-existing, intermittent)."
+  ],
+  "cleanup_receipt": "/tmp/border-hr-dogfood removed; /tmp/opencode r4dbg*.ts + golden-capture scratch removed (dogfood JSONs kept as evidence: r4-dogfood-self.json, r4-dogfood-hr.json, r4-full-suite{,2}.log); test/tmp empty; no stray node/border processes; hr original untouched (porcelain 0); border repo: 0 staged entries, dirty set = pre-existing WIP + R4 edits only (src/config.ts, src/check.ts, src/check/rulesHash.ts, tools/copy-assets.mjs, README.md, package.json, test/channels.golden.test.ts key-pin, test/residue.config.test.ts NEW, this DONECLAIM).",
+  "node": "v22.22.1, dist/index.js sha256 prefix bec1203a810dd64a"
+}

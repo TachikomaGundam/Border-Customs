@@ -1,0 +1,133 @@
+{
+  "round": "R3b-fix-independent-verification",
+  "verifier": "fresh-context adversarial (zero trust)",
+  "date": "2026-09-09",
+  "head": "4a8836dc8c587087124781ce093c0c318f0ab835",
+  "verdict": "needs-fix",
+  "confidence": "high — 58 stage-level payloads through runRubygemsArtifactStage + 10 test suites re-run + doc sweep",
+  "fixer_claims_adjudicated": {
+    "BLK-1::hook-form": "CONFIRMED fixed — a6-hook-quiet (Gem::post_install in packed lib/quiet.rb) => 1 CRITICAL gem-hook-token; suite pin B3 green",
+    "BLK-2::all-bindings": "CONFIRMED fixed for local variables — transitive (a3-transitive3 1H), cycle-guarded (a3-cycle 1H), multi-assign fail-closed (a3-multiassign 1H), conditional rebind 1H, concat 1H, env-binding 1H; NEW holes: ivars/globals/constants (BLK-8)",
+    "BLK-3::yaml-truth": "CONFIRMED fixed for line shapes — quoted item 1M, indented comment 1M, tab item 1M, blanks-only 0-legit, unrecognized/junk-after/apostrophe-item => EngineRunError at stage, corrupt metadata.gz => 'not gunzip-readable' fail-closed; NEW hole: duplicate extensions: key silent (BLK-7)",
+    "BLK-4a::%x-delimiters": "PARTIAL — claimed six ( [ { < | all row (ctl-xpipe 1H); live shell delimiters ! ~ % \" silent (BLK-6)",
+    "BLK-4b::%q-rooted": "CONFIRMED fixed — %q{/etc} 1H, %q!x! 1H, %Q\"#{$HOME}/g\" 1H, nested/unbalanced fail-closed 1H",
+    "BLK-4c::dir-chdir": "CONFIRMED fixed for dot-form — any occurrence incl. zero-arg and variable operand => exactly 1 HIGH; ::-form silent (BLK-5)",
+    "suites-numbers": "ALL MATCH my own runs (below)",
+    "ceiling-247": "VERIFIED — grep -cvE '^[[:space:]]*(//|/\\*|\\*|$)' src/artifacts/residueGem.ts = 247 (file total 304); doctrine = non-comment lines",
+    "no-fixture-additions": "VERIFIED — find test -newer VERIFIER-REPORT-R3B.json shows only test/residue.gem.test.ts (+ my own test/tmp run residue)"
+  },
+  "per_attack": [
+    {"id": "A1/ctl-hookdot", "payload_summary": "control: Gem.post_install dot-form in golden extconf", "rows_observed": "0 (golden pin holds, hook-token row only when token outside plugin? no: control used quiet file baseline)", "expected_per_doctrine": "unchanged", "classification": "CLEAN"},
+    {"id": "A1/dirchdir-colon", "payload_summary": "Dir::chdir(\"/tmp\") + File.write(\"implant.so\") in extconf.rb", "rows_observed": "0", "expected_per_doctrine": "1 HIGH per widened ::-doctrine (dot-form identical codepath rows 1H)", "classification": "BLOCKER-silent-escape"},
+    {"id": "A1/filewrite-colon", "payload_summary": "File::write(\"/usr/local/bin/x\",\"d\") — box-ruby verified executes", "rows_observed": "0", "expected_per_doctrine": "1 HIGH", "classification": "BLOCKER-silent-escape"},
+    {"id": "A1/fucp-colon", "payload_summary": "FileUtils::cp(\"build/a\",\"/usr/local/bin/a\")", "rows_observed": "0", "expected_per_doctrine": "1 HIGH", "classification": "BLOCKER-silent-escape"},
+    {"id": "A1/dirmkdir-colon+open3-colon", "payload_summary": "Dir::mkdir(\"/usr/local/bin/d\"); Open3::pipeline_rw(...) => 0 both; IO::popen and Kernel::system => 1H each only by ACCIDENTAL bare-verb fallback", "rows_observed": "0/0 vs 1H/1H", "expected_per_doctrine": "1 HIGH each", "classification": "BLOCKER-silent-escape"},
+    {"id": "A1/spaced-dot", "payload_summary": "File . open (\"/usr/local/bin/x\",\"w\") ; Dir . chdir \"/tmp\"", "rows_observed": "1H; 1H", "expected_per_doctrine": "caught (\\s* around . covers spaces)", "classification": "CLEAN"},
+    {"id": "A1/io-write-dot / bare-open", "payload_summary": "IO.write(\"/usr/local/bin/x\",\"d\") => 0 NAMED invisible §8 item 2; open(\"/usr/local/bin/x\",\"w\") => 0 family-arguably-named", "rows_observed": "0/0", "expected_per_doctrine": "invisible per §8", "classification": "NIT (bare open not exemplified)"},
+    {"id": "A2/chdir-zeroarg+var", "payload_summary": "bare Dir.chdir; Dir.chdir(d) variable arg", "rows_observed": "1H each", "expected_per_doctrine": "§8 'ANY occurrence ⇒ 1 HIGH regardless of argument' — HONEST for dot-form incl. both", "classification": "CLEAN"},
+    {"id": "A3/multiassign", "payload_summary": "o, p = \"rel\", \"/usr/local/bin/g\"; File.write(p,\"x\") — GEM_ASSIGNMENT can't parse multi-lhs ⇒ p unresolvable", "rows_observed": "1H", "expected_per_doctrine": "fail-closed HIGH (rooted literal present) — HONEST", "classification": "CLEAN"},
+    {"id": "A3/conditional-rebind", "payload_summary": "o=\"rel\"; o=\"/usr/local/bin/z\" if ENV['K'] — all variants kept", "rows_observed": "1H", "expected_per_doctrine": "ALL-bindings claim holds", "classification": "CLEAN"},
+    {"id": "A3/plusassign", "payload_summary": "o=\"/tmp\"; o+=\"/usr/local/bin/q\"; File.write(o,...) — += outside single-= grammar", "rows_observed": "0", "expected_per_doctrine": "NAMED invisible §8:932-934 ('values mutated by += churn') — HONEST", "classification": "CLEAN"},
+    {"id": "A3/methodret", "payload_summary": "def pick_target; \"/usr/local/bin/x\"; end; o = pick_target; File.write(o,...)", "rows_observed": "0", "expected_per_doctrine": "NAMED invisible §8 item 6 — HONEST; fail-closed arm does NOT treat pick as unresolvable (rhs stays opaque text, judged confined) — code matches §8 wording exactly", "classification": "CLEAN"},
+    {"id": "A3/transitive3+cycle+concat", "payload_summary": "a=abs;b=a;c=b;File.write(c) 1H; a=b+\".h\",b=a+\".c\" cycle+rooted 1H; o=\"/usr\"+\"/local/bin/e\" 1H", "rows_observed": "1H/1H/1H", "expected_per_doctrine": "as claimed", "classification": "CLEAN"},
+    {"id": "A3/ivar", "payload_summary": "@o = \"/usr/local/bin/x\"; File.write(@o,\"y\") — rooted literal present, operand @o not bareword grammar, @o never in binding map", "rows_observed": "0", "expected_per_doctrine": "silent AND UNNAMED (§8 invisible list item 6 names only method-returns and +=; 'every single = assignment line captured' reads exhaustive for locals)", "classification": "BLOCKER-silent-escape"},
+    {"id": "A3/bareword-norooted", "payload_summary": "File.write(never_assigned_bareword,...) with NO rooted literal in file", "rows_observed": "0", "expected_per_doctrine": "unresolved NameError at runtime = inert; §8 conditions fail-closed on rooted-literal presence — honest", "classification": "NIT"},
+    {"id": "A4/xbang+xtilde+xpct+xdquote", "payload_summary": "%x!install ... /usr/local/bin/!; %x~touch ...~; %x%...%; %x\"touch /usr/local/bin/x\" — box-ruby 3.3.8 verifies ALL FOUR execute live commands", "rows_observed": "0 each", "expected_per_doctrine": "§8 claims '%x with ALL SIX delimiters' + completeness doctrine 'exotic operands COST a row, never silent pass' — silent AND unnamed", "classification": "BLOCKER-silent-escape"},
+    {"id": "A4/qbang-nested-QHOME", "payload_summary": "%q!literal! inside verb span 1H; %q{a{b}/etc/evil} unbalanced-nested 1H fail-closed; %Q\"#{$HOME}/g\" 1H mark", "rows_observed": "1H/1H/1H", "expected_per_doctrine": "as claimed (%q/%Q delimiter-agnostic)", "classification": "CLEAN"},
+    {"id": "A5/line-shapes", "payload_summary": "- \"quoted\" 1M; '   # c' indented comment then item 1M; tab-indented item 1M; extensions:[] flow 0-legit; blanks/comments-only 0-legit; flow [\"ext/ghost/extconf.rb\"] 1M", "rows_observed": "as listed", "expected_per_doctrine": "BLK-3 fix claims hold", "classification": "CLEAN"},
+    {"id": "A5/dupkey", "payload_summary": "crafted container metadata: extensions: [] (first) then block-seq - ext/ghost/extconf.rb (second); psych/rubygems YAML.load LAST-wins (measured box ruby 3.3.8) ⇒ real gem install BUILDS the ghost ext; matcher GEM_EXTENSIONS_KEY.exec takes FIRST ⇒ declares nothing ⇒ silent zero rows", "rows_observed": "0", "expected_per_doctrine": "plan AC: unmatchable extension build ⇒ exactly one MEDIUM, never silent clean — VIOLATED (BLK-3-class residual); reverse order rows 1M (safe-side)", "classification": "BLOCKER-AC-violation"},
+    {"id": "A5/throw-surfaces", "payload_summary": "unrecognized line / junk-after-items / apostrophe-item / non-gzip metadata.gz driven through stage", "rows_observed": "EngineRunError each (stage-level throw confirmed; 'metadata.gz is not gunzip-readable — the extensions declaration cannot be verified, failing closed'); CLI wiring EngineRunError⇒exit 2 confirmed statically src/channels/types.ts:13 + src/check.ts:52", "expected_per_doctrine": "exit 2 never swallowed into zero rows — HONEST", "classification": "CLEAN"},
+    {"id": "A6/plugin-colon+collapse", "payload_summary": "rubygems_plugin.rb whose content is Gem::post_install{...} (::-form)", "rows_observed": "exactly 1 CRITICAL gem-autoload-plugin (collapse logic is basename-keyed ⇒ form-agnostic); channels.rubygems 28/28 my-run twice", "expected_per_doctrine": "downgrade/collapse applies to ::-form exactly like dot — CONFIRMED, no over-block on goldens (R3b-PIN/PIN2 0 rows)", "classification": "CLEAN"},
+    {"id": "A7/invisible-list-audit", "payload_summary": "lexical ../../ File.write + open() 0/0; StringIO-then-rename 0; Marshal.dump 0 — all NAMED, honestly escaping; bare Kernel rename(\"x\",\"/usr/local/bin/...\") 0 — family arguably named (item 2) not exemplified", "rows_observed": "0 each (silent as claimed)", "expected_per_doctrine": "invisible", "classification": "CLEAN (rename/open exemplification = NIT)"},
+    {"id": "A7/completeness-claim", "payload_summary": "§8:922-923 'every INVISIBLE item above re-verified by probe' + 'the named lists are the lists' doctrine", "rows_observed": "unlisted invisibles exist: ::-verb spellings (5 verbs), %x!~%\", ivar/global/const operands, dupkey", "expected_per_doctrine": "list must contain them", "classification": "doc-lie"},
+    {"id": "A8/hygiene", "payload_summary": "rule-id single home: grep outside home files => RESIDUE-CONTRACT.md prose only (:848,:869,:871,:878) ✓; GEM_CONFINED_MARKS deleted ✓ (2 remaining mentions are explanatory comments); mtime: exactly the 4 claimed files newer than boundary 04:05:35 ✓", "rows_observed": "clean", "expected_per_doctrine": "clean", "classification": "CLEAN"}
+  ],
+  "suites": {
+    "residue.gem": "25/25",
+    "residue.npm": "21/21",
+    "residue.crates": "12/12",
+    "residue.pypi": "7/7",
+    "channels.rubygems": "28/28 (two consecutive clean runs; one earlier transient 27/28 — unidentified test, CLI-spawn timing flake, NIT)",
+    "full_npm_test": "457 tests, 455 pass, 2 fail = C5-1 + C5-4 (baseline-identical env-dependent pair; pre-fix was 444/442 with same two ⇒ +13 new gem tests, zero regressions)",
+    "typecheck": "RC0",
+    "build": "RC0",
+    "sha256sums_local": "52 OK / 0 fail (run from test/fixtures/residue per entries' ./-relative paths)"
+  },
+  "sha_baseline": {
+    "src/artifacts/npm.ts": "b8b23b5c5f6f76eb8460ea8385f1c9ef33c31afe012973af0b2c08dcf3a93039",
+    "src/artifacts/residue.ts": "15274f7fff4b6ebdffef37dc772cd9efcc38e4a54e21b680714a0e972dad59ed",
+    "src/artifacts/residuePy.ts": "637312a5ffa5231cb166c9c0d03ac78bbc44a84318682e473e145c4fba2ae28f",
+    "src/artifacts/residueRust.ts": "04d87b21ae419ca0eaa92ee74223b0bf21b86d32e5ec2fc6fcf60019c2de8548",
+    "test/residue.npm.test.ts": "bdab5595fbdbb24b40c9f83fbebf7cecadfeab15208841a0cab839ce002b3532",
+    "src/artifacts/residueGem.ts": "60f289901905689302e553d72d7910c2a6673176dea269114eb4e0e8a6ab58dc",
+    "src/artifacts/rubygems.ts": "f9884da5530f06f9ab1286965428f5dd18ed71903cde72d4182f404fa0cda905",
+    "src/rules/residueMatchers.ts": "4a63c16e57716b4e92ea9a884e1e2110a22f91ea6dadb82c3b84f2ec1c1e399c",
+    "test/residue.gem.test.ts": "abb6c6309c5a6ba3db969afee6d34e442b721afa8bcc8561bd47d1b0665976a0",
+    "src/artifacts/RESIDUE-CONTRACT.md": "65d305b7e3f4da680cef252cb08772063a367e7b60793d625f255ef9ff36ead5",
+    "note": "first durable cross-round baseline; npm/residue/residuePy/residueRust/npm-test untouched by fixer corroborated by mtime forensics (none newer than boundary)"
+  },
+  "doc_truth": [
+    "TRUE: ::-form hooks CRITICAL (BLK-1), both spellings, collapse form-agnostic",
+    "TRUE: block-seq YAML comment/blank/tab/quoted handling + throw-on-unrecognized + exit-2 surfacing",
+    "TRUE: ALL-bindings local-var resolution incl. fail-closed arms (unassigned/cycle + rooted literal anywhere)",
+    "TRUE: %q/%Q rooted extraction, delimiter-agnostic including ! and nested/unbalanced fail-closed",
+    "TRUE: Dir.chdir any occurrence ⇒ exactly one HIGH — for dot-form only (zero-arg and var-arg covered honestly)",
+    "TRUE: every named INVISIBLE item re-verified silent (lexical ../../, IO.write/StringIO/Marshal, method-returns, += churn; Gem.send/const_get, nested archives, sugar chains by construction)",
+    "TRUE: GEM_CONFINED_MARKS deleted; no fixture additions; ceiling 247 by non-comment grep; pins R3b-PIN/PIN2 still zero",
+    "LIE(completeness): '%x with ALL SIX delimiters' + 'every INVISIBLE item re-verified' — %x!~%\" execute live commands, silent, unnamed",
+    "LIE(completeness): verb tables read exhaustive — File::write/Dir::chdir/FileUtils::cp/Dir::mkdir/Open3:: silent while BLK-1 doctrine explicitly blesses :: as live spelling",
+    "LIE(completeness): 'every single `=` assignment line captured' — ivar/global/const operands silent even with rooted literal in the file (not bareword grammar, never in map)",
+    "LIE(blind-spot): extensions parsing first-key-wins vs psych last-wins ⇒ duplicate-key crafted container silently declares nothing — contradicts 'never silent clean' core promise for the exact unmatch shape"
+  ],
+  "blockers": [
+    {
+      "id": "BLK-5",
+      "title": "::-spelling widening applied ONLY to hooks; confinement/chdir verbs still dot-only",
+      "repro": "/tmp/opencode/r3bv2/probe.ts (q-file-colon-space, a1-filewrite-colon, a1-dirchdir-colon, a1-fucp-colon, a1-dirmkdir-colon, a1-open3-colon) — payload: File :: write(\"/usr/local/bin/x\", \"d\") / Dir::chdir(\"/tmp\") + File.write(\"implant.so\") / FileUtils::cp / Dir::mkdir / Open3::pipeline_rw, appended to golden n-gem-native extconf",
+      "observed": "0 rows each (identical dot-forms row 1 HIGH); IO::popen/Kernel::system row only by accidental bare-verb fallback",
+      "expected": "1 HIGH per §8 confinement doctrine now that :: is admitted as live spelling (box-ruby verified File::write/Dir::chdir execute); at minimum honest invisible-list entry",
+      "suggested_fix": "src/rules/residueMatchers.ts: (?:\\.|::) inside every GEM_WRITE_CALL dotted alternative + GEM_CHDIR_CALL (regex is pure string-level; no semantic cost), plus stage pins B4/C7; OR name '::'-verbs in §8 invisible list — but BLK-1 precedent says widening is the honest fix since :: is live code"
+    },
+    {
+      "id": "BLK-6",
+      "title": "%x live shell delimiters ! ~ % \" silent while §8 claims 'ALL SIX' + completeness",
+      "repro": "/tmp/opencode/r3bv2/probe.ts a4-xbang/a4-xtilde/a4-xpct + results2 q-xdquote — payload: %x!install -m 0777 build/x /usr/local/bin/! etc; box-ruby 3.3.8 measured: all four EXECUTE the command (echoed BANG-OK/TILDE-OK/%-OK/QUOTE-OK)",
+      "observed": "0 rows; §8:894 claims six delimiters `( [ { < |` and 'exotic operands COST a row, never silent pass'",
+      "expected": "either all live delimiters row HIGH or the claim is corrected + shapes named invisible; %q/%Q side already delimiter-agnostic via GEM_PERCENT_LITERAL ([^A-Za-z0-9\\s]) — %x has no such widening",
+      "suggested_fix": "GEM_WRITE_CALL: /%x[^A-Za-z0-9\\s]/ mirroring the %q regex (closer = PAIRS[open] ?? open already implemented in gemVerbSpan's generic delimiter arm), + pin C4b for %x!"
+    },
+    {
+      "id": "BLK-7",
+      "title": "duplicate extensions: keys — matcher first-wins, psych/rubygems last-wins (measured) ⇒ crafted container silently unmatches an extension the real build WILL compile",
+      "repro": "/tmp/opencode/r3bv2/probe.ts a5-dupkey (hand-assembled .gem via stageHand seam): metadata '--- !ruby/object:Gem::Specification\\nname: acme-ghost\\nextensions: []\\nextensions:\\n- ext/ghost/extconf.rb\\nfiles:\\n- lib/acme.rb\\n' with data/ containing NO ext/ghost/extconf.rb",
+      "observed": "0 rows (silent clean); box ruby 3.3.8 YAML.load ⇒ {'extensions'=>['ext/ghost/extconf.rb']} (last-wins) ⇒ real gem install builds the missing-path extension",
+      "expected": "plan AC line 89: unmatchable extension build ⇒ exactly one MEDIUM, NEVER silent clean — this is precisely the BLK-3 class on the key-dimension",
+      "suggested_fix": "gemDeclaredExtensions: scan ALL /^extensions:/m occurrences; >1 ⇒ throw 'duplicate extensions: key — cannot certify' (fail-closed, matches throw-on-unrecognized doctrine); reverse order already rows (safe-side)"
+    },
+    {
+      "id": "BLK-8",
+      "title": "ivar/global/constant path bindings silent even with rooted literal present — unname in §8 or bind them",
+      "repro": "/tmp/opencode/r3bv2/probe3-independent: results2.json q-ivar-clean2 — payload @o = \"/usr/local/bin/x\"; File.write(@o, \"y\") in reachable extconf (rooted literal in file)",
+      "observed": "0 rows; GEM_ASSIGNMENT lhs grammar [a-z_] excludes @/$/UPPER, GEM_BARE_IDENTIFIER operand test excludes them too ⇒ fail-closed bareword arm never fires",
+      "expected": "silent escape NOT on §8 invisible list (item 6 names only method-returns and += churn); 'every single = assignment line captured' reads as exhaustive",
+      "suggested_fix": "cheapest honest fix: widen GEM_BARE_IDENTIFIER + GEM_ASSIGNMENT lhs to ^[@$]?[A-Za-z_][A-Za-z0-9_]*[?!]?$ style forms and keep the map; else add §8 invisible sentence 'bindings through instance variables, globals and constants are untracked (operands named @x/$x/CONST bypass the bareword lane)' — verdict rule says un-named ⇒ blocker either way until doc is amended"
+    }
+  ],
+  "nits": [
+    "channels.rubygems transient 27/28 once during this audit (suite spawns CLI processes); 28/28 on two consecutive re-runs — no persistent failure identified",
+    "bare Kernel verbs open/rename/File.new with rooted operands silent; family arguably covered by §8 invisible item 2 wording ('write indirections outside the closed verb set') but unexemplified — enumerate or widen bare-verb list",
+    "a5-dupkey-reverse (block first, [] second) rows 1 MEDIUM vs psych last-wins [] ⇒ over-block on safe side — acceptable exotic-operand price",
+    "IO::popen/Kernel::system coverage via accidental bare-fallback means the ::-hole is verb-dependent — BLK-5 fix removes the inconsistency",
+    "C5-1/C5-4 full-suite failures persist, baseline-identical env-dependent pair, out of scope",
+    "plan line 89 R3b checkbox still unchecked [ ] — consistent with verifier-gated completion, not a finding"
+  ],
+  "integrity": {
+    "boundary_timestamp": "VERIFIER-REPORT-R3B.json 2026-09-09 04:05:35.650 +0800",
+    "files_touched_by_fixer": ["src/artifacts/residueGem.ts 04:34:12", "src/rules/residueMatchers.ts 04:31:48", "test/residue.gem.test.ts 04:26:19", "src/artifacts/RESIDUE-CONTRACT.md 04:39:41"],
+    "rubygems_stage_ts_untouched": true,
+    "rule_id_single_home": "PASS — gem ids appear in code only in residueMatchers.ts + residueGem.ts; other hits are contract prose",
+    "ceilings": {"residueGem.ts": 247, "residueRust.ts": 185, "residuePy.ts": 18, "method": "grep -cvE '^[[:space:]]*(//|/\\*|\\*|$)'"},
+    "untracked_at_head": "all R-series src/test files untracked ⇒ sha_baseline table above is the durable cross-round anchor",
+    "scratch": "/tmp/opencode/r3bv2 contained 58 probe payloads (results.json 55, results2.json, results3.json); deleted after this report was written into the repo"
+  }
+}
