@@ -356,6 +356,7 @@ test("stage with real cargo: deterministic .crate in .border/dist, scan findings
 
 test("stage with real cargo: packed secret => .crate extraction findings survive .border filtering; verdict FAIL", async () => {
   const repo = fixture("leaky");
+  // randAwsPair OK: aws-access-token + secretlint fire on the KEY half; findings never carry raw values so blob-absence is trivial
   const pair = randAwsPair();
   writeCrate(repo, "leaky-crate", "1.0.0", `// leaked credentials\n${pair.text}`);
   const r = await runCargoArtifactStage({ repoDir: repo, cfg: borderCfg() });
@@ -450,6 +451,7 @@ test("publish --yes with no PASS record: exit 1 'run border check first', zero c
 
 test("publish --yes honest chain: FAIL record from a secret-bearing stage => exit 1 at the gate", async () => {
   const repo = fixture("honest");
+  // randAwsPair OK: FAIL verdict + gate refusal ride the deterministic KEY half
   const pair = randAwsPair();
   writeCrate(repo, "honest-crate", "1.0.0", `// leaked\n${pair.text}`);
   const cfg = borderCfg();

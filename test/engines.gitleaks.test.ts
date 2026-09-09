@@ -60,6 +60,7 @@ function totalBytesSecretAbsent(dir: string, secret: string): void {
 test("AC1: history leg reports a secret added then deleted at HEAD, carrying the leaking commit sha", () => {
   const repo = makeFixtureDir("hist");
   try {
+    // randAwsPair OK: history finding fires on the deterministic KEY half; serialized findings never carry raw values
     const pair = randAwsPair();
     writeRel(repo, "config.txt", pair.text);
     gitInit(repo);
@@ -91,6 +92,7 @@ test("AC1: history leg reports a secret added then deleted at HEAD, carrying the
 test("AC2a: planted key inside .tgz (spike-proven MISS) is detected via the extract shim, attributed to the archive", () => {
   const fx = makeFixtureDir("tgz");
   try {
+    // randAwsPair OK: the KEY half drives the tgz-detection assertion; blob-absence trivially safe
     const pair = randAwsPair();
     writeRel(fx, "work/payload.txt", pair.text);
     execFileSync("tar", ["czf", join(fx, "pkg.tgz"), "-C", join(fx, "work"), "payload.txt"]);
@@ -114,6 +116,7 @@ test("AC2a: planted key inside .tgz (spike-proven MISS) is detected via the extr
 test("AC2b: .tar.gz and .zip (spike-proven NATIVE) are detected through the dir leg with archive-joined paths", () => {
   const fx = makeFixtureDir("native");
   try {
+    // randAwsPair OK: both archive-leg detections ride the deterministic KEY halves (aws-access-token)
     const gz = randAwsPair();
     const zp = randAwsPair();
     writeRel(fx, "work/gz.txt", gz.text);
@@ -153,6 +156,7 @@ test("AC3: clean fixture yields 0 findings on both legs", () => {
 test("AC4: no report/extract residue — after scans the fixture tree contains no planted literal and no .border/tmp survives", () => {
   const fx = makeFixtureDir("residue");
   try {
+    // randAwsPair OK: G19 is an on-disk residue check (inRepo :156 / inTgz :157) — engine flagging cannot affect absence
     const inRepo = randAwsPair();
     const inTgz = randAwsPair();
     writeRel(fx, "leaked.env", inRepo.text);
@@ -184,6 +188,7 @@ test("AC5: committed .gitleaksignore / .gitleaks.toml in HEAD tree ⇒ CRITICAL 
     // content is arbitrary: the detector fires on PRESENCE in the HEAD tree,
     // because the engine obeys any committed .gitleaksignore unconditionally
     // (spike: root.go:304-320 is additive regardless of -i; real proof 1→0).
+    // randAwsPair OK: hostile-config detector fires on file PRESENCE — the content is inert
     writeRel(fx, "app.env", randAwsPair().text);
     writeRel(fx, ".gitleaksignore", "# attacker-suppressed findings\n");
     gitInit(fx);
@@ -217,6 +222,7 @@ test("AC5: committed .gitleaksignore / .gitleaks.toml in HEAD tree ⇒ CRITICAL 
 test("AC6: committed rules=[] .gitleaks.toml does NOT neutralize the vendored --config — key still reported", () => {
   const fx = makeFixtureDir("emptyrules");
   try {
+    // randAwsPair OK: the KEY half is still reported under a committed rules=[] .gitleaks.toml
     const pair = randAwsPair();
     writeRel(fx, "secrets.txt", pair.text);
     gitInit(fx);
@@ -282,6 +288,7 @@ test("AC9: --version string is collectible for the rulesHash engineVersions map"
 test("AC10: ingest routes every value through redact(); sanitizer scrubbing + env-strip behavior", () => {
   const fx = makeFixtureDir("ingest");
   try {
+    // randAwsPair OK: finding presence rides the KEY half; redaction fields are asserted only for what fires
     const pair = randAwsPair();
     writeRel(fx, "app.env", pair.text);
 

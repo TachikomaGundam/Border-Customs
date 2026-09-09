@@ -144,6 +144,7 @@ test("AC7: clean fixture yields 0 findings", async () => {
 });
 
 test("AC8: preset-recommend (with the spike-discovered enableIDScanRule override) catches a planted AWS pair", async () => {
+  // randAwsPair OK: SECRETLINT engine — regex/id-based, gitleaks' generic-api-key stopword allowlist plays no role
   const pair = randAwsPair();
   const { findings } = await scanFixtureFiles("aws", { "creds.env-ish.txt": pair.text });
   assertFindingsWellFormed(findings);
@@ -158,6 +159,7 @@ test("AC8: preset-recommend (with the spike-discovered enableIDScanRule override
 test("AC9: git-tracked scan covers tracked files only and hard-excludes .border/", async () => {
   const repo = makeFixtureDir("tracked");
   try {
+    // randAwsPair OK: digest(pair.key) via secretlint — no gitleaks allowlist involved
     const pair = randAwsPair();
     writeRel(repo, "app/secrets.txt", pair.text);
     writeRel(repo, ".border/stale-scan.yaml", "echo /home/lab/secret/dir 192.168.9.9\n");
@@ -190,6 +192,7 @@ test("AC10: no-dotenv rule flags a committed .env file", async () => {
 });
 
 test("AC11: G23 — raw matched values never reach Finding fields; sanitizer registered; no report residue on disk", async () => {
+  // randAwsPair OK: G23 asserts absence from serialized fields — an unflagged value is trivially absent from fields
   const pair = randAwsPair();
   const dir = makeFixtureDir("g23");
   try {
@@ -220,6 +223,7 @@ test("AC11: G23 — raw matched values never reach Finding fields; sanitizer reg
 });
 
 test("AC12: CLI fallback mode is caller-transparent — same Finding contract for the same fixture", async () => {
+  // randAwsPair OK: KEY digest parity via secretlint — deterministic, independent of the gitleaks allowlist
   const pair = randAwsPair();
   const dir = makeFixtureDir("climode");
   try {

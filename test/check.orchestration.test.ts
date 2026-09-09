@@ -196,6 +196,7 @@ test("G22 lock: held by a live pid ⇒ BorderLockHeldError naming the holder; de
 });
 
 test(`guard: committed .border/ content ⇒ CRITICAL '${TRACKED_BORDER_RULE}' naming the path, verdict FAIL, engine legs still filtered (AC2)`, async () => {
+  // randAwsPair OK: asserts the native .border guard + filter contract — engine flagging of either half is irrelevant
   const planted = randAwsPair();
   const dir = checkRepo("guard", { [`${BORDER_STATE_DIR}/planted.env`]: planted.text });
   const outcome = await runPipeline(dir);
@@ -235,6 +236,7 @@ test("guard lists at most 50 tracked .border paths", async () => {
 
 test("AC1 self-exclusion: planted secret in UNTRACKED .border/runs/junk/report.json ⇒ clean scan, zero .border findings, exit 0", async () => {
   const dir = checkRepo("ac1");
+  // randAwsPair OK: expects ZERO findings (.border self-exclusion) — flagging is moot, KEY or SECRET
   const planted = randAwsPair();
   writeRel(dir, `${BORDER_STATE_DIR}/runs/junk/report.json`, JSON.stringify({ secret: planted.text }));
   writeRel(dir, "scratch.tmp", "ephemeral working file\n"); // non-.border dirt ⇒ proves the dirty flag is real, not .border noise
@@ -283,6 +285,7 @@ test("native identity rule runs in the pipeline: disallowed commit author ⇒ id
 
 test("AC3 tag-message leg: secret in annotated tag message ⇒ CRITICAL finding with the tag ref as path", async () => {
   const dir = checkRepo("ac3", { "a.txt": "clean\n" });
+  // randAwsPair OK: the tag leg fires on the deterministic KEY half (aws-access-token); no secret-value assertion
   const planted = randAwsPair();
   git(dir, ["tag", "-a", "v-secret", "-m", `release with ${planted.text}`]);
   const findings = scanTagMessages({ repoDir: dir, target: "git" });
@@ -429,6 +432,7 @@ test("CLI: undiscovered config no-ops exit 0; EXPLICIT zero-target config runs t
 
 test("CLI --json prints the Report without raw values; plain output prints the verdict + summary", async () => {
   const dir = checkRepo("cli-json", { "a.txt": "clean\n" });
+  // randAwsPair OK: BLOCK verdict rides the KEY half; the serialized report only carries REDACTED findings, so an unflagged secret can never ride in
   const planted = randAwsPair();
   writeRel(dir, "leak.txt", planted.text);
   const json = await runCli(["check", "--json"], dir);

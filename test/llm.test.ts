@@ -19,7 +19,7 @@ import type { CheckRecord } from "../src/ledger/records.ts";
 import { readLedger } from "../src/ledger/records.ts";
 import type { LlmRequestBundle } from "../src/llm.ts";
 import { DATA_BOUNDARY } from "../src/llm.ts";
-import { BORDER_ROOT, makeFixtureDir, randAwsPair, removeDir, writeRel, gitInit, gitAddCommit } from "./helpers/fixtures.ts";
+import { awsPairEngineFlagged, BORDER_ROOT, makeFixtureDir, randAwsPair, randFlaggedAwsPair, removeDir, writeRel, gitInit, gitAddCommit } from "./helpers/fixtures.ts";
 import { gitIn, makeRemoteFixture } from "./helpers/cli-fixtures.ts";
 import { requireGitleaks } from "./helpers/require-engines.ts";
 
@@ -168,7 +168,11 @@ if (!gitleaksPresent) {
   test("masking proof: deterministic-flagged secret value appears NOWHERE raw in the bundle, only [REDACTED:<sha8>]", () => {
     const fx = fixtureTipBehind();
     try {
-      const leak = randAwsPair();
+      // randFlaggedAwsPair, not randAwsPair: this test asserts bundleText lacks
+      // leak.secret, but masking only scrubs engine-flagged values (fail-closed
+      // DATA_BOUNDARY) — the secret MUST be visible to the vendored generic-api-key
+      // rule or the absence assertion is a property the fixture never guaranteed.
+      const leak = randFlaggedAwsPair();
       writeRel(fx.work, "config.ini", leak.text);
       gitIn(fx.work, fx.work, ["add", "-A"]);
       gitIn(fx.work, fx.work, ["-c", "user.name=Wiki.js", "-c", "user.email=wiki@sumteclab.com", "commit", "-q", "-m", "wire aws"]);
@@ -190,6 +194,34 @@ if (!gitleaksPresent) {
     } finally {
       removeDir(fx.root);
     }
+  });
+
+  // Regression tripwires for the fixture predicate behind randFlaggedAwsPair
+  // (generic-api-key stopword roulette, probe 2026-09-09 — see fixtures.ts header).
+  // These pin BOTH verdicts on hardcoded literals: if a future gitleaks/rules bump
+  // flips either, the test fails LOUDLY and we re-examine the fixture contract
+  // instead of silently re-arming the masking-proof roulette.
+  test("awsPairEngineFlagged: FALSE on the proven stopword victim (secret embeds 'vpn')", () => {
+    // Measured flake source: gitleaks trace `skipping finding: rule allowlist
+    // allowed-stopword=vpn` — only the key is flagged, so the predicate must be false.
+    const victim = {
+      key: "AKIAGU7OKYMA7ECKEGWB",
+      secret: "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",
+      text: "aws_access_key_id = AKIAGU7OKYMA7ECKEGWB\naws_secret_access_key = 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\n",
+    };
+    assert.equal(awsPairEngineFlagged(victim), false, "predicate must SEE the allowlist — engine skips this secret");
+  });
+
+  test("awsPairEngineFlagged: TRUE on a clean empirically-flagged pair (discovered 2026-09-09)", () => {
+    // Winner of a randAwsPair() draw that both the aws-access-token rule (key) and
+    // the generic-api-key rule (secret, no stopword substring) flag under the
+    // vendored v8.30.1 config — recorded verbatim so this test is deterministic.
+    const clean = {
+      key: "AKIAOY2EGLHMKFWUEPYA",
+      secret: "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",
+      text: "aws_access_key_id = AKIAOY2EGLHMKFWUEPYA\naws_secret_access_key = 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\n",
+    };
+    assert.equal(awsPairEngineFlagged(clean), true, "predicate must confirm both sides are engine-flagged");
   });
 
   test("ingest rejects unknown path / malformed items with exit 2 naming the item index; malformed bundle inputs stay honest", () => {
@@ -227,6 +259,9 @@ if (!gitleaksPresent) {
   test("agent message carrying a secret value is masked on ingest (prompt-injection class)", () => {
     const fx = fixtureTipBehind();
     try {
+      // stays randAwsPair: only leak.KEY is echoed/asserted-absent here, and the key
+      // side is engine-flagged deterministically (aws-access-token: AKIA + 16 base32)
+      // ⇒ sanitizer always registers it; no generic-api-key stopword roulette applies.
       const leak = randAwsPair();
       writeRel(fx.work, "config.ini", leak.text);
       gitIn(fx.work, fx.work, ["add", "-A"]);

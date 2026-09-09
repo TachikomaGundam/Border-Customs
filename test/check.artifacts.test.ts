@@ -166,6 +166,7 @@ function pypiFixture(repository: string): string {
 
 test("E1+E4 npm: gitignored-but-packed secret fails the check end-to-end; artifacts == dist bytes; FAIL never skips", { timeout: 180_000 }, async () => {
   const dir = npmFixture("gapb-e1");
+  // randAwsPair OK: BLOCK verdict + key-absence assertion ride the deterministic KEY half
   const planted = randAwsPair();
   writeRel(dir, "lib/generated.js", planted.text);
 
@@ -216,6 +217,7 @@ test("E2 npm clean twin: PASS records dist digests; SKIP is sub-3s with ZERO re-
   assert.equal(distStamp(dir, tgzRel), stamp, "SKIP must not touch .border/dist (freshness re-packs to tmp only)");
   assert.equal(checks(dir).length, 1, "skip appends nothing");
 
+  // randAwsPair OK: the re-scan BLOCK rides the deterministic KEY half
   const planted = randAwsPair();
   writeRel(dir, "lib/generated.js", planted.text); // gitignored ⇒ HEAD + porcelain NEVER move
   const r3 = await cli(dir);
@@ -258,6 +260,7 @@ test("E3b pypi planted: gitignored packed _version.py secret fails the check via
   const stub = await startRegistryStub([]);
   pypiStubs.push(stub);
   const dir = pypiFixture(stub.url);
+  // randAwsPair OK: wheel finding path + BLOCK ride the KEY half embedded in _version.py
   const planted = randAwsPair();
   writeRel(dir, "gapbpypi/_version.py", `__version__ = "1.0.0"\nAWS_KEY = "${planted.key}"\nAWS_SECRET = "${planted.secret}"\n`);
 

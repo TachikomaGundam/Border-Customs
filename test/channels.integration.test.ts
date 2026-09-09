@@ -245,6 +245,7 @@ where = ["src"]
   );
   writeRel(repo, "lib/answer.rb", "module Answer\n  def self.answer = 42\nend\n");
   if (o.leakyGem === true) {
+    // randAwsPair OK: the flagged half is the pinned LEAK_KEY_ID literal; pair.secret only guarantees a fresh unique value (dedupe)
     const pair = randAwsPair();
     writeRel(repo, "lib/leaky.rb", `# leaked credentials\ndef leaked = { key: "${LEAK_KEY_ID}", secret: "${pair.secret}" }\n`);
     const gemspec = readFileSync(join(repo, "widgets-gem.gemspec"), "utf8");
