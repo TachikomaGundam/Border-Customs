@@ -1,0 +1,56 @@
+{
+  "verdict": "CONVERGED",
+  "confidence": "high",
+  "session_id": "opencode:ses_f7e8d57c3ffeHkTBGQ9yEVvVyR",
+  "nb3_status": "closed",
+  "method": "independent driver /tmp/v4/driver.ts: copy test/fixtures/residue/a-opencode-t1 -> /tmp/v4/work/<case>/pkg, append mutation to postinstall.mjs, runNpmArtifactStage({skipGitleaks:true,skipSecretlint:true}) via timeout 120 node --import ./tools/register-ts.mjs; zero reliance on worker tests for lanes A-C; no lifecycle script ever executed (npm pack --ignore-scripts staging only)",
+  "nb3_repros": {
+    "M8_childProcess.exec(\"echo pwned > ../../escape.txt\")": "lifecycle-script CRITICAL valueDigest 61415faf5c8c08e6bdf6ae2d5166615f1047e7d01a52c757d6633f8d19a6c512 verbatim, zero residue-in-tree-hook rows, verdict FAIL",
+    "M9_childProcess.fork(\"../../payload.js\")": "same: pinned CRITICAL, no badge, verdict FAIL"
+  },
+  "call_position_matrix": {
+    "spawnSync-alias: const sp = childProcess.spawnSync; sp(\"evil-sh\",[\"-c\",\"rm\"]);": "T1 voided -> pinned CRITICAL",
+    "exec-alias: const ex = childProcess.exec; ex(\"tee ../../escape.txt\");": "T1 voided -> pinned CRITICAL",
+    "callback-pass: doThing(childProcess.exec, \"evil\")": "token followed by ',' -> T1 voided -> pinned CRITICAL",
+    "method-alias: cp.exec.call(null,\"evil\");": "token followed by '.' -> T1 voided -> pinned CRITICAL",
+    "computed-member-literal: cp[\"exec\"](\"evil\")": "token followed by quote -> T1 voided -> pinned CRITICAL (clause-9 'anything else — … /quote/. — voids T1' holds)",
+    "computed-member-concat: cp[\"ex\" + \"ec\"](\"evil\")": "RETAINS T1 badge 860b056a.. PASS = fail-open, matches documented residual (see computed_member_adjudication)",
+    "concat+write-name: cp[\"ex\"+\"ec\"](\"evil\"); fs.writeFile(\"../../x\",\"p\");": "T1 voided -> pinned CRITICAL (write argv0 not in closed forms) — 'only insofar as' hedge holds",
+    "concat+offlist-module: cp[\"ex\"+\"ec\"](\"evil\"); await import(\"node:net\");": "T1 voided -> pinned CRITICAL + residue-install-download HIGH — hedge holds",
+    "string-token: const cmd = \"exec\"; cp[cmd](\"evil\");": "bare exec token inside quotes not call-position -> T1 voided -> pinned CRITICAL"
+  },
+  "computed_member_adjudication": "ACCEPTED documented limitation, not a blocker. RESIDUE-CONTRACT.md §1.6 residual sentence explicitly names computed-member function names such as cp[\"ex\" + \"ec\"](…) presenting no spawn-family token to clause 4/9 enumeration, fail-OPEN 'only insofar as they introduce no write-family name, no import/require call shape, and no spawn-family syntax at all'. Re-verified honestly: the literal cp[\"exec\"] form is NOT part of the open residual (voided, 4th bullet); the open forms (concat/registry with split token) close the moment any write-family name in non-allowlisted argv0 form or any non-allowlisted module import is added (b7/b8). Minor wording nit N5 below.",
+  "fp_controls": {
+    "golden": "postinstall.mjs sha256 5a7c990fe552e76b16422cdba3f4b0550590c7a487f7932c773362f74317c87b == contract §1.2; stage -> single residue-in-tree-hook MEDIUM 860b056a01f98043ab365ad71e2612a10e0f44f017f58b8ca19665294470b7b0, verdict PASS",
+    "await_import_node_fs": "MEDIUM badge kept, PASS",
+    "executable_word_in_hook_string": "badge kept, PASS (\\b prevents substring match)",
+    "executable_word_filename": "bin-less pkg + executable-metadata.json at package root: badge kept, PASS",
+    "SHA256SUMS.local": "timeout 60 sha256sum -c: 28/28 OK (check-only, no fixture edit)"
+  },
+  "regression_sweep": {
+    "solo_residue": "timeout 180 node --import ./tools/register-ts.mjs --test test/residue.npm.test.ts -> TAP '# tests 21' '# pass 21' '# fail 0', no double-exec",
+    "typecheck": "RC=0", "build": "RC=0",
+    "npm_test": "timeout 600 npm test -> '# tests 413' '# pass 411' '# fail 2' = exactly C5-1 + C5-4 (solo rerun: deterministic, same 2, untracked test/channels.integration.test.ts WIP, outside fix scope; 413 = FIX3 409 + 4 new R2-M8..M11)",
+    "stage_pins": "git diff empty (file untracked, status '??'); sha256 222869a220c5963a3a7c5b0446dea919722f1ecc917774668b37e1bbaf815c6f == FIX3-recorded; SHA256SUMS.local entry OK"
+  },
+  "hygiene": {
+    "head": "4a8836dc8c587087124781ce093c0c318f0ab835", "stash": 0, "porcelain": "89 lines == pre-drive baseline",
+    "changed_set": "tracked diff 22 files == baseline; fix-set = src/rules/residueMatchers.ts + src/artifacts/residue.ts + test/residue.npm.test.ts (untracked new, mtimes 22:19-22:23) + src/artifacts/RESIDUE-CONTRACT.md (22:26); src/artifacts/npm.ts untouched since round-1 wiring (mtime 19:41:54, +36/-8 identical to baseline)",
+    "hr": "/home/lab/workspace/harness/hr HEAD d8f878f porcelain empty — read-only preserved",
+    "no_execution": "zero lifecycle scripts run; all staging via npm pack --ignore-scripts"
+  },
+  "nits": [
+    "N5 (wording, §1.6 residual sentence): 'no spawn-family syntax at all' is loose — cp[\"ex\"+\"ec\"](\"evil\") IS spawn-family syntax textually; the operative criterion is 'no complete spawn-family lexical token'. Suggest replacing 'syntax' with 'token' for precision. Fail-open behavior itself is correctly scoped.",
+    "N6 (carried, informational): T1_SPAWN_CALL intentionally lacks leading \\b (residueMatchers.ts L109 comment), so substrings like myExec(\"x\") void T1 — fail-CLOSED asymmetry, same accepted category as FIX3 nit N3; no action needed.",
+    "N4 (carried from FIX3): argv0 'source' form shared across verbs; unchanged."
+  ],
+  "blockers": [],
+  "repro_commands": [
+    "timeout 120 node --import ./tools/register-ts.mjs /tmp/v4/driver.ts <case>  # cases: golden m8 m9 b1 b2 b3 b4 b5 b6 b7 b8 b9 c2 c3 c4 (driver copied mutation lines verbatim from lane spec)",
+    "timeout 180 node --import ./tools/register-ts.mjs --test test/residue.npm.test.ts",
+    "timeout 300 npm run typecheck && timeout 300 npm run build",
+    "timeout 600 npm test",
+    "timeout 60 sha256sum -c SHA256SUMS.local  # in test/fixtures/residue"
+  ],
+  "verifier_edits": "none in src/ test/ fixtures/ contract; outputs: this report + 2 ledger lines"
+}

@@ -14,7 +14,12 @@ import { SUBCOMMANDS, type CommandHandler, type Ctx, type Flags, type Subcommand
 
 export { SUBCOMMANDS, type CommandHandler, type Ctx, type Flags, type Subcommand, type Writer } from "./cli/types.ts";
 
-const VALID_TARGETS = ["git", "npm", "pypi"] as const;
+// Channel-registry-derived target list (todo C2): the CLI validates --targets
+// against the same channel ids the rest of the pipeline runs on, so a new
+// platform joins the CLI surface when its descriptor joins src/channels/.
+import { targetIds } from "./channels/registry.ts";
+
+const VALID_TARGETS = targetIds();
 
 export function usage(): string {
   return [
@@ -31,7 +36,7 @@ export function usage(): string {
     "",
     "flags:",
     "  --config <path>             config file (default: ./border.yaml, then git-remote fallback)",
-    "  --targets <git,npm,pypi>    comma-separated subset restricting this run's scope",
+    "  --targets <" + VALID_TARGETS.join(",") + ">    comma-separated subset restricting this run's scope",
     "  --force                     ignore the skip-ledger, re-run the full check",
     "  --yes                       execute mutations; a bare `border push` is always DRY-RUN",
     "  --require-engine <list>     comma-separated engines that must be healthy (else exit 2)",

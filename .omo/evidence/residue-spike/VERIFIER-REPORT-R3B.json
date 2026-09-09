@@ -1,0 +1,82 @@
+{
+  "verdict": "needs-fix",
+  "confidence": "high",
+  "verifier": "independent adversarial R3b (disk-only, fresh session)",
+  "head": "4a8836dc8c587087124781ce093c0c318f0ab835",
+  "blockers": [
+    {
+      "id": "BLK-1",
+      "title": "Silent persistence escape: double-colon Gem::post_install (live Ruby, invisible to GEM_HOOK_CALL)",
+      "repro": "lib/quiet.rb packed in a real gem build: `Gem::post_install { |i| warn \"persisted\" }` (stage probe S1, n-gem-native + gemspec files patch)",
+      "observed_rows": 0,
+      "expected": "1 residue-persistence-primitive CRITICAL (executor claim: 'hook tokens anywhere readable => CRITICAL'); contrast S1b dot-form `Gem.post_install` => exactly 1 CRITICAL",
+      "ruby_semantics_evidence": "box ruby 3.3.8: `Gem::post_install { |i| nil }` executes and registers a live hook (Gem.post_install_hooks 0->1); :: is static-call spelling, NOT dynamic dispatch, so §8 INVISIBLE (which names only Gem.send/const_get) does not cover it; R3a doctrine (RESIDUE-CONTRACT.md:761) 'exotic SPELLINGS cost a row, never a silent pass' is violated",
+      "suggested_fix": "GEM_HOOK_CALL -> /(?<![\\w.])Gem\\s*(?:\\.|::)\\s*(?:post_install|post_uninstall|pre_install)\\b/ plus a pinned test (B3)"
+    },
+    {
+      "id": "BLK-2",
+      "title": "Silent confinement escape: path-variable indirection (R3a-V1 class) writes /usr/local from extconf",
+      "repro": "ext/ghost/extconf.rb (stage probe S2, real gem build): GOLDEN + `o = \"/usr/local/bin/ghost\"\\nFile.write(o, \"data\")`",
+      "observed_rows": 0,
+      "expected": "row per §8 claim 'a string literal ROOTED at a slash ... is unparseable => residue-out-of-tree-write HIGH'; firstArgument span is the bareword `o` — no mark, no quoted-slash, parses clean => silent",
+      "doc_gap": "§8 INVISIBLE names VERB indirections (IO.write, StringIO, Marshal) but never PATH binding tracking; crates lane solved the identical class via envRefCall identifier analysis (RESIDUE-CONTRACT.md:759-761)",
+      "suggested_fix": "fail-closed when a confinement operand is a bare identifier and any GEM_ABSOLUTE_LITERAL string exists elsewhere in the extconf (or track simple `x = \"...\"` bindings R3a-V1-style)"
+    },
+    {
+      "id": "BLK-3",
+      "title": "Plan-AC violation: silent clean with declared-missing extension via comment line in extensions: block sequence",
+      "repro": "hand-assembled .gem (fake-gem seam, stage probe S3): metadata.gz = `...extensions:\\n# packaged by tool\\n- ext/ghost/extconf.rb\\nfiles:\\n- lib/acme.rb`, data.tar.gz without ext/ghost/extconf.rb",
+      "observed_rows": 0,
+      "expected": "AC line 89: 'unmatchable extension build => exactly one MEDIUM note, NEVER silent clean'; §8: 'Unparseable metadata.gz extensions ... stops the gate (exit 2) rather than certify clean'. gemDeclaredExtensions silently BREAKS the seq loop on the valid-YAML comment line => declarations [] => clean. Unit repro P18 identical. Same silent-[] shape for `extensions:` + whitespace-only body (YAML null, probe S5)",
+      "suggested_fix": "in the block-seq loop, on a non-blank line that matches neither GEM_YAML_SEQ_ITEM nor a YAML comment (^\\s*#), THROW (unrecognized declaration) instead of break; and require the post-`extensions:` body to contain at least one item or a terminating mapping key"
+    },
+    {
+      "id": "BLK-4",
+      "title": "Doc-gap blocker class: three more unnamed silent escapes vs §8 INVISIBLE list",
+      "repro": "(a) `%x|install -m755 out.so /usr/local/bin/|` in extconf => 0 rows (P10; GEM_WRITE_CALL spells only `%x(` + backticks — and the backtick alternative does fail-closed, so the delimiter variant is trivially chosen by an attacker); (b) `File.open(%q{/etc/evil}, \"w\")` => 0 rows (P10b; GEM_ABSOLUTE_LITERAL is quote-then-slash, blind to %q{}); (c) `Dir.chdir(\"/tmp\")\\nFile.write(\"implant.so\",\"x\")` => 0 rows (P12; Dir.chdir is not a verb, §8 names only lexical `../../` escape)",
+      "observed_rows": 0,
+      "expected": "per task rule: any NEW silent escape §8 does not name = blocker-class doc gap",
+      "suggested_fix": "extend the verb regex to %x[\\(\\[\\{<|] and %Q?/%q? any-delimiter roots (or throw on unparseable %q/%X operands as exotic spellings); add Dir.chdir to GEM_WRITE_CALL or to the §8 INVISIBLE named list"
+    }
+  ],
+  "nits": [
+    "A1b token comment-split `Gem.post_ ## x\\ninstall {}`: empirically INERT (ruby 3.3.8: NoMethodError post_) => not a blocker; regex-\\s* already catches newline/space dot variants",
+    "GEM_CONFINED_MARKS ($extout/DISTDIR) exported but unused by gemConfinementHits — documentation-only table; ENV[\"EXTOUT\"] already pays the badge fail-closed as §8 states (consider deleting or wiring)",
+    "nested lib/subdir/rubygems_plugin.rb fires although RubyGems auto-loads only load-path-level copies — over-detection explicitly blessed by plan 'anywhere' (P4)",
+    "'SUMS old-36-lines byte-untouched' not text-verifiable (SHA256SUMS.local untracked, no on-disk R3a line snapshot); 52/52 sha256sum -c OK + all golden pins (stage-pins-0.2.0.json) green is the behavioral equivalent",
+    "test/tmp contained one verifier-run leftover (golden-channels-5ySWWf, 03:59, post-handoff) — removed; worker-window cleanliness claim holds (all R3b fixtures cleaned by suite after-hooks)"
+  ],
+  "probes": [
+    {"id": "P1", "shape": "lib/x.rb Gem::post_install (direct residueGemHits)", "observed": 0, "flag": "BLK-1"},
+    {"id": "P2", "shape": "lib/x.rb Gem.post_install dot", "observed": "1 CRITICAL gem-hook-token", "flag": "sanity"},
+    {"id": "P3", "shape": "comment-split Gem.post_ ## x / install", "observed": 0, "flag": "inert (ruby-proven)"},
+    {"id": "P4", "shape": "lib/subdir/rubygems_plugin.rb", "observed": "1 CRITICAL gem-autoload-plugin", "flag": "OK"},
+    {"id": "P5", "shape": "init.yml prose Gem.post_uninstall", "observed": "1 CRITICAL", "flag": "matches 'any readable packed file' claim; comment/prose over-detection blessed by plan 'anywhere in content'"},
+    {"id": "P6", "shape": "lib require-time hook file", "observed": "1 CRITICAL on hook file", "flag": "OK (A1c)"},
+    {"id": "P7", "shape": "extconf o=\"/usr/local/bin/ghost\"; File.write(o,...)", "observed": 0, "flag": "BLK-2"},
+    {"id": "P8", "shape": "File.open(File.join(\"/\",\"etc\",\"evil\"),\"w\")", "observed": "1 HIGH", "flag": "OK (A2a confined: quoted slash inside first-arg span)"},
+    {"id": "P9", "shape": "File.write(\"#{'$HOME'}/x\",...)", "observed": "1 HIGH", "flag": "OK (A2c)"},
+    {"id": "P10", "shape": "%x|install ... /usr/local/bin/|", "observed": 0, "flag": "BLK-4a"},
+    {"id": "P10b", "shape": "File.open(%q{/etc/evil},\"w\")", "observed": 0, "flag": "BLK-4b"},
+    {"id": "P11", "shape": "File.write(\"/usr/local/bin/ghost\",...) inline", "observed": "1 HIGH", "flag": "sanity = test C2"},
+    {"id": "P12", "shape": "Dir.chdir(\"/tmp\")+relative write", "observed": 0, "flag": "BLK-4c"},
+    {"id": "P13", "shape": "truncated `File.open(`", "observed": "1 HIGH fail-closed", "flag": "test F re-run OK"},
+    {"id": "P14-P17", "shape": "flow-quoted 1 MEDIUM / bare-dir 1 MEDIUM / declared-present 0 / extensions:[] 0", "observed": "as expected", "flag": "A3 core shapes OK"},
+    {"id": "P18", "shape": "extensions: comment-break (unit)", "observed": 0, "flag": "BLK-3"},
+    {"id": "P19", "shape": "dup declarations (G2 re-run)", "observed": "1 MEDIUM", "flag": "OK"},
+    {"id": "P20-P21", "shape": "extensions: maybe => THROW; block-seq => [entry]", "observed": "throws/parse OK", "flag": "OK"},
+    {"id": "S1/S1b", "shape": "double-colon vs dot via REAL gem build stage", "observed": "0 rows vs 1 CRITICAL", "flag": "BLK-1 confirmed end-to-end"},
+    {"id": "S2", "shape": "var-indirect via real stage", "observed": 0, "flag": "BLK-2 confirmed"},
+    {"id": "S3-S9", "shape": "stage unmatch/comment-break/corrupt-gz/bad-inline/empty/present/dir-shape/non-gem-container", "observed": "S3 0 (BLK-3); S4 THREW EngineRunError gunzip (OK); S5 0 silent (whitespace-body variant of BLK-3); S6/S7 0 OK; S8 1 MEDIUM dir-shape OK; S9 non-gem container 0 rows no throw — leg gate (members.has metadata.gz && data.tar.gz) correct", "flag": "sandboxes: no *-data or .border/tmp leftovers after any stage probe"},
+    {"id": "A1b-ruby", "shape": "ruby 3.3.8 semantics", "observed": "double-colon registers hook (0->1); comment-split NoMethodError", "flag": "judge basis for BLK-1 vs nit"}
+  ],
+  "suites": {
+    "residue.gem": "12/12 pass", "residue.npm": "21/21 pass", "residue.crates": "12/12 pass", "residue.pypi": "7/7 pass",
+    "channels.rubygems": "28/28 pass", "combined-5-files": "80/80",
+    "full": "444 tests / 442 pass / 2 fail — fails are exactly C5-1 + C5-4 (pre-existing C5 red, matches claim 444/442 only-C5-red)",
+    "typecheck": "tsc --noEmit RC0", "sums": "sha256sum -c SHA256SUMS.local 52/52 OK (0 failures), file has 52 lines"
+  },
+  "doc_truth": "§8 mostly true: sibling-sandbox+cleanup verified (no leaks in stage repros), leg gate + non-gem pre-R3b behavior verified (S9 + channels 28/28), dedup B/plugin-outrank verified, fail-closed F verified, 'gem install-time' wording via custom FamilyWording verified, INVISIBLE list accurate for what it names — but FOUR live silent escapes it does not name (BLK-1/2/3/4: ::-spelling, path-variable indirection, extensions: comment-break silent-clean violating 'never silent clean', %x|%q|chdir spellings); 'anywhere readable' persistence claim is dot-token-only in practice; unreadable-declaration throw claim fails for comment-injected valid YAML",
+  "integrity": "HEAD==4a8836d unchanged, zero commits; R3b window (03:09-03:21 +0800) touched only src/rules/residueMatchers.ts (03:09), src/artifacts/residueGem.ts (03:12, NEW), rubygems.ts (03:21), test/residue.gem.test.ts (03:20), SHA256SUMS.local (03:21); npm.ts (09-08 19:41), residue.ts (09-09 00:31), residueRust.ts (02:20), residuePy.ts (09-08), sibling tests, channels.rubygems.test.ts (09-05) all predate the window — append-only/no-cross-leg-touch claim holds behaviorally (all golden pins green) and by mtime; ledger 82 lines append-only, last events = orchestrator verify-dispatch lines after worker-result R3b (no worker-authored verifier entry); extract.ts diff is 09-05 R3-era, not R3b; all verifier scratch deleted (/tmp/opencode/r3b, test/tmp clean), harness/hr and device untouched",
+  "note": "residueMatchers.ts/residueGem.ts/rubygems.ts are UNTRACKED at HEAD (whole gate uncommitted), so byte-diff audit of pre-R3b matcher regions was impossible; substituted mtime forensics + 100% golden-pin behavioral regression (npm/crates/pypi suites + stage-pins digest pins all green)"
+}

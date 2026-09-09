@@ -1,6 +1,9 @@
 // provenance: original clean-room implementation per .omo/plans/border-push-gate.md todo 7;
 // --yes executor rewired by todo 16 (multi-remote git push, all-or-nothing ff guard);
-// same-bytes registry legs (npm → pypi) wired into --yes and dry-run by todo 17b.
+// same-bytes registry legs (npm → pypi) wired into --yes and dry-run by todo 17b;
+// registry legs re-pointed at the channel descriptors by border-push-channels.md
+// todo C2 — iteration order comes from each descriptor's `order` field
+// (npm 1 → pypi 2), and the publish call is channel.publish (one code path).
 //
 // `border push` — the DRY-RUN default (plan G10 + round-5 m-R5-a):
 //   * bare push performs ZERO mutations — it prints the per-remote plan and
@@ -24,8 +27,7 @@ import { loadConfig } from "../config.ts";
 import { computeFingerprint, latestPassCoveringTargets, readLedger } from "../ledger.ts";
 import { derivePushState, formatTargetLine, pushableTargets, recordPushSuccess, PushStateError, type PushStateResult } from "../pushstate.ts";
 import { confirmRemoteBranch, DIVERGED_MESSAGE, executePush, fastForwardGuard, type GitRemoteTarget } from "../push/git.ts";
-import { runNpmPublish, type PublishInput, type PublishTarget } from "../push/npm.ts";
-import { runPypiPublish } from "../push/pypi.ts";
+import { publishChannels } from "../channels/registry.ts";
 import { sanitizeUrl } from "../redact.ts";
 import { gitTargetId } from "../gitTargetId.ts";
 
@@ -61,17 +63,6 @@ export async function runPush(ctx: Ctx): Promise<BorderExit> {
   return ctx.flags.yes ? executeYesPush(ctx, loaded) : dryRunPush(ctx, loaded);
 }
 
-/** The todo-17/17b registry publishers, fixed npm → PyPI order (PublishInput
- *  is shared; exhaustive switch — a new PublishTarget cannot slip through). */
-function registryRunner(kind: PublishTarget): (i: PublishInput) => Promise<BorderExit> {
-  switch (kind) {
-    case "npm":
-      return runNpmPublish;
-    case "pypi":
-      return runPypiPublish;
-  }
-}
-
 /**
  * What --yes would do on each configured registry leg — zero network, zero
  * mutation. No PASS record under the live fingerprint key ⇒ an honest
@@ -80,26 +71,25 @@ function registryRunner(kind: PublishTarget): (i: PublishInput) => Promise<Borde
  * re-hash run (local I/O only) and the publish command prints; a re-hash
  * mismatch surfaces its message and the leg's exit, still with zero probes.
  * The key derives exactly like derivePushState's (same configDigest inputs).
+ * Channel legs iterate in descriptor `order` (npm 1 → pypi 2, todo C2).
  */
 async function dryRunRegistryLegs(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExit> {
   const env: NodeJS.ProcessEnv = { ...ctx.env };
   const effectiveTargets = computeEffectiveTargets(loaded.config, ctx.flags.targets);
-  const kinds: readonly PublishTarget[] = (["npm", "pypi"] as const).filter(
-    (k) => effectiveTargets.includes(k) && loaded.config.targets[k] !== undefined,
-  );
-  if (kinds.length === 0) return EXIT_PASS;
+  const legs = publishChannels().filter((ch) => effectiveTargets.includes(ch.id) && ch.configured(loaded.config));
+  if (legs.length === 0) return EXIT_PASS;
   const repoDir = resolveRepoDir(ctx.cwd, { env });
   const { fp } = await computeFingerprint(repoDir, loaded.config, computeConfigDigest(loaded), effectiveTargets, {
     env,
     ...(ctx.flags.requireEngine !== undefined && ctx.flags.requireEngine.length > 0 ? { requireOverride: ctx.flags.requireEngine } : {}),
   });
   const { records } = readLedger(repoDir);
-  for (const kind of kinds) {
-    if (latestPassCoveringTargets(records, fp.key, [kind]) === null) {
-      ctx.stdout(`  ${DRY_RUN_PREFIX}: ${kind} registry leg: run 'border check --force' first — dry-run cannot list artifacts`);
+  for (const channel of legs) {
+    if (latestPassCoveringTargets(records, fp.key, [channel.id]) === null) {
+      ctx.stdout(`  ${DRY_RUN_PREFIX}: ${channel.id} registry leg: run 'border check --force' first — dry-run cannot list artifacts`);
       continue;
     }
-    const code = await registryRunner(kind)({
+    const code = await channel.publish({
       repoDir,
       cfg: loaded.config,
       key: fp.key,
@@ -229,13 +219,14 @@ async function executeYesPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExi
   }
 
   // Cross-target order fixed by the plan: git remotes (done above) → npm → PyPI.
-  // The literal ["npm", "pypi"] iteration below IS the order enforcement; a
-  // failing leg returns its exit immediately so a later leg never publishes on
-  // top of it. key: state.key — the fingerprint derivePushState itself used
-  // (configDigest discipline: never recompute).
-  for (const kind of ["npm", "pypi"] as const) {
-    if (!pending.some((t) => t.kind === kind)) continue;
-    const code = await registryRunner(kind)({
+  // The publishChannels() iteration below IS the order enforcement (descriptor
+  // `order` field; sort stable — npm 1, pypi 2); a failing leg returns its
+  // exit immediately so a later leg never publishes on top of it. key:
+  // state.key — the fingerprint derivePushState itself used (configDigest
+  // discipline: never recompute).
+  for (const channel of publishChannels()) {
+    if (!pending.some((t) => t.kind === channel.id)) continue;
+    const code = await channel.publish({
       repoDir,
       cfg: loaded.config,
       key: state.key,

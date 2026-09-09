@@ -1,0 +1,23 @@
+# R4 dispatch brief (FINAL — R3b closed 2026-09-09 round-12 verify-CONFIRMED: 8/8 independent probes pass, incl. sanity non-vacuous)
+
+Role: fresh deep worker, self-contained prompt (resume is unreliable after daemon restarts).
+Repo: /home/lab/workspace/harness/border @ HEAD 4a8836d + ~23 dirty WIP files (preserve byte-identical; never stage/revert/commit).
+Read first: .omo/plans/border-residue-gate.md (R4 checkbox + Wave-4 acceptance), src/config.ts:129 (engines.trufflehog toggle PRECEDENT for residue.enabled strict-zod), src/check/rulesHash.ts:56 computeCheckRulesHash (configDigest consumer wiring — check.ts:177 + ledger.ts:67), README.md (boundary-notes style), CHANGELOG.md.
+
+DELIVERABLES (all four):
+1. config: residue.enabled boolean, DEFAULT TRUE, strict zod (unknown sibling keys exit 2 preserved), mirrors engines.trufflehog shape; when false: stage() skips residue hits entirely AND findings never surface; wire into ChannelStageOptions/plumbing per plan.
+2. rulesHash: digest MUST cover (a) residueMatchers.ts content sha, (b) classifier modules sha set (residue.ts/npm.ts/py.ts/rust.ts/gem.ts), (c) config residue section value — exact mechanism per plan §; stale-PASS invalidation: flipping a signature or toggling residue.enabled MUST invalidate cached PASS rows (test: same commit + flipped toggle ⇒ re-check fires; extend existing freshness tests, do not weaken them).
+3. README + CHANGELOG 0.3.0 entry: residue gate summary, tiers T0-T4 + pairing classes C5/C9/C10 one-liners, fail-closed doctrine pointer to RESIDUE-CONTRACT.md, boundary honesty section: static proves CAPABILITY not FACT, sandbox roundtrip deferred to 0.4.0 with exception-valve wording, named-invisible list pointer (content-writes, handle-variants, dead spellings, interpolation-then-slash, span-quirk over-blocks, IO-instance writers syswrite-family, user-shadowed bare verbs, dead spellings table, content-write namings — the FULL list lives in RESIDUE-CONTRACT.md §8; README points there, never restates it), NOT a malware sandbox disclaimer.
+4. version 0.3.0 in package.json ONLY if plan says so (check first; do not bump if release is out of R4 scope).
+
+GATES (paste numbers):
+- typecheck RC0, build RC0, timeout 600 npm test ⇒ ONLY C5-1 + C5-4 red (baseline 500 tests / 498 pass / 2 fail + your new tests, counts recorded; gem suite 68, crates 12, pypi 7, npm 21, channels rubygems 28 — all must stay green without editing those test files EXCEPT append-only new tests where the plan demands toggle tests — prefer NEW test files for R4 tests).
+- grep-AC plan §57 closed-table discipline: NO new rule ids introduced since R3b; residue rule-id single-home holds (residueMatchers.ts sole emitter); 'declare' substring check vs user-WIP pypi.ts/gemspec.ts (R2 risk item) — confirm still zero cross-fire.
+- untouchables sha byte-identity BASELINES (record before/after; any move = violation unless justified gating diff):
+  src/channels/npm.ts 14-char prefix baseline `b6b108667d2b…` — gate MUST NOT live here (R2-pinned golden messages byte-identity; implement residue.enabled short-circuit centrally — preferred: single wrapper consulted by the 4 classifier entrypoints or at check.ts merge point — and if ANY stage-file diff is truly unavoidable, keep every existing byte stable, append-only wiring, and prove all npm golden message pins still pass);
+  src/artifacts/residue.ts 15274f7fff4b6ebd…; residuePy.ts 637312a5ffa5231c…; residueRust.ts 04d87b21ae419ca0…; residueGem.ts 93307d7d758c37b4…; src/rules/residueMatchers.ts 64f7d94de991c274…; test/residue.npm.test.ts bdab5595fbdbb24b…; RESIDUE-CONTRACT.md 51306be1e442ae25…; corpus fixtures sha256sum -c = 52/52.
+  NOTE: residue.ts/py/rust changing sha is FORBIDDEN too — gate design must not touch classifier internals either unless unavoidable (same append-only + pin-proof rule as npm.ts).
+- dogfood: border check on its own repo (border.yaml present) exits expected (C5 pair only); border check run against /home/lab/workspace/harness/hr checkout (READ-ONLY — no writes, no device): record findings set; expect the W1-era planted-corpus findings NOT to appear on clean hr, and residue-* rules fire 0 rows on aihr artifacts unless genuinely present — any hr false-positive = new blocker round (record exact findings).
+- ledger: task-completed R4 line + ORCHESTRATION COMPLETE summary (0.3.0 scope = R1..R4; 0.3.1/0.4.0 remain planned).
+CONSTRAINTS: no new deps; no commits; timeouts; cleanup receipt (scratch, /tmp, test/tmp, processes).
+DONECLAIM JSON: per-deliverable status, gate numbers, untouchable shas, hr-dogfood finding inventory (verbatim), deviations, risks.

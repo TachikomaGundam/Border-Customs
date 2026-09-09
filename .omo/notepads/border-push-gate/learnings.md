@@ -320,3 +320,33 @@ consumers see scp-form output '<host>/<path>' (no scheme) — exposureSet entrie
 >> GOTCHA (environment): the run-continuation daemon COMMITS concurrently (it landed d98087a fix(push): bounded timeout + 61cc84c test/tmp sweep mid-task). Re-check `git status` + `git log` before staging; stage explicit paths only. Full-suite flakes seen under parallel load (llm.test.ts 'prompt template edit' AssertionError, push.git.timeout tests ETIMEDOUT) were the daemon's in-flight uncommitted feature; once committed + test/tmp swept, full suite went 334/334.
 >> Design that worked: per-remote push target id = `git:${remote.name ?? '#'+index}` in ONE shared helper (src/gitTargetId.ts). Safety: border.yaml feeds computeConfigDigest → fingerprint key, so any remote-set reorder/edit yields a new key; records are always consulted key-matched ⇒ index ids cannot be confused across configs. Named remotes keep `git:origin` — backward compatible with existing ledgers.
 >> gitLegs must use a per-id Map (remotes.map((r,i)=>[id,i])) not `.find()` — Map.get is the only collision-free target→remote resolution.
+
+---
+
+## README+LICENSE writing pass (2026-09-05, baseline afca501)
+
+Verified every README claim against source or read-only CLI runs (`node dist/index.js … --help`,
+`status`). Corrections made by reading code instead of trusting assumptions:
+
+1. **"Vendored gitleaks 8.30.1" ≠ bundled binary.** `assets/gitleaks-defaults-v8.30.1.toml` is the
+   vendored *rules config* (always passed via `--config`, replacing repo auto-discovery); the
+   gitleaks *binary* must be on PATH / ~/.local/bin (src/engines/support.ts `binaryCandidates`).
+   README states exactly this.
+2. **Usage table oversells `border status`.** It claims "gate state, config, and engine versions";
+   src/commands/status.ts actually prints key8/verdict/head + a per-target pushed|pending table,
+   no engine versions. README describes the real output.
+3. **skills/border/SKILL.md gotcha is stale**: it says `llm-request` fails MISSING_TEMPLATE from the
+   dist bundle until todo 20/21; src/llm/bundle.ts now embeds the template (`assets/prompts/
+   llm-review.md?raw`). README does not repeat the stale claim.
+4. **Registry fail-closed specifics re-confirmed** (src/registry.ts): `npm view` exit 0 with EMPTY
+   stdout ⇒ EngineRunError exit 2 (NOT "absent"); only exit0+JSON-object=present, nonzero+E404=absent.
+   PyPI: only 200/404 translatable. README quotes this polarity verbatim in principle.
+5. Freshness proof asymmetry pinned from src/ledger/freshness.ts: npm skip re-packs and digests must
+   match; PyPI rebuilds are not byte-reproducible so skip proof degrades to head+porcelain equality,
+   publish still re-hashes the exact dist files. README says so rather than overclaiming.
+6. README prose em-dash ban honored; the single `—` occurrence is the verbatim `formatSkipLine`
+   output inside a code block (records.ts emits ' — ') — kept byte-accurate.
+
+Deliverables: README.md 361 lines (English + 12-line 中文概要), LICENSE (MIT, "Copyright (c) 2026
+Border-Customs contributors", generic per no-personal-binding directive). Staged ONLY these two
+files; concurrent daemon untracked .omo/run-continuation/* untouched.

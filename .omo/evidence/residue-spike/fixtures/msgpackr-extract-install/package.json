@@ -1,0 +1,9 @@
+{
+  "name": "spike-fixture-msgpackr-extract",
+  "version": "3.0.4",
+  "license": "MIT",
+  "description": "R1 blast-radius fixture: replicates msgpackr-extract 3.0.4 install hook string verbatim",
+  "scripts": {
+    "install": "node-gyp-build-optional-packages"
+  }
+}

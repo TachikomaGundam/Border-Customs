@@ -1,0 +1,242 @@
+TAP version 13
+# Subtest: R3b-PIN: golden pure-ruby gem (console script, no extensions, no plugin) emits ZERO residue rows
+ok 1 - R3b-PIN: golden pure-ruby gem (console script, no extensions, no plugin) emits ZERO residue rows
+  ---
+  duration_ms: 559.449694
+  type: 'test'
+  ...
+# Subtest: R3b-PIN2: confined mkmf extconf (dir_config/have_*/in-tree File.write/create_makefile) emits ZERO rows
+ok 2 - R3b-PIN2: confined mkmf extconf (dir_config/have_*/in-tree File.write/create_makefile) emits ZERO rows
+  ---
+  duration_ms: 553.787108
+  type: 'test'
+  ...
+# Subtest: R3b-B (rubygems_plugin.rb auto-load anywhere ⇒ exactly one persistence CRITICAL, the gem-world lifecycle-hook analog)
+not ok 3 - R3b-B (rubygems_plugin.rb auto-load anywhere ⇒ exactly one persistence CRITICAL, the gem-world lifecycle-hook analog)
+  ---
+  duration_ms: 551.351599
+  type: 'test'
+  location: '/home/lab/workspace/harness/border/test/residue.gem.test.ts:78:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    plugin file + its post_install token must collapse to ONE row, got []
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/lab/workspace/harness/border/test/residue.gem.test.ts:81:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: R3b-B2 (Gem.post_install token in an ordinary lib file ⇒ persistence CRITICAL even at rest)
+not ok 4 - R3b-B2 (Gem.post_install token in an ordinary lib file ⇒ persistence CRITICAL even at rest)
+  ---
+  duration_ms: 542.295932
+  type: 'test'
+  location: '/home/lab/workspace/harness/border/test/residue.gem.test.ts:87:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    one hook-token row, got []
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/lab/workspace/harness/border/test/residue.gem.test.ts:93:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: R3b-C (extconf write to $HOME ⇒ exactly one out-of-tree HIGH)
+not ok 5 - R3b-C (extconf write to $HOME ⇒ exactly one out-of-tree HIGH)
+  ---
+  duration_ms: 547.412676
+  type: 'test'
+  location: '/home/lab/workspace/harness/border/test/residue.gem.test.ts:98:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    one confinement row, got []
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/lab/workspace/harness/border/test/residue.gem.test.ts:104:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: R3b-C2 (extconf write to an absolute /usr/local literal ⇒ out-of-tree HIGH, no family row doubles it)
+not ok 6 - R3b-C2 (extconf write to an absolute /usr/local literal ⇒ out-of-tree HIGH, no family row doubles it)
+  ---
+  duration_ms: 553.079026
+  type: 'test'
+  location: '/home/lab/workspace/harness/border/test/residue.gem.test.ts:110:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/lab/workspace/harness/border/test/residue.gem.test.ts:116:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: R3b-D (extconf backtick curl|sh ⇒ exactly one install-download HIGH; the argv URL is not a path write)
+not ok 7 - R3b-D (extconf backtick curl|sh ⇒ exactly one install-download HIGH; the argv URL is not a path write)
+  ---
+  duration_ms: 545.205879
+  type: 'test'
+  location: '/home/lab/workspace/harness/border/test/residue.gem.test.ts:119:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    one T2 row, got []
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/lab/workspace/harness/border/test/residue.gem.test.ts:125:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: R3b-E (extconf spawns npm -g ⇒ cross-manager HIGH naming the foreign ledger)
+not ok 8 - R3b-E (extconf spawns npm -g ⇒ cross-manager HIGH naming the foreign ledger)
+  ---
+  duration_ms: 541.083017
+  type: 'test'
+  location: '/home/lab/workspace/harness/border/test/residue.gem.test.ts:130:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    one xmgr row, got []
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/lab/workspace/harness/border/test/residue.gem.test.ts:136:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: R3b-F (unparseable extconf write argument fails closed: truncated call ⇒ HIGH, never silent)
+not ok 9 - R3b-F (unparseable extconf write argument fails closed: truncated call ⇒ HIGH, never silent)
+  ---
+  duration_ms: 657.676345
+  type: 'test'
+  location: '/home/lab/workspace/harness/border/test/residue.gem.test.ts:140:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    unbalanced write argument must NOT pass confinement (fail closed)
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/lab/workspace/harness/border/test/residue.gem.test.ts:145:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: R3b-G (declared extension with no extconf in data ⇒ EXACTLY ONE MEDIUM note, never silent clean)
+not ok 10 - R3b-G (declared extension with no extconf in data ⇒ EXACTLY ONE MEDIUM note, never silent clean)
+  ---
+  duration_ms: 52.644464
+  type: 'test'
+  location: '/home/lab/workspace/harness/border/test/residue.gem.test.ts:148:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    exactly one row for the whole unmatchable build, got []
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/lab/workspace/harness/border/test/residue.gem.test.ts:151:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: R3b-G2 (two declarations resolving to one missing extconf ⇒ still ONE note, never extra notes for the same miss)
+not ok 11 - R3b-G2 (two declarations resolving to one missing extconf ⇒ still ONE note, never extra notes for the same miss)
+  ---
+  duration_ms: 51.141762
+  type: 'test'
+  location: '/home/lab/workspace/harness/border/test/residue.gem.test.ts:157:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/lab/workspace/harness/border/test/residue.gem.test.ts:159:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: R3b-H (persistence primitive in an at-rest lib file ⇒ T4 artifact-wide row regardless of reachability)
+not ok 12 - R3b-H (persistence primitive in an at-rest lib file ⇒ T4 artifact-wide row regardless of reachability)
+  ---
+  duration_ms: 559.828563
+  type: 'test'
+  location: '/home/lab/workspace/harness/border/test/residue.gem.test.ts:161:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/lab/workspace/harness/border/test/residue.gem.test.ts:166:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 2
+# fail 10
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6584.731531

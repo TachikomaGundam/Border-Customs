@@ -1,0 +1,30 @@
+ok   item(1) lexical ../../: claimed=0 measured=0
+ok   item(7) += churn: claimed=0 measured=0
+ok   item(8) nested call operand: claimed=0 measured=0
+ok   item composed index operand: claimed=0 measured=0
+ok   item composed splat exec: claimed=0 measured=0
+ok   item(9) interp-empty: claimed=0 measured=0
+ok   item(9) backtick )-adjacent: claimed=0 measured=0
+ok   item(9) interp relative prefix: claimed=0 measured=0
+ok   :1073 ENV mark in interp (rows 1): claimed=1 measured=1
+ok   item(10) Kernel.system percent: claimed=0 measured=0
+ok   item(11) shell-meta > adjacency: claimed=0 measured=0
+ok   item(11) shell-meta ; adjacency: claimed=0 measured=0
+ok   item(11) shell-meta >& adjacency: claimed=0 measured=0
+ok   item(11) shell-meta , adjacency: claimed=0 measured=0
+ok   item(11) control string-start rows: claimed=1 measured=1
+ok   item(12) handle reopen(STDOUT): claimed=0 measured=0
+ok   item(12) opener rooted rows 1: claimed=1 measured=1
+ok   fail-closed chdir 1: claimed=1 measured=1
+ok   backtick+%q double-price = 2: claimed=2 measured=2
+ok   R10 IO.popen %x|…| double-price = 2: claimed=2 measured=2
+ok   mid-file %x quoted-word = 0: claimed=0 measured=0
+ok   EOF %x unparseable = 1: claimed=1 measured=1
+ok   phantom rooted between the two quotes = 1: claimed=1 measured=1
+ok   multi-target assign → bareword lane = 1: claimed=1 measured=1
+ok   make -C /usr/src bare hint = 1: claimed=1 measured=1
+ok   %w bracket-adjacent install argv = 1: claimed=1 measured=1
+ok   R10 stdout write-string = 0: claimed=0 measured=0
+ok   R10 $</ARGF dead-shape stays 0: claimed=0 measured=0
+ok   R10 File.futime absent-spelling = 0: claimed=0 measured=0
+DOC-TRUTH: 0 DRIFT

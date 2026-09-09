@@ -1,0 +1,171 @@
+{
+  "round": "R3b-fix-verify-3",
+  "verdict": "needs-fix",
+  "verifier": "independent adversarial, fresh context, zero trust; stage-path probes (real gem build seam), ruby 3.3.8 box liveness, full hygiene re-run",
+  "confidence": "high",
+  "head_under_test_note": "fix-round-2 claims re-proved against working tree; sha-baseline anchored on VERIFIER-REPORT-R3B-FIX.json",
+  "claims_re_proved": {
+    "BLK-5_widening": "VERIFIED for the VERB tables: every dotted member of GEM_WRITE_CALL/GEM_CHDIR_CALL carries (?:\\.|::) with \\s*; ::File.write (P6) 1H, FileUtils :: cp spaced (P45) 1H, IO::popen+Kernel::system pinned (C7e 2H), Gem :: post_install spaced-hook (T4-1) 1 CRITICAL. BUT the :: doctrine did NOT propagate to GEM_OUT_OF_TREE_MARKS (dot-only Dir.home/ENV. — BLK-R3bF2-A) nor to the verb table's receiver universe (Process.spawn — BLK-R3bF2-B).",
+    "BLK-6_generic_delimiter": "VERIFIED: %x! 1H (P26 unterminated ⇒ fail-closed), %x[ multiline 1H (P25), %x\"/%x~ pinned (C4c 2H); closer pairing per GEM_PERCENT_PAIRS matches §8:918-919. 'ALL SIX' genuinely absent from §8 (grep 0 hits).",
+    "BLK-7_dup_throw": "VERIFIED: 2 and 3 occurrences both orders ⇒ THROW 'duplicate extensions: key (N top-level declarations)' (U1/U5/U6), reverse order included; stage ⇒ EngineRunError reject with same text (U7); §8 quoted error text '(2 top-level declarations)' reproduces exactly.",
+    "BLK-8_binding_grammar": "PARTIAL: @o/$p/BIN matrix 3H pinned (C8), $-less single-sigil works; BUT @@cvar and $0 escape at 0 rows (BLK-R3bF2-D) and heredoc RHS resolves as confined (BLK-R3bF2-E).",
+    "STRONGER_whole_arg_list": "VERIFIED + no blessed-golden FP: system(\"make\",\"install\",\"DESTDIR=#{$extout}\") 0 (P8), File.open(\"build.log\",\"r\") 0 (P9), 3-word backtick 0 (P10); File.open(\"/tmp/audit.log\", File::RDONLY) exactly 1H not 2 (P11); two rooted args ⇒ 1 row per verb-call, not per occurrence (P12); rooted SECOND arg via binding pays 1H (P13). PIN/PIN2 zero-row green in suite (no FP fallback).",
+    "multi_target_fail_closed": "VERIFIED: `o, p = \"rel\", \"/usr/local/bin/g\"` + File.write(p) ⇒ exactly 1 HIGH fail-closed (P37), §8-named. *arr LHS + File.write(arr3) ⇒ 1 (P38). ||= ⇒ 1 (P40).",
+    "nested_operand_invisible": "VERIFIED 0 rows: File.write(File.join(dir,x),y) (P41) and File::join colon form (P42) — §8-8 named.",
+    "suites_claim": "VERIFIED (see suites).",
+    "sha_claim": "VERIFIED: 4 fixer files drifted, 6 untouchables MATCH (see sha_table_11); find -newer == exactly the 4 claimed files (test/tmp READMEs are suite scratch, gitignored, wiped by pretest)."
+  },
+  "per_attack": [
+    {"id": "V3-1/P1", "payload": "File.write(Dir.home, \"d\")", "rows_observed": "1 HIGH (Dir.home mark)", "expected": "1", "classification": "OK"},
+    {"id": "V3-1/P2", "payload": "File.write(Dir::home, \"d\")", "rows_observed": "0", "expected": "1 (same helper, BLK-5 notation doctrine)", "classification": "BLOCKER BLK-R3bF2-A; ruby3.3.8 liveness: Dir::home==\"/home/lab\""},
+    {"id": "V3-1/P3", "payload": "File.write(ENV.fetch(\"HOME\"), \"d\")", "rows_observed": "2 (T3 1 + T2 residue-install-download via npm-lane fetch() pattern)", "expected": ">=1", "classification": "OK (cross-family collateral noted)"},
+    {"id": "V3-1/P4", "payload": "File.write(ENV::fetch(\"HOME\"), \"d\")", "rows_observed": "1 (T2 only; T3=0 — ENV. mark misses ENV::)", "expected": "T3 mark hits", "classification": "BLK-R3bF2-A (confinement miss rescued only by accidental fetch( regex)"},
+    {"id": "V3-1/P5", "payload": "File.write(ENV::[](\"HOME\"), \"d\")", "rows_observed": "0", "expected": "1 (ENV[ mark doctrine)", "classification": "BLOCKER BLK-R3bF2-A; live ENV::[] verified"},
+    {"id": "V3-1/P6", "payload": "::File.write(\"/usr/local/bin/x\", \"d\")", "rows_observed": "1 HIGH", "expected": "1", "classification": "OK"},
+    {"id": "V3-1/T4-1", "payload": "Gem :: post_install {} in lib file", "rows_observed": "1 CRITICAL residue-persistence-primitive", "expected": "1", "classification": "OK"},
+    {"id": "V3-1/P20", "payload": "Process.spawn(\"/usr/local/bin/x\")", "rows_observed": "0", "expected": "1 (spawn semantics; Process::spawn IS caught)", "classification": "BLOCKER BLK-R3bF2-B; inverted asymmetry vs BLK-5 lesson"},
+    {"id": "V3-1/P20b", "payload": "Process::spawn(\"/usr/local/bin/x\")", "rows_observed": "1 HIGH (bare-spawn arm after ::)", "expected": "1", "classification": "OK (proves dot-form asymmetry)"},
+    {"id": "V3-2/P8", "payload": "system(\"make\", \"install\", \"DESTDIR=#{$extout}\")", "rows_observed": "0", "expected": "0", "classification": "OK — no whole-arg FP"},
+    {"id": "V3-2/P9", "payload": "File.open(\"build.log\", \"r\") { |f| f.read }", "rows_observed": "0", "expected": "0", "classification": "OK"},
+    {"id": "V3-2/P10", "payload": "`make -j8 all`", "rows_observed": "0", "expected": "0", "classification": "OK"},
+    {"id": "V3-2/P11", "payload": "File.open(\"/tmp/audit.log\", File::RDONLY)", "rows_observed": "exactly 1 HIGH, no double-count", "expected": "1", "classification": "OK"},
+    {"id": "V3-2/P12", "payload": "File.write(\"/usr/local/bin/a\", \"/usr/local/bin/b\")", "rows_observed": "1", "expected": "per-verb not per-occurrence; §8 wording matches", "classification": "OK"},
+    {"id": "V3-2/P13", "payload": "ppath = \"/usr/local/bin/y\"; File.write(\"rel.h\", ppath)", "rows_observed": "1 HIGH (resolves-to variant)", "expected": "1", "classification": "OK"},
+    {"id": "V3-3/P23", "payload": "File.open(%q{/etc/evil}, \"w\")", "rows_observed": "1 HIGH", "expected": "1 (§8:935-936)", "classification": "OK (C5 pin reproduces)"},
+    {"id": "V3-3/P24", "payload": "File.open(%q!/etc/evil!, \"w\")", "rows_observed": "1 HIGH", "expected": "1", "classification": "OK"},
+    {"id": "V3-3/P25", "payload": "%x[\\ninstall -m755 out.so /usr/local/bin/\\n]", "rows_observed": "1 HIGH", "expected": "1 (pair closer, multiline)", "classification": "OK"},
+    {"id": "V3-3/P26", "payload": "%x!install /usr/local/bin/x (unterminated, EOF)", "rows_observed": "1 HIGH 'unparseable write/exec argument (fail closed)'", "expected": "silent vs fail-closed — §8 unparseable-claim", "classification": "OK fail-closed side, matches :947-style claim"},
+    {"id": "V3-3/P21", "payload": "File.write(%(/usr/local/bin/x), \"d\")", "rows_observed": "0", "expected": "named or caught; %(...) not %q/%Q, extraction skips it", "classification": "BLOCKER BLK-R3bF2-C; live String verified"},
+    {"id": "V3-3/P22", "payload": "system(%w[/usr/local/bin/x])", "rows_observed": "0", "expected": "named or caught", "classification": "BLOCKER BLK-R3bF2-C; live exec rc=0 verified; ROOTED doctrine intent (boundary+/) broken by [ boundary"},
+    {"id": "V3-3/P46", "payload": "File.write(%( /usr/local/bin/x ), \"d\")", "rows_observed": "1 HIGH (space boundary)", "expected": "probe", "classification": "OK — confirms only immediate-boundary form escapes"},
+    {"id": "V3-4/U1", "payload": "gemDeclaredExtensions 3x extensions:", "rows_observed": "THROW 'duplicate extensions: key (3 top-level declarations) — cannot certify… (psych is last-wins); failing closed'", "expected": "clean throw", "classification": "OK"},
+    {"id": "V3-4/U2", "payload": "indented 'extensions:' under rdoc_options: after real block", "rows_observed": "[ext/ghost/extconf.rb], no throw, decoy not counted", "expected": "no over-block", "classification": "OK (top-level-only /gm anchor holds)"},
+    {"id": "V3-4/U3", "payload": "only-indented extensions:", "rows_observed": "[]", "expected": "[]", "classification": "OK"},
+    {"id": "V3-4/U4", "payload": "'  extensions:' inside extensions block", "rows_observed": "THROW unrecognized line", "expected": "fail-closed acceptable (G6-pinned); §8 sentence missing", "classification": "NIT"},
+    {"id": "V3-4/U5,U6", "payload": "dup flow/flow+block", "rows_observed": "THROW (2 top-level declarations)", "expected": "throw", "classification": "OK"},
+    {"id": "V3-4/U7", "payload": "stage: hand-built .gem w/ 3x extensions: via gemBinPath seam", "rows_observed": "rejects EngineRunError 'acme-ghost-0.1.0.gem: duplicate extensions: key (3 top-level declarations)…'", "expected": "gate-stop not silent-clean", "classification": "OK; CLI end-to-end: EngineRunError→translateError→EXIT_ERROR=2 static wiring verified (src/cli/exit.ts:24,113-116; src/cli.ts:110-115); node dist/cli.js does NOT exist (bin=dist/index.js) and gemBinPath is inject-only (src/channels/rubygems.ts:276) so a real-CLI dup run is impossible without repo edits — stage-seam + wiring + suite exit-2 corruption test accepted"},
+    {"id": "V3-5/P30", "payload": "@@ov = \"/usr/local/bin/x\"; File.write(@@ov, \"y\")", "rows_observed": "0", "expected": "named or fail-closed", "classification": "BLOCKER BLK-R3bF2-D; live class-var write verified"},
+    {"id": "V3-5/P31", "payload": "$0 = \"/usr/local/bin/x\"; File.write($0, \"y\")", "rows_observed": "0", "expected": "as above", "classification": "BLOCKER BLK-R3bF2-D ($0+digit breaks [A-Za-z_] grammar)"},
+    {"id": "V3-5/P33", "payload": "BINH = <<~EOS\\n/usr/local/bin/heredoc-target\\nEOS\\nFile.write(BINH, \"d\")", "rows_observed": "0 (BINH resolves to literal '<<~EOS', no marks ⇒ judged confined)", "expected": "named or fail-closed", "classification": "BLOCKER BLK-R3bF2-E; live multiline heredoc String"},
+    {"id": "V3-5/P32", "payload": "oarr = %w[/usr/local/bin/x]; File.write(oarr[0], \"y\")", "rows_observed": "0", "expected": "roughly §8-8 named ('whole-fragment operands only')", "classification": "NIT — enumerate index/splat operand shapes in §8-8"},
+    {"id": "V3-5/P34", "payload": "BIN2 = \"/tmp/a\"; BIN2 = \"/usr/local/bin/x\"; File.write(BIN2, \"d\")", "rows_observed": "1 HIGH 'BIN2 resolves to' (all variants kept, joined ' ; ')", "expected": "1; not last-wins; cycle-guard sane", "classification": "OK"},
+    {"id": "V3-5/P35", "payload": "BINC = BINC + \"/usr/local/bin/c\"; File.write(BINC, \"d\")", "rows_observed": "1 HIGH unresolvable-bareword fail-closed", "expected": "1", "classification": "OK"},
+    {"id": "V3-5/P39", "payload": "*arr4 = \"/usr/local/bin/z\"; File.write(*arr4, \"x\")", "rows_observed": "0", "expected": "roughly named", "classification": "NIT (same fix stroke as BLK-R3bF2-D)"},
+    {"id": "V3-6/P37", "payload": "o3, p3 = \"rel\", \"/usr/local/bin/g\"; File.write(p3, \"x\")", "rows_observed": "exactly 1 HIGH fail-closed", "expected": "1 + §8-named", "classification": "OK — claim reproduces"},
+    {"id": "V3-6/P38", "payload": "*arr3 = \"/usr/local/bin/z\"; File.write(arr3, \"x\")", "rows_observed": "1 HIGH fail-closed", "expected": "1", "classification": "OK"},
+    {"id": "V3-6/P40", "payload": "oz ||= \"/usr/local/bin/q\"; File.write(oz, \"d\")", "rows_observed": "1 HIGH fail-closed", "expected": "row (exotic-operand cost)", "classification": "OK — rows, not escape"},
+    {"id": "V3-6/P36", "payload": "om = \"build\"; om += \"/usr/local/bin/m\"; File.write(om, \"d\")", "rows_observed": "0", "expected": "0 (§8-7 named)", "classification": "OK"},
+    {"id": "V3-7/P27", "payload": "fmt = \"%x\" (payload ENDS there)", "rows_observed": "1 HIGH '%x\" unparseable write/exec argument (fail closed)'", "expected": "§8:993-994 claims 'costs NOTHING… probe row count 0'", "classification": "BLOCKER (doc) BLK-R3bF2-F — claim false unqualified; P28 mid-file = 0 reproduces, EOF = 1"},
+    {"id": "V3-7/P29", "payload": "fmt = \"%x\"; then '# build hint: install to /usr/local/bin'; then hdr3", "rows_observed": "1 HIGH (phantom closer-to-closer span absorbs comment text)", "expected": "supports P27 finding", "classification": "feeds BLK-R3bF2-F"},
+    {"id": "V3-7/P16,P17,P18", "payload": "IO.write / bare open \"…\",\"w\" / File.new(\"/usr/local/bin/f\",\"w\") w/ parens", "rows_observed": "0/0/0", "expected": "0 named §8-2; File.new parens variant only category-named", "classification": "NIT (P18: §8 names paren-LESS example only)"},
+    {"id": "V3-7/P14,P15", "payload": "fg = File.open(\"hdr.h\",\"w\"); fg.write(\"/usr/local/bin/x\")", "rows_observed": "0", "expected": "category §8-2 named (wrappers)", "classification": "NIT"},
+    {"id": "V3-7/P41,P42", "payload": "File.write(File.join(dir8,\"x\"),\"y\") / File::join colon", "rows_observed": "0/0", "expected": "0 §8-8", "classification": "OK"},
+    {"id": "V3-7/P43,P44", "payload": "File.write(\"../../etc/shadow\") / dst8 = pick_target", "rows_observed": "0/0", "expected": "0 §8-1/§8-6", "classification": "OK"},
+    {"id": "V3-7/Q1,Q2,Q3", "payload": "ENV[\"EXTOUT\"] / system(\"make\",\"-C\",\"/usr/src\") / FileUtils.ln_s rooted-first", "rows_observed": "1/1/1 HIGH", "expected": "§8 fail-closed counts", "classification": "OK — all reproduce"},
+    {"id": "V3-7/files:", "payload": "grep 'files:' src/artifacts/residueGem.ts", "rows_observed": "1 hit, comment-only (line 262 restating the never-read adjudication)", "expected": "truly never parsed", "classification": "OK"},
+    {"id": "V3-7/GEM_CONFINED_MARKS", "payload": "grep residueMatchers.ts", "rows_observed": "single hit = doc-comment recording deletion (:315-317); no exported table", "expected": "DELETED per §8:994", "classification": "OK"},
+    {"id": "V3-3/quoted-word-no-cost-side", "payload": "P28 mid-file fmt=\"%x\"", "rows_observed": "0", "expected": "0 as claimed", "classification": "OK (placement-conditional claim — see BLK-R3bF2-F)"}
+  ],
+  "sha_table_11": [
+    {"file": "src/artifacts/residueGem.ts", "sha": "cacf18343ece27997873f32ba8774486e2382a33f3c09643f3f6a673010e3fb4", "match": "DRIFT vs baseline 60f28990… — EXPECTED (fixer-touched)"},
+    {"file": "src/rules/residueMatchers.ts", "sha": "c0edd1faa38941687dfeca1baa5afdf1ba258f40caf29472ea1a44c309c74864", "match": "DRIFT vs baseline 4a63c16e… — EXPECTED (fixer-touched)"},
+    {"file": "test/residue.gem.test.ts", "sha": "262f45617b2c6cf6196f1fe0a6f06509a129f354ab1dc4056f612948774d9934", "match": "DRIFT vs baseline abb6c630… — EXPECTED (fixer-touched)"},
+    {"file": "src/artifacts/RESIDUE-CONTRACT.md", "sha": "655e5af35f2828c0d0c0c49e756327d2645b2aa2d2644f6ab8b61edd114214a0", "match": "DRIFT vs baseline 65d305b7… — EXPECTED (fixer-touched)"},
+    {"file": "src/artifacts/rubygems.ts", "sha": "f9884da5530f06f9ab1286965428f5dd18ed71903cde72d4182f404fa0cda905", "match": "MATCH"},
+    {"file": "src/artifacts/npm.ts", "sha": "b8b23b5c5f6f76eb8460ea8385f1c9ef33c31afe012973af0b2c08dcf3a93039", "match": "MATCH"},
+    {"file": "src/artifacts/residue.ts", "sha": "15274f7fff4b6ebdffef37dc772cd9efcc38e4a54e21b680714a0e972dad59ed", "match": "MATCH"},
+    {"file": "src/artifacts/residuePy.ts", "sha": "637312a5ffa5231cb166c9c0d03ac78bbc44a84318682e473e145c4fba2ae28f", "match": "MATCH"},
+    {"file": "src/artifacts/residueRust.ts", "sha": "04d87b21ae419ca0eaa92ee74223b0bf21b86d32e5ec2fc6fcf60019c2de8548", "match": "MATCH"},
+    {"file": "test/residue.npm.test.ts", "sha": "bdab5595fbdbb24b40c9f83fbebf7cecadfeab15208841a0cab839ce002b3532", "match": "MATCH"},
+    {"file": "(11th baseline key)", "sha": "n/a — baseline's 11th key is the note string, not a file", "match": "n/a"}
+  ],
+  "suites": {
+    "residue.gem": "36/36 (per-file run)",
+    "residue.crates": "12/12",
+    "residue.pypi": "7/7",
+    "residue.npm": "21/21",
+    "channels.rubygems": "28/28",
+    "full_npm_test_timeout600": "tests 468, pass 466, fail 2 — ONLY 'not ok 53' C5-1 + 'not ok 56' C5-4 (known env pair)",
+    "typecheck": "clean (tsc --noEmit)",
+    "build": "clean (esbuild → dist/index.js)",
+    "sha256sum_c_fixtures": "52/52 OK (0 non-OK lines)",
+    "ceiling_grep_cvE": {"residueGem.ts": 269, "residueMatchers.ts": "357 total / 159 non-comment non-blank", "note": "fixer's '269' reproduces exactly (247→269 growth post-BLK); NO ceiling doctrine text exists in .omo/plans/*, README, or repo-root *.md — cannot adjudicate a violation; reported as observation"},
+    "newer_than_predecessor_report": "exactly 4 claimed files (src/artifacts/residueGem.ts, src/rules/residueMatchers.ts, test/residue.gem.test.ts, src/artifacts/RESIDUE-CONTRACT.md); test/tmp/* README entries are suite scratch dirs, not repo edits"
+  },
+  "blockers": [
+    {
+      "id": "BLK-R3bF2-A",
+      "title": "GEM_OUT_OF_TREE_MARKS is dot-only: ::-spellings of the home/ENV marks escape the confinement lane (BLK-5 meta-lesson un-propagated)",
+      "repro": "n-gem-native extconf + `File.write(Dir::home, \"d\")` → 0 rows (vs `Dir.home` → 1 HIGH); `File.write(ENV::[](\"HOME\"), \"d\")` → 0 rows (vs `ENV[` → 1 HIGH); `ENV::fetch(\"HOME\")` → 0 T3 rows, rescued only incidentally by the npm t2-js-fetch `fetch(` pattern. ruby 3.3.8: Dir::home==\"/home/lab\", ENV::[]/ENV::fetch return $HOME. Payloads: /tmp/opencode/r3bv3/probe.ts P2/P4/P5.",
+      "observed": "silent-clean; §8:928 lists marks as `$HOME`/`Dir.home`/`ENV[`/`ENV.`/`~/` and §8 never names the :: spellings invisible; residueGem.ts doc-comment claims 'ENV lookup' generally",
+      "expected": "either mark hits (add Dir::home / ENV:: variants or normalize `(?:\\.|::)` into mark regex) or an explicit §8 invisible line (rejected: marks-beat-everything posture)",
+      "suggested_fix": "convert GEM_OUT_OF_TREE_MARKS to regex alternatives /\\$HOME|Dir\\s*(?:\\.|::)\\s*home|ENV\\s*(?:\\[|\\.(?=\\w)|::)/ plus keep `~/`; pin 3 stage tests mirroring C7x pins"
+    },
+    {
+      "id": "BLK-R3bF2-B",
+      "title": "Process.spawn (dotted canonical form) absent from the verb table while Process::spawn rows — receiver universe missing the one exec API whose canonical spelling IS dotted",
+      "repro": "extconf + `Process.spawn(\"/usr/local/bin/x\")` → 0 rows (bare-spawn arm lookbehind (?<![\\w.]) kills it after `Process.`); `Process::spawn(...)` → 1 HIGH via bare arm. probe.ts P20/P20b. Live API (core, no require).",
+      "observed": "0 rows, not named in §8 invisible list (which names IO.write/bare-open/rename/File.new but not Process.spawn)",
+      "expected": "1 HIGH or §8-named",
+      "suggested_fix": "add `Process\\s*(?:\\.|::)\\s*spawn` arm to GEM_WRITE_CALL (FP-safe — Process. receiver unambiguous); pin"
+    },
+    {
+      "id": "BLK-R3bF2-C",
+      "title": "Percent-literal coverage is %q/%Q (+%x verb) only: %(...)/%w[...] rooted payloads escape silently",
+      "repro": "`File.write(%(/usr/local/bin/x), \"d\")` → 0 rows (probe P21; ruby: %() is a String); `system(%w[/usr/local/bin/x])` → 0 rows (P22; rc=0 array-argv exec verified). §8:935-936 documents only %q/%Q extraction; invisible list names neither; ROOTED_SLASH_ARG doctrine ('space or line-start then /') intent broken by immediate bracket/paren adjacency (cf. P46 `%( /usr` → caught).",
+      "observed": "0 rows, live, unnamed",
+      "expected": "caught or §8-named (naming %w argv would be weak: exec confinement is the lane's raison d'etre)",
+      "suggested_fix": "widen GEM_PERCENT_LITERAL to %w/%W/%i/%I/%s (join items space-delimited for re-scan) and/or extend boundary class to (?:^|[\\s\\[({])\\/\\S with targeted FP pins; keep %q/%Q goldens green"
+    },
+    {
+      "id": "BLK-R3bF2-D",
+      "title": "BLK-8 sigil grammar stops at single-@/single-$-letter: @@cvars and $0-class globals silently escape BOTH binding and operand lanes",
+      "repro": "`@@ov = \"/usr/local/bin/x\"` + `File.write(@@ov, \"y\")` → 0 rows (P30; ruby liveness: class-var binding creates the file); `$0 = \"/usr/local/bin/x\"` + `File.write($0, \"y\")` → 0 rows (P31; [$]+digit fails [A-Za-z_]). GEM_ASSIGNMENT / GEM_BARE_IDENTIFIER = `[@$]?[A-Za-z_]...` — second sigil / digit head unmatched.",
+      "observed": "0 rows, live, unnamed (§8 claims @/$-sigilled barewords fail-close — technically holds since these never parse as barewords)",
+      "expected": "fail-closed row for sigil-headed non-bare fragments (same doctrine as multi-target `o, p =`)",
+      "suggested_fix": "widen grammars to (@@?|[$][!@0-9]|[$]?[A-Za-z_]) forms or route any fragment matching /^[@$]/ that is NOT bare ⇒ unresolvable-bareword fail-closed; pin C8b with @@/$0 matrix"
+    },
+    {
+      "id": "BLK-R3bF2-E",
+      "title": "heredoc RHS binds as opaque confined text: BIN = <<~EOS + rooted body + File.write(BIN) → 0 rows",
+      "repro": "`BINH = <<~EOS` / `/usr/local/bin/heredoc-target` / `EOS` / `File.write(BINH, \"d\")` → 0 rows (P33): GEM_ASSIGNMENT captures single-line RHS `<<~EOS`; resolves non-null, carries no marks ⇒ judged confined, so the bareword fail-close arm (which needs UNRESOLVABLE) never fires. ruby: BINH == \"/usr/local/bin/heredoc-target\\n\" (live rooted write). §8-6 names only method-return bindings.",
+      "observed": "0 rows, live, unnamed",
+      "expected": "fail-closed 1 row (cheap, doctrine-consistent)",
+      "suggested_fix": "in gemStringBindings treat RHS starting with `<<` as unresolvable (⇒ existing fail-close lane rows); one-line predicate + pin C3f"
+    },
+    {
+      "id": "BLK-R3bF2-F",
+      "title": "§8:993-994 'The quoted-word spelling fmt = \"%x\" costs NOTHING (… probe row count 0)' does not reproduce unqualified",
+      "repro": "same tail at payload EOF → 1 HIGH '%x\" unparseable write/exec argument (fail closed)' (P27); mid-file with a later quote → 0 (P28, reproduces); mid-file with `/usr` text between the absorbed quotes → 1 HIGH phantom-span row from a comment (P29). The parenthetical mechanism-claim ('reads its empty closer-to-closer span') is false when no closer remains.",
+      "observed": "verdict rule: ANY §8 number that doesn't reproduce ⇒ needs-fix",
+      "expected": "claim qualified to closer-present placements + phantom-span FP hazard noted, or closer scan line-anchored",
+      "suggested_fix": "doc fix (preferred, over-block side): rewrite sentence + add the P27/P29 probe counts; or code: only scan for closer within the verb's line"
+    },
+    {
+      "id": "BLK-R3bF2-G",
+      "title": "§8:1014 pins-paragraph says '12 channels/rubygems tests' — suite measures 28/28",
+      "repro": "node --test test/channels.rubygems.test.ts → pass 28 (per-file count); fixer's own claims say 28/28; §8 stale number survived the rewrite.",
+      "observed": "doc number false",
+      "expected": "28 (and the exit-2 metadata.gz-corruption case exists within it)",
+      "suggested_fix": "one-token doc fix"
+    }
+  ],
+  "nits": [
+    "NIT-1: P32 `File.write(oarr[0], …)` and P39 `File.write(*arr4, …)` escape at 0 rows; arguably covered by §8-8 'bareword lane parses whole-fragment operands only' but the operand SHAPES are not enumerated — name them next to the File.join example (same fix stroke as BLK-R3bF2-D).",
+    "NIT-2: P18 parenthesized `File.new(\"/usr/…\", \"w\")` 0 rows — §8-2 category covers it but the example list names only paren-LESS File.new; add paren variant to the example.",
+    "NIT-3: U4 — indented `  extensions:` inside a real extensions block THROWs 'unrecognized line' (fail-closed, G6-consistent, machine-built metadata never contains it) — worth one §8 sentence.",
+    "NIT-4: ENV::fetch rows ONLY via the npm-lane t2-js-fetch `fetch(` collateral (P4) — fragile rescue, folded into BLK-R3bF2-A.",
+    "NIT-5: dot-form P3 double-rows (T3+T2 for ENV.fetch) — over-block direction, blessed posture.",
+    "NIT-6: ceiling — residueGem.ts 269 (fixer's number exact), residueMatchers.ts 357 lines total/159 effective; no ceiling doctrine text found anywhere in .omo/plans or repo md — report to the orchestrator, do not judge.",
+    "NIT-7: task's `node dist/cli.js check` — dist/cli.js does not exist; bin is dist/index.js; gemBinPath is inject-only so end-to-end CLI dup-extensions run is structurally impossible on trusted trees (real `gem build` de-duplicates the key) — stage-seam reject (U7) + translateError→EXIT_ERROR=2 (src/cli/exit.ts:113-116) + suite's exit-2 corruption test accepted as the proof chain.",
+    "NIT-8: GEM_CONFINED_MARKS grep hit at residueMatchers.ts:315-317 is the doc-comment recording the deletion — §8 'has been DELETED' verified TRUE (no live table)."
+  ],
+  "doc_truth": [
+    "VERIFIED: 'ALL SIX' absent; generic-closer claims :918-919 (P24/P25/P26); %q/%Q claims :935-936 (P23/P24 = 1); marks list text matches code (but see BLK-R3bF2-A for the doctrine gap); unparseable-fail-closed (:947-area) P26 ✓; whole-argument doctrine P12/P13/P45 ✓; per-verb (not per-occurrence) dedup P12 ✓ honestly implied; ENV[\"EXTOUT\"]⇒1 Q1 ✓; make -C /usr/src⇒1 Q2 ✓; any Dir.chdir⇒1 (suite C6/C7a) ✓; prose hooks⇒1 (B2/B3, T4-1) ✓; @/$ unresolvable barewords⇒1 (C8, P40) ✓; multi-target⇒1 named P37 ✓; += churn⇒0 P36 ✓; lexical ../../⇒0 P43 ✓; method-return⇒0 P44 ✓; nested-call operand⇒0 P41/P42 ✓; IO.write/bare open⇒0 named P16/P17 ✓; 8-invisible enumeration reproduced except the NEW unnamed shapes (Dir::home, ENV::[], Process.spawn, %(/%w[, @@/$0, heredoc) which belong on it or in tables; '36 residue-gem tests' ✓; '52/52' ✓; 'files: never read' ✓ (comment-only); GEM_CONFINED_MARKS deleted ✓; PIN/PIN2 zero-row ✓ (no FP fallback).",
+    "FALSE: 'fmt = \"%x\" costs NOTHING / probe row count 0' (BLK-R3bF2-F); '12 channels/rubygems tests' (BLK-R3bF2-G)."
+  ],
+  "process_notes": {
+    "scratch": "/tmp/opencode/r3bv3 (probe.ts, probe2.ts) — deleted after report copy",
+    "read_only_compliance": "no repo file edits; only .omo/evidence/residue-spike/VERIFIER-REPORT-R3B-FIX2.json added per task mandate; suites re-ran pretest (test/tmp scratch, self-wiping)"
+  }
+}

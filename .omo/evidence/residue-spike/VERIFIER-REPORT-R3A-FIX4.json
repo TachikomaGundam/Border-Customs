@@ -1,0 +1,68 @@
+{
+  "verdict": "confirmed",
+  "confidence": "high",
+  "round": "R3a-fix-round-4",
+  "date": "2026-09-09",
+  "verifier_session": "opencode:ses_f7db6f2c1ffeIWaRkgY1ziEGC1 (bg_3d527eab lineage; independent of executor)",
+  "blockers": [],
+  "nits": [
+    {
+      "id": "R3AFIX4-OBS1",
+      "class": "observation-documented-only",
+      "title": "Compile-error territory: stray closer after live revival confines via a GENUINE live call",
+      "repro": "fs::write(/* // */ env::var(\"OUT_DIR\") */ \"/tmp/evil\", \"x\") and the binding variant (p bound to \"/tmp/evil\")",
+      "observed": "0 rows",
+      "expected": "0 rows — judged NOT fail-open",
+      "rationale": "True Rust: /* // */ is a complete depth-1 comment, so env::var(\"OUT_DIR\") IS live code; the trailing */ makes the crate a compile error (cargo package --no-verify still ships the bytes but nothing builds). Confinement is granted by a live env-reference call under the live-region reading the scanner makes — the §8 recognition doctrine holds; no executable escape exists. The parity sentence's 'never fabricate' claim is unaffected: this is not a mis-parse fabrication."
+    }
+  ],
+  "probes": {
+    "method": "scratch battery via residueCratesHits(pkgDir,[\"build.rs\"]), node --import ./tools/register-ts.mjs; 35 shapes; scratch deleted after",
+    "A1_depth_loop": {
+      "a1a_depth3_revival": "fs::write(/* /* /* */ env::var(\"OUT_DIR\") */ */ \"/tmp/evil\",\"x\") => 1 HIGH rs-confinement row (blocker R3AFIX3-B1 class CLOSED at depth 3; a1h depth-2 binding variant also 1 row)",
+      "a1b_linecomment_in_block": "0 rows — documented, see nit R3AFIX4-OBS1 (live call per true Rust, crate uncompilable)",
+      "a1c_closer_in_string": "let p=\"a*/b\"; fs::write(/* x */ PathBuf::from(p),\"y\") => 1 row: string arm not confused, comment honored",
+      "a1d_opener_in_string": "fs::write(\"/tmp/*x\",\"y\") => 1 row, no phantom comment",
+      "a1e_raw_containing_opener": "r#\"/*x\" /tmp/evil\"# => 1 row; a1e2 r#\"/* env::var(\\\"OUT_DIR\\\") */\"# => 1 row",
+      "a1f_unterminated_nested": "let o = /* /* env::var(\"OUT_DIR\"); fs::write(&o,\"x\") => 1 row (EOF-unterminated hides rest: o's rhs env call never seen, fail-closed as claimed)",
+      "a1g_odd_quote_in_comment_guard": "let o = /* \\\" */ env::var(\"OUT_DIR\").unwrap(); fs::write(&o,\"x\") => 0 rows (quote inert in comment; live call confines — no over-strict false positive)"
+    },
+    "A2_historical_corpus": {
+      "all_row": [
+        "FIX3-B1 nested revival write-arg (C10a) + binding (C10b/a1h)",
+        "FIX-F1 k1 /usr/local/bin/OUT_DIR, k2 format!(\"{}/OUT_DIR_cache\",env HOME), k3 /tmp/OUT_DIRd",
+        "string-content fake call let o=\"env::var(\\\"OUT_DIR\\\")\"",
+        "plain block-comment revival /* env::var(\\\"OUT_DIR\\\") */ &o",
+        "r#\"...\"# and r##\"...\"## token embedding",
+        "concat!(\"OUT\",\"_DIR\") direct + env::var(concat!(\"OUT_DIR\",\"\"))",
+        "N2 exotic: env::var(r\"OUT_DIR\"), env::var(/* c */ \"OUT_DIR\")",
+        "R3A-V1 bare-rebind HOME + dynregex concat-built name + rebind, tuple-destructure (N-b)"
+      ],
+      "count": "15/15 shapes => >=1 rs-confinement HIGH row each"
+    },
+    "A3_over_strict": {
+      "all_zero": ["C4 chain PathBuf::from(&out_dir).join", "std::env::var prefix", "out_dir.clone() hop", "out_dir.join(g.txt) direct", "format!(\"{}/sub\",env::var(\\\"OUT_DIR\\\"))", "multi-line fluent Path::new(\\n env...\\n).join(\\n \\\"gen.txt\\\",\\n)", "push_str + += (named §8 INVISIBLE)", "legit write after flat comment", "legit write after NESTED comment /* a /* b */ c */", "N1 format!(\"/usr/local/{}\",env) origin-only (matches §8)"],
+      "golden_pin": "m-rs-clean zero-findings via real runCargoArtifactStage path — inside crates 12/12 green"
+    },
+    "A4_doc_truth": {
+      "recognition_sentence": "TRUE — §8 L752-758 'AT THEIR TRUE NESTED EXTENT ... skip counts depth ... token cannot match from literal/comment text': depth-3/depth-2 revivals row, closers-in-strings and openers-in-strings/raws behave per Rust, every literal/comment token shape rows",
+      "parity_sentence": "TRUE — 'can only hide a real call, never fabric one': every mis-parse witnessed (unterminated nested, closer-in-string, opener-in-string, raw-with-/*) => row; odd-quote-in-comment => correctly confined; zero fabrications across 35 shapes (pre-fix this claim was a lie re B1; depth-tracking closed it, disk-verifiable)",
+      "n1_origin_only_sentence": "TRUE — format!(\"/usr/local/{}\", env::var(\\\"OUT_DIR\\\").unwrap()) => 0 rows, §8 L782-787 now names the concrete shape and its doctrine",
+      "n2_exotic_spelling_sentence": "TRUE — both spellings => exactly 1 row each (fail-closed side), §8 L760-763 'exotic indirection costs the build a row, never a silent pass'",
+      "text_integrity": "'Rust Reference: two /* openers need two closers' intact on disk (earlier display garble was a read-render artifact, cat -A confirms)"
+    },
+    "A5_suite": {
+      "crates": "12/12", "pypi": "7/7", "npm": "21/21",
+      "typecheck_RC": 0, "build_RC": 0,
+      "full_npm_test": "432 tests / 430 pass / 2 fail — only pre-existing C5-1 + C5-4 (out of residue scope), timeout 600 clean",
+      "LOC_residueRust": "raw 252 / pure(grep -cvE method) 185, both <= 300",
+      "SUMS": "36/36 OK (run from test/fixtures/residue; RC 0)",
+      "head": "4a8836dc8c587087124781ce093c0c318f0ab835, zero commits this round",
+      "mtime_scope_audit": "find src test -newermt 2026-09-09T02:12:39 (FIX3-report lower bound) => EXACTLY residueRust.ts 02:20, residue.crates.test.ts 02:19, RESIDUE-CONTRACT.md 02:23; untouchables older: npm.ts 09-08 19:41, pypi.ts 23:28, residue.ts 00:31, residueMatchers.ts 23:25, residue.npm.test.ts 22:19 (note: git-diff-only audit misses these — untracked new files)",
+      "ledger": "append-only, last write 02:30 orchestrator ledger-correction; verifier wrote nothing",
+      "scratch": "/tmp/opencode/r4v probe dir, /tmp/r4v-* pkg dirs, repo scratch/ all absent after run"
+    }
+  },
+  "suite_numbers": { "crates": "12/12", "pypi": "7/7", "npm": "21/21", "full": "432/430 (2 pre-existing C5 reds)", "typecheck": 0, "build": 0, "LOC": "252raw/185pure", "SUMS": "36/36" },
+  "summary": "R3AFIX3-B1 closed and verified at depth >= 3 with correct arm precedence (strings/raw-strings vs comments both directions); all 15 historical fail-open corpus shapes row; all 11 over-strict/legit forms stay at 0 incl. golden PIN via real stage; four §8 sentences match observed behavior; suite/scope/ledger/mtime audits green. CONFIRMED."
+}
