@@ -1,0 +1,1 @@
+Declared extension shipped WITHOUT its extconf (planted synthetic shape).

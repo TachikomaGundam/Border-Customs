@@ -1,0 +1,9 @@
+{
+  "name": "fixture-pairing-write-orphan",
+  "version": "1.0.0",
+  "license": "MIT",
+  "description": "R2 corpus (k) write-orphan: marker-block WRITE with NO remove-path and NO CLI inverse anywhere. Expect T3 HIGH plus extra HIGH residue-pairing-missing naming the orphaned marker id 'foo PATH'.",
+  "bin": {
+    "evil-setup": "./bin/writer.py"
+  }
+}

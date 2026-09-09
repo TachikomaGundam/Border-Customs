@@ -1,0 +1,9 @@
+{
+  "name": "fixture-winpath",
+  "version": "1.0.0",
+  "license": "MIT",
+  "description": "R2 corpus (j): install hook spawning Windows PATH carriers (setx /F PATH, HKCU:\\Environment, SetEnvironmentVariable) — T3 HIGH. Synthetic; never executed.",
+  "scripts": {
+    "postinstall": "node ./postinstall.js"
+  }
+}

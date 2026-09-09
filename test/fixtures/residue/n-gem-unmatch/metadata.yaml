@@ -1,0 +1,13 @@
+--- !ruby/object:Gem::Specification
+name: acme-ghost
+version: !ruby/object:Gem::Version
+  version: 0.1.0
+platform: ruby
+authors:
+- Acme
+autorequire:
+bindir: bin
+extensions:
+- ext/ghost/extconf.rb
+files:
+- lib/acme.rb
