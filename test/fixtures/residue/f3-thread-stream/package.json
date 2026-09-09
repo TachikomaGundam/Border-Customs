@@ -1,0 +1,9 @@
+{
+  "name": "spike-fixture-thread-stream",
+  "version": "3.2.0",
+  "license": "MIT",
+  "description": "R1 blast-radius fixture: replicates thread-stream 3.2.0 prepare hook string verbatim",
+  "scripts": {
+    "prepare": "husky install"
+  }
+}
