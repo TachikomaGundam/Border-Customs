@@ -204,26 +204,29 @@
       "plan_name": "border-residue-gate",
       "status": "completed",
       "started_at": "2026-09-08T10:06:06Z",
-      "updated_at": "2026-09-09T09:56:30.880Z",
+      "updated_at": "2026-09-09T14:26:29.137Z",
       "session_ids": [
-        "opencode:ses_f7fe605bdffeNcjNxkDs5pvOGY"
+        "opencode:ses_f7fe605bdffeNcjNxkDs5pvOGY",
+        "opencode:current"
       ],
       "session_origins": {
         "opencode:ses_f7fe605bdffeNcjNxkDs5pvOGY": "direct"
       },
       "agent": "Sisyphus - ultraworker",
-      "worktree_path": null,
+      "worktree_path": "/home/lab/workspace/harness/border",
       "task_sessions": {},
-      "ended_at": "2026-09-09T09:56:30.880Z",
-      "elapsed_ms": 85824880
+      "ended_at": "2026-09-09T14:26:29.137Z",
+      "elapsed_ms": 102023137,
+      "note": "0.3.0 PUBLISHED to npm via OIDC TP (provenance sigstore 2770700076); GitHub main=tag=63fcb36; wiki en495/zh496 synced"
     }
   },
   "active_plan": ".omo/plans/border-residue-gate.md",
   "started_at": "2026-09-08T10:06:06Z",
   "status": "completed",
-  "updated_at": "2026-09-09T09:56:30.880Z",
+  "updated_at": "2026-09-09T14:26:29.137Z",
   "session_ids": [
-    "opencode:ses_f7fe605bdffeNcjNxkDs5pvOGY"
+    "opencode:ses_f7fe605bdffeNcjNxkDs5pvOGY",
+    "opencode:current"
   ],
   "session_origins": {
     "opencode:ses_f7fe605bdffeNcjNxkDs5pvOGY": "direct"
@@ -231,8 +234,8 @@
   "plan_name": "border-residue-gate",
   "task_sessions": {},
   "agent": "Sisyphus - ultraworker",
-  "ended_at": "2026-09-09T09:56:30.880Z",
-  "elapsed_ms": 85824880,
+  "ended_at": "2026-09-09T14:26:29.137Z",
+  "elapsed_ms": 102023137,
   "completed_at": "2026-09-09",
-  "worktree_path": null
+  "worktree_path": "/home/lab/workspace/harness/border"
 }
