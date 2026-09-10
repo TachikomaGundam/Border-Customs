@@ -1,5 +1,7 @@
 // provenance: border-inspect-roadmap.md W1.1 — `border scan` fetch layer.
 //
+// single-source: test/releaseCoherence.test.ts locks this to package.json — bump both
+// (the SCAN_USER_AGENT version literal below; ecc7e23 shipped 0.3.1 with a 0.3.0 UA).
 // Public-registry artifact fetch with the PypiFetcher doctrine: the whole
 // network surface rides through ONE injectable ScanFetcher seam (unit tests
 // script it offline; production uses global fetch — zero new dependencies).
@@ -21,7 +23,7 @@ export const SCAN_MAX_ARTIFACT_BYTES = 200 * 1024 * 1024;
 /** Per-request bound; the plan forbids retries, this is the only wait. */
 export const SCAN_REQUEST_TIMEOUT_MS = 60_000;
 /** Descriptive UA: crates.io rejects the Node default with 403; everyone tolerates this one. */
-export const SCAN_USER_AGENT = "border-customs/0.3.0 (+https://github.com/sumteclab/border; border scan)";
+export const SCAN_USER_AGENT = "border-customs/0.3.2 (+https://github.com/sumteclab/border; border scan)";
 
 const CRATES_DOWNLOAD_HOST = "https://static.crates.io";
 
