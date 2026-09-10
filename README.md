@@ -313,6 +313,7 @@ border <command> [options]
 | `status` | newest gate records per target |
 | `llm-request` | emit the masked review bundle for LLM-authored commits |
 | `llm-ingest <findings.json>` | validate agent findings and record the combined verdict |
+| `scan <[ecosystem:]name@version>` | inspect a third-party published artifact for residue before installing it |
 
 Every subcommand accepts the same global flags (verified against `border <cmd> --help`):
 
@@ -324,7 +325,7 @@ Every subcommand accepts the same global flags (verified against `border <cmd> -
 | `--yes` | execute mutations (push only); without it a push is always DRY-RUN |
 | `--require-engine <list>` | replaces the required-engine set from config; unknown or unprobeable names degrade the run (exit 2) |
 | `--llm` | opt this check into the LLM review layer (a plain check can never satisfy an llm-recorded skip) |
-| `--json` | machine-readable report on stdout (check) |
+| `--json` | machine-readable report on stdout (check, scan) |
 | `--help, -h` | usage table |
 
 ### Exit codes (the contract)
@@ -339,6 +340,40 @@ The `2` class matters as much as `1`: a tool error never exits 0, and no exit-0 
 rests on a leg that silently skipped. Engine exit codes are translated against a closed
 matrix (`gitleaks` 0/1, `trufflehog` 0/183, `secretlint` 0/1); *anything* else, including a
 126 from gitleaks, is exit 2, never "clean".
+
+### `border scan` — inspect a third-party package before installing it
+
+```bash
+border scan puppeteer@23.11.1   # npm is the default ecosystem
+border scan pypi:requests@2.32.3
+border scan crates:serde@1.0.219
+border scan rubygems:rails@7.1.1
+```
+
+`border scan <[ecosystem:]name@version>` fetches that exact published artifact from its
+registry, materializes it in a throwaway temp directory, and runs the same engine stack
+`check` runs — secrets plus the T0–T4 residue classifiers — over the bytes you are about
+to install. `--json` emits the standard machine-readable report.
+
+**Capability, not fact.** A scan verdict proves what the package *can* do — persist past
+uninstall, write outside the install tree, run hooks on every consumer install — because
+those shapes are readable in the published bytes. Proof that a package *did* persist is
+the uninstall-roundtrip valve, and it ships in 0.4.0; until then treat a scan as pre-install
+risk triage, never as post-mortem evidence.
+
+Scan touches neither side of your work: it reads no ledger and writes no skip records (every
+scan is a full scan), and it creates no `.border/` in your repo — the fetched artifact and
+its temp git tree live in the sandbox and are destroyed when the run ends. Exit codes follow
+the same contract: `0` clean, `1` blocking (HIGH/CRITICAL) findings, `2` the scan could not
+genuinely run — unreachable registry, malformed spec, a tree shape the engines cannot
+consume. A scan that could not run never prints a clean verdict.
+
+crates artifacts get one **envelope normalization** before staging: a registry `.crate`
+ships three files — `Cargo.toml.orig`, `.cargo-ok`, `.cargo_vcs_info.json` — that
+`cargo package` rejects as reserved, so scan drops them before the rebuild and logs each
+dropped file to stderr with the sha256 of its original bytes
+(`border scan: crates envelope normalized: <file> sha256=<hex>`); the rebuild regenerates
+them from the normalized manifest, so no scanned byte is silently lost.
 
 ## Configuration
 

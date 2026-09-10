@@ -8,12 +8,12 @@
 // border@local/-scan triple (never the human committer; the temp repo is
 // evidence, not history). Fail-closed: a tree shape the stage cannot consume
 // throws a one-line Error long before a scan could fake a "clean".
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { extractArchive, findNativeMissArchives } from "../artifacts/extract.ts";
 import { runGitChecked } from "../check/context.ts";
-import { safeArtifactName } from "./fetch.ts";
+import { safeArtifactName, sha256Hex } from "./fetch.ts";
 import type { ScanEcosystem } from "./spec.ts";
 
 export type MaterializeInput = {
@@ -22,7 +22,13 @@ export type MaterializeInput = {
   readonly filename: string;
   readonly baseDir: string;
   readonly env?: NodeJS.ProcessEnv;
+  /** Forensic-log sink for mutations of package content (crates envelope
+   *  scrub). Defaults to one newline-terminated line on stderr. */
+  readonly note?: (line: string) => void;
 };
+
+/** Registry envelope files `cargo package` rejects as reserved (W1.2). */
+const CRATES_ENVELOPE_FILES = ["Cargo.toml.orig", ".cargo-ok", ".cargo_vcs_info.json"] as const;
 
 const fail = (why: string): never => {
   throw new Error(`border scan cannot materialize the artifact (${why}) — refusing to stage an unusable tree (fail-closed)`);
@@ -59,6 +65,9 @@ function requireManifest(repoDir: string, ecosystem: ScanEcosystem, candidates: 
 }
 
 export function materializePackage(o: MaterializeInput): string {
+  const note = o.note ?? ((line: string): void => {
+    process.stderr.write(`${line}\n`);
+  });
   const safe = safeArtifactName(o.filename, `${o.ecosystem}-artifact`);
   const archive = join(o.baseDir, safe);
   writeFileSync(archive, o.bytes);
@@ -95,9 +104,16 @@ export function materializePackage(o: MaterializeInput): string {
     // (measured on rand_core-0.6.4: "invalid inclusion of reserved file name
     // Cargo.toml.orig"). The rebuilt .crate regenerates Cargo.toml.orig from
     // the normalized Cargo.toml, so no scan-relevant byte is lost.
-    rmSync(join(repoDir, "Cargo.toml.orig"), { force: true });
-    rmSync(join(repoDir, ".cargo-ok"), { force: true });
-    rmSync(join(repoDir, ".cargo_vcs_info.json"), { force: true });
+    // Forensically logged (W1.4/D1): deleting bytes from a third-party
+    // artifact is a mutation a reviewer must be able to audit — one line per
+    // file actually present, hashing the ORIGINAL content before removal.
+    for (const file of CRATES_ENVELOPE_FILES) {
+      const path = join(repoDir, file);
+      if (!existsSync(path)) continue;
+      const original = readFileSync(path);
+      rmSync(path, { force: true });
+      note(`border scan: crates envelope normalized: ${file} sha256=${sha256Hex(original)}`);
+    }
   }
 
   const env = o.env;
