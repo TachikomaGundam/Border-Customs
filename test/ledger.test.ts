@@ -92,7 +92,9 @@ test("ledger: corrupt lines are skipped with WARNING, never crash (plan failure 
   writeFileSync(ledgerPath(dir), "\n\n", { flag: "a" });
   const { records, warnings } = readLedger(dir);
   assert.equal(records.length, 1, "only the valid record survives");
-  assert.equal(records[0]?.key, KEY_A);
+  const survivor = records[0];
+  assert.ok(survivor?.t === "check", "the valid line was the check record");
+  assert.equal(survivor.key, KEY_A);
   assert.equal(warnings.length, 3);
   for (const w of warnings) assert.match(w, /ledger line \d+ unreadable .* — line skipped/);
   assert.ok(lookupSkipRecord(records, KEY_A, false) !== null, "good records still certify after corruption");

@@ -44,6 +44,7 @@ export function usage(): string {
     "  --require-engine <list>     comma-separated engines that must be healthy (else exit 2)",
     "  --llm                       include the optional LLM review layer",
     "  --json                      machine-readable report on stdout",
+    "  --record / --no-record      `border roundtrip` records a ledger proof by default; --no-record opts out",
     "  --help, -h                  this table",
     "",
     "exit codes: 0 pass (MEDIUM/INFO/LOW allowed) | 1 gate-blocked (CRITICAL/HIGH) or partial push | 2 config/tool error",
@@ -83,10 +84,15 @@ function parseFlags(argv: readonly string[]): { flags: Flags; positionals: reado
         "require-engine": { type: "string" },
         llm: { type: "boolean" },
         json: { type: "boolean" },
+        record: { type: "boolean" },
+        "no-record": { type: "boolean" },
         help: { type: "boolean" },
       },
     });
     const { config, targets, force, yes, llm, json } = values;
+    if (values.record === true && values["no-record"] === true) {
+      throw new UnknownArgError("--record and --no-record contradict each other");
+    }
     const requireEngine = values["require-engine"];
     const flags: Flags = {
       ...(config !== undefined ? { config } : {}),
@@ -100,6 +106,7 @@ function parseFlags(argv: readonly string[]): { flags: Flags; positionals: reado
         : {}),
       llm: llm === true,
       json: json === true,
+      ...(values["no-record"] === true ? { record: false } : values.record === true ? { record: true } : {}),
     };
     return { flags, positionals, help: values.help === true };
   } catch (err) {
