@@ -61,7 +61,24 @@ export type PushRecord = {
   readonly ts: string;
 };
 
-export type LedgerRecord = CheckRecord | PushRecord;
+/**
+ * W2.2 proof-of-roundtrip record (border-inspect-roadmap): minted by
+ * `border roundtrip`, consumed by the check-side requireProof valve. It is a
+ * FACT log, not a verdict log — clean AND residue runs are both recorded; the
+ * valve's freshness is rulesHash equality (same pattern as check fingerprints).
+ */
+export type RoundtripRecord = {
+  readonly t: "roundtrip";
+  readonly artifactSha256: string;
+  readonly verdict: "clean" | "residue";
+  readonly rulesHash: string;
+  readonly rows: number;
+  readonly ts: string;
+};
+
+export type RoundtripVerdict = RoundtripRecord["verdict"];
+
+export type LedgerRecord = CheckRecord | PushRecord | RoundtripRecord;
 
 export function ledgerPath(repoDir: string): string {
   return join(repoDir, BORDER_STATE_DIR, LEDGER_FILE);
@@ -98,6 +115,28 @@ export function buildPushRecord(i: {
     ...(i.remoteSha !== undefined ? { remoteSha: i.remoteSha } : {}),
     ...(i.version !== undefined ? { version: i.version } : {}),
     confirmedVia: i.confirmedVia,
+    ts: i.ts ?? new Date().toISOString(),
+  };
+}
+
+/** Roundtrip proof records are constructed here so the mint-site validation (hex shapes, verdict enum, non-negative integer rows) cannot be skipped by consumers (W2.2). */
+export function buildRoundtripRecord(i: {
+  readonly artifactSha256: string;
+  readonly verdict: RoundtripVerdict;
+  readonly rulesHash: string;
+  readonly rows: number;
+  readonly ts?: string;
+}): RoundtripRecord {
+  if (!HEX64.test(i.artifactSha256)) bad("artifactSha256 is not hex-shaped");
+  if (!HEX64.test(i.rulesHash)) bad("rulesHash is not hex-shaped");
+  if (i.verdict !== "clean" && i.verdict !== "residue") bad(`verdict must be clean or residue, got '${i.verdict}'`);
+  if (!Number.isInteger(i.rows) || i.rows < 0) bad("rows must be a non-negative integer");
+  return {
+    t: "roundtrip",
+    artifactSha256: i.artifactSha256,
+    verdict: i.verdict,
+    rulesHash: i.rulesHash,
+    rows: i.rows,
     ts: i.ts ?? new Date().toISOString(),
   };
 }
@@ -201,6 +240,20 @@ export function parseLedgerRecord(value: unknown): LedgerRecord {
       ts: needString(o, "ts"),
     };
   }
+  if (t === "roundtrip") {
+    const verdict = needString(o, "verdict");
+    if (verdict !== "clean" && verdict !== "residue") bad(`verdict must be clean or residue, got '${verdict}'`);
+    const rows = o.rows;
+    if (typeof rows !== "number" || !Number.isInteger(rows) || rows < 0) bad("rows must be a non-negative integer");
+    return {
+      t: "roundtrip",
+      artifactSha256: needHex(o, "artifactSha256", HEX64),
+      verdict,
+      rulesHash: needHex(o, "rulesHash", HEX64),
+      rows,
+      ts: needString(o, "ts"),
+    };
+  }
   return bad(`unknown record type ${JSON.stringify(t)}`);
 }
 
@@ -279,4 +332,13 @@ export function latestPassCoveringTargets(
 
 export function pushRecords(records: readonly LedgerRecord[], key?: string): PushRecord[] {
   return records.filter((r): r is PushRecord => r.t === "push" && (key === undefined || r.key === key));
+}
+
+/** Newest roundtrip proof for exactly these artifact bytes — append-only re-runs supersede. */
+export function latestRoundtripForSha(records: readonly LedgerRecord[], artifactSha256: string): RoundtripRecord | null {
+  for (let i = records.length - 1; i >= 0; i -= 1) {
+    const r = records[i];
+    if (r !== undefined && r.t === "roundtrip" && r.artifactSha256 === artifactSha256) return r;
+  }
+  return null;
 }
