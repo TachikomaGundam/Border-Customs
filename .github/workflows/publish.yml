@@ -140,7 +140,7 @@ jobs:
           # failure path below already echoes ::error:: and exits 1 explicitly.
           set +e; set -u
           TEST_LOG="$(mktemp)"; trap 'rm -f "$TEST_LOG"' EXIT
-          npm test > "$TEST_LOG" 2>&1
+          BORDER_PACK_TEST=1 npm test > "$TEST_LOG" 2>&1
           TEST_EXIT=$?
           tail -n 20 "$TEST_LOG"
 
