@@ -10,6 +10,7 @@ import { runCheck } from "./check.ts";
 import { runLlmIngest } from "./llmIngest.ts";
 import { runLlmRequest } from "./llmRequest.ts";
 import { runPush } from "./push.ts";
+import { runScan } from "./scan.ts";
 import { runStatus } from "./status.ts";
 
 export const handlers: Record<Subcommand, CommandHandler> = {
@@ -18,6 +19,7 @@ export const handlers: Record<Subcommand, CommandHandler> = {
   status: runStatus,
   "llm-request": runLlmRequest,
   "llm-ingest": runLlmIngest,
+  scan: runScan,
 };
 
 /** Test seam: replace one handler, get a restore closure back. */
