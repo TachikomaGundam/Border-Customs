@@ -147,6 +147,12 @@ jobs:
           SUM_TESTS="$(sed -n 's/^# tests \([0-9][0-9]*\)$/\1/p' "$TEST_LOG" | tail -n 1)"
           SUM_PASS="$(sed -n 's/^# pass \([0-9][0-9]*\)$/\1/p' "$TEST_LOG" | tail -n 1)"
           SUM_FAIL="$(sed -n 's/^# fail \([0-9][0-9]*\)$/\1/p' "$TEST_LOG" | tail -n 1)"
+          # node TAP's "# tests" total INCLUDES skipped tests but "# pass"/"# fail"
+          # exclude them, so the "# skipped N" count joins the balance equation
+          # below (line verified present in the tap reporter; absent ⇒ 0, never a
+          # parse failure — skips must not fake an unparsable-summary exit).
+          SUM_SKIPPED="$(sed -n 's/^# skipped \([0-9][0-9]*\)$/\1/p' "$TEST_LOG" | tail -n 1)"
+          [ -z "$SUM_SKIPPED" ] && SUM_SKIPPED=0
           if [ -z "$SUM_TESTS" ] || [ -z "$SUM_PASS" ] || [ -z "$SUM_FAIL" ]; then
             echo "::error::could not parse TAP summary counts (# tests/# pass/# fail) — failing closed"
             exit 1
@@ -187,7 +193,7 @@ jobs:
           fi
 
           ACTUAL_N="$(grep -c . /tmp/actual-failures.txt || true)"
-          if [ "$SUM_FAIL" != "$ACTUAL_N" ] || [ "$((SUM_PASS + SUM_FAIL))" != "$SUM_TESTS" ] || [ "$SUM_FAIL" -eq 0 ]; then
+          if [ "$SUM_FAIL" != "$ACTUAL_N" ] || [ "$((SUM_PASS + SUM_FAIL + SUM_SKIPPED))" != "$SUM_TESTS" ] || [ "$SUM_FAIL" -eq 0 ]; then
             echo "::error::TAP counts inconsistent (tests=${SUM_TESTS} pass=${SUM_PASS} fail=${SUM_FAIL} not-ok-lines=${ACTUAL_N}) — failing closed"
             exit 1
           fi
