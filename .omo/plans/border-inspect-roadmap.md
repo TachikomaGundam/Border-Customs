@@ -47,7 +47,8 @@ disk (established R-series protocol).
   opt-in behind explicit env var, same doctrine as verdaccio legs); cli.test.ts surface
   (scan in SUBCOMMANDS, unknown-arg exit 2). typecheck+build RC0; full suite = 511+new /
   fail-set unchanged (C5 pair only locally).
-- [ ] W1.4 dogfood + docs: run `border scan puppeteer@23.11.1` and `playwright@1.55.0`
+- [x] W1.4 dogfood + docs (done 2026-09-10, commits a265dc0+ecc7e23, evidence DOGFOOD-W1.4.md;
+  released via 0.3.1 + silent-bin hotfix 0.3.2 d443c2c)
   (npm) + `border scan pypi:nltk@3.9.1` — paste real outputs into evidence; README scan
   section (semantics: capability, not fact — roundtrip valve is 0.4.0); version bump
   0.3.1 in package.json ONLY (release-coherence W4 would flag drift — keep single source);
@@ -67,28 +68,44 @@ disk (established R-series protocol).
   absent, host-mode is the only lane and /etc+systemd surfaces are UNOBSERVABLE ⇒
   roundtrip verdict cannot-verify exit 2, never clean). Document per-ecosystem fidelity
   gaps honestly.
-- [ ] W2.1 src/roundtrip/: orchestrator (build artifact via channel stage-repack reuse or
+- [x] W2.1 src/roundtrip/ (done 2026-09-10 commit 0b688fc: orchestrator 206p + manifest/docker
+  legs, 22 units + 8 REAL docker E2E legs green all four ecosystems, planted-file acceptance
+  exactly-2-rows npm/pypi/gem/crates, vacuous-pass guard; 622/610/2/10 root-verified)
   fetch via W1 code, container/host exec per W2.0 choice, install, snapshot, uninstall,
   snapshot, diff-classify: persistence surfaces (rc-delta, cron, systemd, PATH) = CRITICAL
   residue-fact; new-file residue = HIGH; byte-identical-rc ⇒ reversibility proof PASS).
   CLI `border roundtrip <spec>` reuses spec parser + flags. Fail-closed: any step failure
   or unobservable surface ⇒ exit 2.
-- [ ] W2.2 gate valve wiring: config `residue.requireProof: true` (strict, rulesHash-
+- [x] W2.2 gate valve wiring (done 2026-09-10 commit 68911c2: residue.requireProof strict
+  default-OFF, rulesHash-bound (flip 68f54a94→b8496d05), roundtrip-proof-missing/-stale
+  CRITICAL natives pre-allowlist, ledger RoundtripRecord + --no-record opt-out, 24 tests
+  + 3 live mutation confirms; trigger broadened to all-blocking-residue-* (honest deviation))
   included) — when set AND residue scan found T3/T4 capability, channel PASS additionally
   requires a fresh roundtrip verdict (ledger key = artifact sha256 + rulesHash + proof
   digest). Default OFF for 0.4.0 (opt-in; doctrine unchanged: static layer stays
   mandatory, proof is the elevator).
-- [ ] W2.3 reversibility acceptance fixture — RE-ANCHORED by spike verification (see
-  VERDICT K5): the shipped aihr wheel owns NO rc write at ANY level (cli_setup.py shells
-  out to the npm registrar `opencode-hr`, cli_setup.py:37/:120; zero removal/revert
-  functions shipped; reference hr-setup-env.py.reference is NOT in the wheel) — so the
-  demo target is the REGISTRAR CHAIN: container (python:3.12-slim+node) → install
-  opencode-hr registrar → observe rc/config BEGIN/END mutation → exercise its removal
-  symmetry (registrar uninstall if shipped; else document gap honestly as this roadmap's
-  founding roundtrip finding — pair-inversion missing = residue-persistence fact) →
-  byte-restored + zero residue ⇒ PASS. Evidence doc + wiki G1. Tests: roundtrip unit w/
-  stubbed runner; one real pypi-venv roundtrip E2E (offline fixture pkg, in-tree-only
-  writes ⇒ empty diff verdict). Ship 0.4.0 same release choreography as W1.4.
+- [x] W2.3 reversibility acceptance fixture — RE-ANCHORED by spike verification (see
+  VERDICT K5): DONE 2026-09-11 (bg_2f2be816, 1h18m, evidence-only, zero repo mutation).
+  Founding verdict: registrar chain LEFTOVER-MODIFIED on its real persistence surface
+  (`opencode-hr uninstall` leaves `{"plugin": []}` configs, re-formats user bytes via
+  install-cli.js:93; pair-inversion EXISTS, byte-reversibility DOES NOT); shell rc/PATH
+  VACUOUSLY restored — no published artifact writes rc (K5 confirmed from wheel bytes;
+  BEGIN/END writer ships only at hr HEAD 41167c9, UNRELEASED — G-RELEASE/G-WRITER gaps);
+  real border roundtrip ran E2E: npm leg PASS 0 rows (blind to bin-invoked verbs), pypi
+  leg FAIL 2211 rows = 2210 pip dep-storm + 1 GENUINE orphan dir /usr/local/share/aihr
+  caught only by the roundtrip (worker's /root-scoped instrument missed it — valve
+  justified on its own family). 5 gaps filed: G-LOCAL G-RUN G-RELEASE G-CALIB G-WRITER.
+  Doc W2.3-REGISTRAR-REVERSIBILITY.md (19,757B) + w23-transcripts/ (14 files). Honest
+  limits carried by the new W2.4 follow-up + README fidelity envelope.
+- [ ] W2.4 calibration follow-ups from W2.3 (0.4.1 candidates, in priority order):
+  (a) G-CALIB pypi lane — target-only diff: resolve pip's dependency closure at plan
+  time, demote dep-storm orphans to an informational class so genuine orphans
+  (e.g. /usr/local/share/aihr dir residue) stand alone; npm sibling case = transitive
+  trees already manager-owned, verify no regression.
+  (b) G-LOCAL — `border roundtrip` accept local artifact path/tarball (wheel install
+  from file) so unpublished/hardened artifacts can be proven.
+  (c) G-RUN/G-WRITER/G-RELEASE are HR-repo-side items (registrar BEGIN/END wiring,
+  writer release, runtime-managed-surface posture) — track in harness/hr, not here.
 
 ## Wave 3 — allowlist v2 retirement (push-channels scope)
 

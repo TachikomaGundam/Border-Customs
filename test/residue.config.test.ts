@@ -358,5 +358,5 @@ test("R4-DOC: README names all seven residue rule ids with severities matching t
   assert.ok(readme.includes("0.4.0"), "roundtrip valve pointer = 0.4.0");
   assert.ok(readme.includes("### 0.3.0"), "Changelog 0.3.0 entry present");
   const pkg = JSON.parse(readFileSync(join(BORDER_ROOT, "package.json"), "utf8")) as { version: string };
-  assert.equal(pkg.version, "0.3.2", "v0.3.2 wave supersedes R4's 0.3.0 pin: silent-bin fix + consumer publint (package.json remains the single version source)");
+  assert.equal(pkg.version, "0.4.0", "v0.4.0 wave supersedes R4's 0.3.0 pin: roundtrip + proof valve (package.json remains the single version source)");
 });

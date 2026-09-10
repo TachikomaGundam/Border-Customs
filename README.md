@@ -236,6 +236,23 @@ itself keeps blocking until it stops tripping the scan.
 - Both new rules are ordinary findings: the allow-list can waive them and every waiver is
   enumerated in `allowHits` — no hidden channel.
 
+### Running `border roundtrip`
+
+`border roundtrip <[ecosystem:]name@version>` fetches the real registry bytes, installs them in a
+throwaway Docker container (per-ecosystem image, whole-filesystem content-hash manifest before
+install and after the manager's own uninstall), prints the residue manifest, and records the
+verdict. Known fidelity envelope, from the W2.0 spike and the W2.3 registrar-chain demo:
+
+- Docker is required; absence or any step failure ⇒ exit 2, never a silent `clean`.
+- npm/gem/crates lanes diff exactly; the pypi lane reports pip's left-behind **transitive
+  dependencies** as orphan rows (calibration to a target-only diff is a known follow-up —
+  the over-report direction is deliberately conservative).
+- Only manager-lifecycle surfaces are observed: persistence performed by explicitly-invoked
+  bins (not npm hooks) is outside what the roundtrip watches — W2.3 measured exactly this
+  blind spot on our own registrar and documented its `{"plugin": []}` config residue.
+- A `clean` verdict is proof-of-fact about one artifact version on one machine class, not a
+  security guarantee.
+
 ## Architecture: `border push`
 
 `border push` is a state machine over per-target states, recomputed from live git queries,
@@ -596,6 +613,17 @@ same one that wrote the commit) how to run the five subcommands, how to produce 
 
 ## Changelog
 
+### 0.4.0 (2026-09-10)
+- Add: `border roundtrip <[ecosystem:]name@version>` — fact-proof valve. Installs the
+  package inside a throwaway Docker container, content-hashes the whole filesystem before
+  and after uninstall, and reports exactly what the uninstaller left behind. Persistence
+  surfaces (rc/profile mutations) => CRITICAL; orphan files => HIGH. Verdicts record to
+  the ledger by default (`--no-record` opts out); Docker absent => fail-closed, never clean.
+- Add: `residue.requireProof` — when on, a residue-capable artifact only passes `border
+  check` with a fresh recorded roundtrip proof (bound to rulesHash; flipping the config
+  invalidates cached verdicts). Missing proof => CRITICAL `roundtrip-proof-missing`.
+- Opt-in test legs: BORDER_ROUNDTRIP_DOCKER=1 (8 real container legs, 4 ecosystems).
+
 ### 0.3.2 (2026-09-10)
 - Fix: CLI invoked through the npm `.bin` shim silently exited 0 without running
   (entrypoint detection now realpath-canonicalizes both sides). Regression-locked by a
@@ -658,4 +686,8 @@ border 是一个 fail-closed(失败即拦截)的推送前门禁 CLI:`npm install
 运行 Docker,证据由 `border roundtrip` 离线写入(默认记账,`--no-record` 关闭),clean 与 residue
 两种裁决都算"事实已在";缺记录判 `roundtrip-proof-missing`、rulesHash 过期判
 `roundtrip-proof-stale`(均 CRITICAL/native,与普通发现同受白名单管辖并在 allowHits 枚举),翻转
-该配置即轮换 rulesHash,所有缓存 PASS 自动失效。可选 LLM 层 border 自身从不调用模型 API:`llm-request` 导出掩码审阅包,`llm-ingest` 严格校验 agent 结论并重算裁决。退出码即合同:0 通过、1 拦截、2 门禁无法作答,任何"工具不健康"都不可能被误读为干净。MIT 许可,无遥测,除你配置的注册表预检外不联网。
+该配置即轮换 rulesHash,所有缓存 PASS 自动失效。`border roundtrip` 本身保真边界:Docker 必需、
+缺失即 exit 2 绝不假装干净;pypi 通道会把 pip 遗留的传递依赖如实报成孤儿行(收窄到目标包自身是
+已知后续项);只有包管理器生命周期触发的写入被观测,显式调用的 bin 自写配置不在射程——W2.3 在
+自家 registrar 链上实测到该盲区并留下了 `{"plugin": []}` 残留证据。clean 是"某一版本构件在某类
+机器上"的事实证明,不是安全担保。可选 LLM 层 border 自身从不调用模型 API:`llm-request` 导出掩码审阅包,`llm-ingest` 严格校验 agent 结论并重算裁决。退出码即合同:0 通过、1 拦截、2 门禁无法作答,任何"工具不健康"都不可能被误读为干净。MIT 许可,无遥测,除你配置的注册表预检外不联网。

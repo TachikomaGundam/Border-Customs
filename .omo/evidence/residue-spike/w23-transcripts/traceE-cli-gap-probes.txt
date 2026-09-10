@@ -1,0 +1,13 @@
+=== W2.3 CLI-gap probes (border dist @ e12c715, child of 68911c2), 2026-09-10T18:09:25Z ===
+$ border roundtrip /tmp/w23/opencode-hr-agent-0.2.2.tgz --no-record
+border: argument error: spec '/tmp/w23/opencode-hr-agent-0.2.2.tgz' is missing '@version'; usage: border scan <[ecosystem:]name@version> — e.g. border scan puppeteer@23.11.1 | pypi:requests@2.32.3 | crates:serde@1.0.219 | rubygems:rails@7.1.1
+rc=2
+
+$ border roundtrip opencode-hr-agent --no-record
+border: argument error: spec 'opencode-hr-agent' is missing '@version'; usage: border scan <[ecosystem:]name@version> — e.g. border scan puppeteer@23.11.1 | pypi:requests@2.32.3 | crates:serde@1.0.219 | rubygems:rails@7.1.1
+rc=2
+
+$ border roundtrip npm:file:/tmp/w23/opencode-hr-agent-0.2.2.tgz --no-record
+border: argument error: spec 'npm:file:/tmp/w23/opencode-hr-agent-0.2.2.tgz' is missing '@version'; usage: border scan <[ecosystem:]name@version> — e.g. border scan puppeteer@23.11.1 | pypi:requests@2.32.3 | crates:serde@1.0.219 | rubygems:rails@7.1.1
+rc=2
+
