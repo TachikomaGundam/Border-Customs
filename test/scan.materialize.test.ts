@@ -9,6 +9,7 @@
 // doctrine (documentation echo lines, never runnable persistence code).
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -104,6 +105,14 @@ test("pypi sdist .tar.gz with <name>-<ver>/ root is stripped and committed", () 
 
 // ------------------------------------------------------------------ crates
 
+// The exact envelope contents, hoisted so the forensic-log assertions can
+// recompute the sha256 of the ORIGINAL bytes from the same source of truth.
+const CARGO_ORIG = '[package]\nname = "fakecrate"\n# pre-normalization original\n';
+const CARGO_OK = "";
+const CARGO_VCS = '{"git":{"sha1":"x"}}';
+
+const sha256Hex = (s: string): string => createHash("sha256").update(s).digest("hex");
+
 test("crates .crate (tar.gz, <name>-<ver>/ root) is stripped and committed", () => {
   const b = base("crates");
   const stage = join(b, "stage");
@@ -112,14 +121,15 @@ test("crates .crate (tar.gz, <name>-<ver>/ root) is stripped and committed", () 
   // crates.io envelope files a registry .crate carries but `cargo package`
   // REJECTS as reserved (measured: exit 101 "invalid inclusion of reserved
   // file name Cargo.toml.orig"). materialize must normalize the envelope.
-  writeFileSync(join(stage, "fakecrate-0.1.0", "Cargo.toml.orig"), '[package]\nname = "fakecrate"\n# pre-normalization original\n');
-  writeFileSync(join(stage, "fakecrate-0.1.0", ".cargo-ok"), "");
-  writeFileSync(join(stage, "fakecrate-0.1.0", ".cargo_vcs_info.json"), '{"git":{"sha1":"x"}}');
+  writeFileSync(join(stage, "fakecrate-0.1.0", "Cargo.toml.orig"), CARGO_ORIG);
+  writeFileSync(join(stage, "fakecrate-0.1.0", ".cargo-ok"), CARGO_OK);
+  writeFileSync(join(stage, "fakecrate-0.1.0", ".cargo_vcs_info.json"), CARGO_VCS);
   writeFileSync(join(stage, "fakecrate-0.1.0", "src", "lib.rs"), "// crate doc\n");
   const archive = join(b, "fakecrate-0.1.0.crate");
   tarGz(archive, stage, ["fakecrate-0.1.0"]);
 
-  const repo = materializePackage({ ecosystem: "crates", bytes: readFileSync(archive), filename: "fakecrate-0.1.0.crate", baseDir: b });
+  const notes: string[] = [];
+  const repo = materializePackage({ ecosystem: "crates", bytes: readFileSync(archive), filename: "fakecrate-0.1.0.crate", baseDir: b, note: (line: string) => notes.push(line) });
 
   const tree = relTree(repo);
   assert.ok(tree.includes("Cargo.toml"));
@@ -127,6 +137,53 @@ test("crates .crate (tar.gz, <name>-<ver>/ root) is stripped and committed", () 
   assert.ok(!tree.includes(".cargo-ok"), "install-time marker scrubbed");
   assert.ok(!tree.includes(".cargo_vcs_info.json"), "VCS-info collision scrubbed (git-fenced repo regenerates it)");
   expectCommitted(repo);
+
+  // W1.4 (verifier D1): the envelope scrub is forensically LOGGED — one line
+  // per scrubbed file that EXISTED, carrying the sha256 of its original bytes
+  // (taken BEFORE deletion). Silent mutation of package content is forbidden.
+  assert.deepEqual(notes, [
+    `border scan: crates envelope normalized: Cargo.toml.orig sha256=${sha256Hex(CARGO_ORIG)}`,
+    `border scan: crates envelope normalized: .cargo-ok sha256=${sha256Hex(CARGO_OK)}`,
+    `border scan: crates envelope normalized: .cargo_vcs_info.json sha256=${sha256Hex(CARGO_VCS)}`,
+  ]);
+});
+
+test("crates envelope scrub logs only files that existed, to stderr by default", () => {
+  // (a) a .crate with NO envelope files (vendored/offline shape) logs nothing.
+  const b = base("crates-clean");
+  const stage = join(b, "stage");
+  mkdirSync(join(stage, "plaincrate-0.1.0", "src"), { recursive: true });
+  writeFileSync(join(stage, "plaincrate-0.1.0", "Cargo.toml"), '[package]\nname = "plaincrate"\nversion = "0.1.0"\nedition = "2021"\n');
+  writeFileSync(join(stage, "plaincrate-0.1.0", "src", "lib.rs"), "// crate doc\n");
+  const archive = join(b, "plaincrate-0.1.0.crate");
+  tarGz(archive, stage, ["plaincrate-0.1.0"]);
+
+  const notes: string[] = [];
+  materializePackage({ ecosystem: "crates", bytes: readFileSync(archive), filename: "plaincrate-0.1.0.crate", baseDir: b, note: (line: string) => notes.push(line) });
+  assert.deepEqual(notes, [], "absent envelope files must not fabricate scrub records");
+
+  // (b) the default sink is the real stderr, newline-terminated, per file.
+  const b2 = base("crates-stderr");
+  const stage2 = join(b2, "stage");
+  mkdirSync(stage2, { recursive: true });
+  mkdirSync(join(stage2, "okcrate-0.2.0"), { recursive: true });
+  writeFileSync(join(stage2, "okcrate-0.2.0", "Cargo.toml"), '[package]\nname = "okcrate"\nversion = "0.2.0"\nedition = "2021"\n');
+  writeFileSync(join(stage2, "okcrate-0.2.0", ".cargo-ok"), "ok");
+  const archive2 = join(b2, "okcrate-0.2.0.crate");
+  tarGz(archive2, stage2, ["okcrate-0.2.0"]);
+
+  const written: string[] = [];
+  const realWrite = process.stderr.write;
+  try {
+    process.stderr.write = ((chunk: unknown): boolean => {
+      written.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+    materializePackage({ ecosystem: "crates", bytes: readFileSync(archive2), filename: "okcrate-0.2.0.crate", baseDir: b2 });
+  } finally {
+    process.stderr.write = realWrite;
+  }
+  assert.deepEqual(written, [`border scan: crates envelope normalized: .cargo-ok sha256=${sha256Hex("ok")}\n`]);
 });
 
 // ------------------------------------------------------------------ rubygems
