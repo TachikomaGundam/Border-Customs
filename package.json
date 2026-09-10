@@ -1,6 +1,6 @@
 {
   "name": "border-customs",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Fail-closed git push gate: secret scanning + supply-chain checks before any remote leaves the machine",
   "type": "module",
   "bin": {
