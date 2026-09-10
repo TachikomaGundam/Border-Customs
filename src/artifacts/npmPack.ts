@@ -33,12 +33,27 @@ const MESSAGE_TAIL_CHARS = 600;
  *  makes this module's URL dist/index.js, so a fixed ../.. walk-up lands OUTSIDE
  *  the repo in dist mode — the bug that failed every dist-mode `border check`
  *  on an npm target closed with "engine missing". Repo root is ../ in dist
- *  layout, ../../ in src layout; try both, then PATH/~/.local/bin. */
+ *  layout, ../../ in src layout; try both, then PATH/~/.local/bin.
+ *
+ *  v0.3.2 third candidate (consumer bin-shim layout): publint is a runtime
+ *  dependency now, and npm HOISTS it out of border's package dir — a .bin-shim
+ *  install at <proj>/node_modules/border-customs/dist never sees
+ *  border-customs/node_modules/.bin (that dir does not exist in a flat install).
+ *  The hoisted link lives at <proj>/node_modules/.bin/publint = HERE/../../.bin,
+ *  so the runtime dep actually buys the consumer the publint-fail leg
+ *  out of the box. Pure builder (takes `here`) so the pin test can assert all
+ *  three layouts without re-importing the module under a fake URL; first hit
+ *  wins, a non-existent candidate is ENOENT-skipped by spawnEngine.
+ *  Pinned by test/publintConsumerResolution.test.ts. */
 const HERE = dirname(fileURLToPath(import.meta.url));
-const PUBLINT_LOCAL_BINS = [
-  join(HERE, "..", "node_modules", ".bin", "publint"),
-  join(HERE, "..", "..", "node_modules", ".bin", "publint"),
-];
+export function publintLocalBins(here: string): string[] {
+  return [
+    join(here, "..", "node_modules", ".bin", "publint"),
+    join(here, "..", "..", "node_modules", ".bin", "publint"),
+    join(here, "..", "..", ".bin", "publint"),
+  ];
+}
+const PUBLINT_LOCAL_BINS = publintLocalBins(HERE);
 
 export function tail(text: string): string {
   const trimmed = text.trim();
