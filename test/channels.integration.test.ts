@@ -393,7 +393,7 @@ test("C5-4 ordering: publish legs execute in descriptor order git→npm→pypi�
   const f = await buildFixture(scratch("c5-4"), { targets: ["npm", "pypi", "crates", "rubygems"] });
   const chk = await checkForce(f);
   assert.equal(chk.code, EXIT_PASS, dump(chk));
-  const key = readLedger(f.repo).records.filter((r) => r.t === "check" && r.verdict === "PASS").at(-1)?.key;
+  const key = readLedger(f.repo).records.filter((r): r is CheckRecord => r.t === "check" && r.verdict === "PASS").at(-1)?.key;
   assert.ok(key !== undefined, "PASS record carries the fingerprint key");
   resetSpawnLog(f);
   const r = await runBorder(["push", "--yes", "--config", f.cfgPath], f);
@@ -457,7 +457,7 @@ test("C5-5 ledger round-trip: new confirmedVia values re-parse through the STRIC
   //     verbatim through the strict parser, line by line.
   const hand = await buildFixture(scratch("c5-5c"), { targets: ["npm", "pypi"] });
   assert.equal((await checkForce(hand)).code, EXIT_PASS);
-  const handPass = readLedger(hand.repo).records.filter((r) => r.t === "check" && r.verdict === "PASS").at(-1);
+  const handPass = readLedger(hand.repo).records.filter((r): r is CheckRecord => r.t === "check" && r.verdict === "PASS").at(-1);
   assert.ok(handPass !== undefined);
   const headSha = gitRevParseHead(hand.repo);
   const legacyPushRecords = [

@@ -140,9 +140,18 @@ function buildBorderConfigSchema() {
       // of the residue scan is this toggle; a scan that cannot RUN is a FAIL
       // (fail-closed doctrine), and the digest seam keeps every cached PASS
       // honest about the residue sources it was certified against.
+      // W2.2 (border-inspect-roadmap): requireProof arms the PROOF VALVE — a
+      // blocking residue-* row on a staged artifact then additionally demands a
+      // fresh `t:"roundtrip"` ledger record for that artifact's sha256 before
+      // the channel may PASS. Default FALSE (0.3.x behavior byte-identical);
+      // the valve reads `residue?.requireProof === true`, so absence IS the
+      // false default — same construction contract as the outer key. The flag
+      // rides the whole-object configDigest (stableStringify), so flipping it
+      // rotates the check rulesHash and the ledger refuses every cached PASS.
       residue: z
         .object({
           enabled: z.boolean().default(true),
+          requireProof: z.boolean().default(false),
         })
         .strict()
         .optional(),

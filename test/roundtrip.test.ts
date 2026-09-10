@@ -421,8 +421,15 @@ test("run() dispatches roundtrip with its positional (registry seam) + bad spec 
   assert.equal(code2, EXIT_ERROR);
 });
 
-test("roundtrip path never imports the ledger or the check pipeline (zero-side-effect grep guard)", () => {
-  const hits = spawnSync("grep", ["-rEn", 'from "[^"]*(ledger/|/check\\.ts)', "src/roundtrip", "src/commands/roundtrip.ts"], {
+// W2.2 rewrote this guard's doctrine, it did not abolish it: roundtrip must stay
+// OUT of the GATE machinery (no skip-ledger, no verdict pipeline, no freshness
+// logic — those live behind the banned imports below). The two sanctioned seams
+// exist precisely so freshness cannot fork: `ledger/records.ts` is where the
+// t:"roundtrip" FACT is minted, and `check/rulesHash.ts` is the one rulesHash the
+// gate compares it against — the skip-ledger barrel and the verdict pipeline
+// stay banned, which is the slip this guard still catches.
+test("roundtrip path never imports the gate pipeline (banned: ledger barrel/freshness/retention, check.ts; allowed W2.2 seams: records.ts, rulesHash.ts)", () => {
+  const hits = spawnSync("grep", ["-rEn", 'from "[^"]*(ledger\\.ts|ledger/(freshness|retention)|/check\\.ts)', "src/roundtrip", "src/commands/roundtrip.ts"], {
     cwd: join(import.meta.dirname, ".."),
     encoding: "utf8",
   });

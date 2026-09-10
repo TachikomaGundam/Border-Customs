@@ -20,24 +20,21 @@ import type { EngineOptions } from "./engines/support.ts";
 import { scanTrufflehog } from "./engines/trufflehog.ts";
 import { computeVerdict, countFindings, type Finding, type Report } from "./findings.ts";
 import type { LedgerArtifact } from "./ledger/records.ts";
+import { readLedger } from "./ledger/records.ts";
 import { redact, TextSanitizer } from "./redact.ts";
 import { runRegistryProbes } from "./registry.ts";
 import { scanAiArtifacts } from "./rules/aiArtifacts.ts";
-import { RESIDUE_SEVERITIES } from "./rules/residueMatchers.ts";
 import { scanIdentity } from "./rules/identity.ts";
 import { gatherContext, runGitChecked, type CheckContext } from "./check/context.ts";
 import { applyAllowList } from "./check/allow.ts";
 import { filterBorderStateFindings } from "./check/exclusions.ts";
 import { acquireLock, BORDER_STATE_DIR, releaseLock } from "./check/lock.ts";
+import { hasBlockingResidueCapability, proofFindings, RESIDUE_RULE_IDS } from "./check/proofValve.ts";
 import { computeCheckKey, computeCheckRulesHash } from "./check/rulesHash.ts";
 import { scanTagMessages, TAG_MESSAGE_RULE } from "./check/tagScan.ts";
 
 export const TRACKED_BORDER_RULE = "repo-tracks-border-state";
 export { TAG_MESSAGE_RULE };
-
-// Closed residue rule-id set (plan §57: residueMatchers.ts is the sole emitter —
-// derived from its RESIDUE_SEVERITIES table, never restated here).
-const RESIDUE_RULE_IDS: ReadonlySet<string> = new Set(Object.keys(RESIDUE_SEVERITIES));
 
 const GUARD_PATH_CAP = 50;
 
@@ -188,16 +185,29 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
     }
   }
 
-  const exposure = [...exposureSet(o.cfg, { cwd: repoDir })];
-  // G14 post-filter (todo 19): last gate before the verdict. Suppressed
-  // findings never count/never block, but every suppression is enumerated in
-  // report.allowHits — exit 0 must never hide what it hid.
-  const allow = applyAllowList(findings, o.cfg.allow, repoDir);
   const rulesHash = await computeCheckRulesHash({
     engineVersions: probe.engineVersions,
     configDigest: o.configDigest,
     ...(o.env !== undefined ? { env: o.env } : {}),
   });
+
+  // W2.2 proof valve (fail-closed-by-absence): `border check` NEVER spawns
+  // docker — it only consumes the t:"roundtrip" facts `border roundtrip`
+  // pre-supplied. Armed ONLY while the scan is enabled (a spliced-away row is
+  // no longer a capability claim) and by blocking-severity residue-* rows;
+  // then every staged artifact needs a fresh (rulesHash-matching) proof record
+  // keyed by its sha256. Emitted BEFORE applyAllowList: the obligation is a
+  // finding like any other — waivable through the allow-list, enumerable in
+  // allowHits, never a hidden side-channel.
+  if (o.cfg.residue?.requireProof === true && ledgerArtifacts.length > 0 && hasBlockingResidueCapability(findings)) {
+    findings.push(...proofFindings({ artifacts: ledgerArtifacts, records: readLedger(repoDir).records, rulesHash }));
+  }
+
+  const exposure = [...exposureSet(o.cfg, { cwd: repoDir })];
+  // G14 post-filter (todo 19): last gate before the verdict. Suppressed
+  // findings never count/never block, but every suppression is enumerated in
+  // report.allowHits — exit 0 must never hide what it hid.
+  const allow = applyAllowList(findings, o.cfg.allow, repoDir);
   const report: Report = {
     schemaVersion: 1,
     key: computeCheckKey({
