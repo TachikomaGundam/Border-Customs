@@ -1,0 +1,1025 @@
+################ TRANSCRIPT: rt-host-npm-transcript.txt ################
+-rw-rw-r-- 1 lab lab 618 Sep 10 15:40 /tmp/rt-host-npm.Qv2xTI/rt-npm-plant-0.0.1.tgz
+=== /tmp FULL-HASH COST MICROBENCHMARK (feasibility data) ===
+20000 readable /tmp files hashed in 10.61s -> 512923 files extrapolate: 272s (~4.5 min/pass)
+obs-baseline entries=639855 elapsed=24s ts=2026-09-10T15:41:13+08:00
+=== INSTALL (foreground-scripts: postinstall stdout) ===
+PLANTED /tmp/rt-host-npm.Qv2xTI/home/.config/rt-npm-plant/rc-say.sh
+PLANTED /tmp/rt-npm-plant-tmp
+PLANTED /var/tmp/rt-npm-plant-vartmp
+PLANT-DENIED /etc/profile.d/rt-npm-plant.sh EACCES
+PLANT-DENIED /usr/local/bin/rt-npm-plant EACCES
+added 1 package in 824ms
+obs-mid entries=639860 elapsed=24s ts=2026-09-10T15:41:39+08:00
+obs-final entries=639861 elapsed=24s ts=2026-09-10T15:42:03+08:00
+=== ACCEPTANCE DIFF obs-baseline -> obs-final (planted tree EXACTLY) ===
+ADDED(6)
+A	D/tmp/rt-host-npm.Qv2xTI/home/.config
+A	D/tmp/rt-host-npm.Qv2xTI/home/.config/rt-npm-plant
+A	F/tmp/rt-host-npm.Qv2xTI/home/.config/rt-npm-plant/rc-say.sh
+A	F/tmp/rt-host-npm.Qv2xTI/home/.npm/_logs/2026-09-10T07_41_39_508Z-debug-0.log
+A	F/tmp/rt-npm-plant-tmp
+A	F/var/tmp/rt-npm-plant-vartmp
+REMOVED(0)
+MODIFIED(0)
+=== INSTALL-ROOT SELF-CLEANUP (prefix tree: baseline->final) ===
+-- empty-prefix -> after install:
+ADDED(27)
+A	D/tmp/rt-host-npm.Qv2xTI/prefix-reinstall
+A	D/tmp/rt-host-npm.Qv2xTI/prefix-reinstall/.npmcache
+A	D/tmp/rt-host-npm.Qv2xTI/prefix-reinstall/.npmcache/_cacache
+A	D/tmp/rt-host-npm.Qv2xTI/prefix-reinstall/.npmcache/_cacache/content-v2
+A	D/tmp/rt-host-npm.Qv2xTI/prefix-reinstall/.npmcache/_cacache/content-v2/sha512
+A	D/tmp/rt-host-npm.Qv2xTI/prefix-reinstall/.npmcache/_cacache/content-v2/sha512/b2
+A	D/tmp/rt-host-npm.Qv2xTI/prefix-reinstall/.npmcache/_cacache/content-v2/sha512/b2/8d
+-- after install -> after uninstall (what npm leaves in its own root):
+ADDED(0)
+REMOVED(4)
+R	D/tmp/rt-host-npm.Qv2xTI/prefix-reinstall/node_modules/rt-npm-plant
+R	F/tmp/rt-host-npm.Qv2xTI/prefix-reinstall/node_modules/rt-npm-plant/index.js
+R	F/tmp/rt-host-npm.Qv2xTI/prefix-reinstall/node_modules/rt-npm-plant/package.json
+R	F/tmp/rt-host-npm.Qv2xTI/prefix-reinstall/node_modules/rt-npm-plant/plant.js
+MODIFIED(3)
+M	F/tmp/rt-host-npm.Qv2xTI/prefix-reinstall/node_modules/.package-lock.json|664|4034f9d1ea9b9b6f8ab3ba1fe0e6637b60f5a6351a9d971113d78ee581e74588
+M	F/tmp/rt-host-npm.Qv2xTI/prefix-reinstall/package-lock.json|664|a3c2da22eed7d0f0aa344b53d41070f3b767c7c3a959f2d687d9d7ca4b5a9c1f
+M	F/tmp/rt-host-npm.Qv2xTI/prefix-reinstall/package.json|664|0dcf50d6966d045ed10e6da54cbddc9ebddca71029da86e218e36694da779892
+=== CONTROL: two obs manifests back-to-back (shared-/tmp churn rate) ===
+obs-final2 entries=639862 elapsed=23s ts=2026-09-10T15:42:31+08:00
+ADDED(1)
+A	F/tmp/rt-host-npm.Qv2xTI/home/.npm/_logs/2026-09-10T07_42_07_638Z-debug-0.log
+REMOVED(0)
+MODIFIED(0)
+control diff lines: 4
+=== TOOL-NOISE: default cache kept INSIDE observed HOME ===
+HOME2 survivors after uninstall (default cache policy):
+~/.config
+~/.config/rt-npm-plant
+~/.config/rt-npm-plant/rc-say.sh
+~/.npm
+~/.npm/_cacache
+~/.npm/_cacache/content-v2
+~/.npm/_cacache/content-v2/sha512
+~/.npm/_cacache/content-v2/sha512/b2
+~/.npm/_cacache/content-v2/sha512/b2/8d
+~/.npm/_cacache/content-v2/sha512/b2/8d/a084c21c3ae74ad63f6a5738df843adce8a3d494baa0e18f6063c286d3a52060f4ac6aff964bcc8de7402004850852c7e31c115d64fa6b9f08beddb2cddb
+~/.npm/_cacache/index-v5
+~/.npm/_cacache/index-v5/ad
+HOME2 bytes: 4534
+=== HOST-UNOBSERVABLE / PRIVILEGE-REACHABLE SURFACES ===
+ls: cannot open directory '/var/spool/cron/crontabs': Permission denied
+
+################ TRANSCRIPT: rt-host-pypi-transcript.txt ################
+-rw-rw-r-- 1 lab lab 690 Sep 10 15:47 /tmp/rt-host-pypi.izb6pn/rt-pypi-plant-0.0.1.tar.gz
+obs-baseline entries=643158 elapsed=23s ts=2026-09-10T15:47:32+08:00
+=== INSTALL (sdist build executes setup.py plant writes) ===
+Successfully built rt-pypi-plant
+Successfully installed rt-pypi-plant-0.0.1
+obs-mid entries=640680 elapsed=23s ts=2026-09-10T15:49:51+08:00
+Uninstalling rt-pypi-plant-0.0.1:
+  Successfully uninstalled rt-pypi-plant-0.0.1
+obs-final entries=640674 elapsed=23s ts=2026-09-10T15:50:15+08:00
+=== ACCEPTANCE DIFF obs-baseline -> obs-final ===
+ADDED(6)
+A	D/tmp/rt-host-pypi.izb6pn/home/.config
+A	D/tmp/rt-host-pypi.izb6pn/home/.config/rt-pypi-plant
+A	F/tmp/rt-host-pypi.izb6pn/home/.config/rt-pypi-plant/rc-say.sh
+A	F/tmp/rt-pypi-plant-tmp
+A	F/var/tmp/rt-pypi-plant-vartmp
+REMOVED(2490)
+R	D/tmp/abathur-bundle-o7BxXq
+R	D/tmp/abathur-bundle-o7BxXq/config
+R	D/tmp/abathur-bundle-o7BxXq/config/.locks
+R	D/tmp/abathur-bundle-o7BxXq/config/.locks/ea409f2ce04100ed.lock
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-bf8e5f66
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-bf8e5f66/add-0
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-bf8e5f66/add-0/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-bf8e5f66/add-1
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-bf8e5f66/add-1/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-bf8e5f66/explode-0
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-bf8e5f66/explode-0/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-bf8e5f66/explode-1
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-bf8e5f66/explode-1/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-bf8e5f66/mul-0
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-bf8e5f66/mul-0/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-bf8e5f66/mul-1
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-bf8e5f66/mul-1/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-bf8e5f66/sub-0
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-bf8e5f66/sub-0/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-bf8e5f66/sub-1
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-bf8e5f66/sub-1/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-c608784b
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-c608784b/add-0
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-c608784b/add-0/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-c608784b/add-1
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-c608784b/add-1/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-c608784b/explode-0
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-c608784b/explode-0/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-c608784b/explode-1
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-c608784b/explode-1/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-c608784b/mul-0
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-c608784b/mul-0/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-c608784b/mul-1
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-c608784b/mul-1/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-c608784b/sub-0
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-c608784b/sub-0/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-c608784b/sub-1
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/g-20260910T074715Z-c608784b/sub-1/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/incumbent
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/incumbent/add-0
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/incumbent/add-0/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/incumbent/add-1
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/incumbent/add-1/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/incumbent/explode-0
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/incumbent/explode-0/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/incumbent/explode-1
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/incumbent/explode-1/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/incumbent/mul-0
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/incumbent/mul-0/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/incumbent/mul-1
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/incumbent/mul-1/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/incumbent/sub-0
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/incumbent/sub-0/units
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/incumbent/sub-1
+R	D/tmp/abathur-bundle-o7BxXq/config/bench-sandboxes/a-20260910T074711Z-ea409f2c/incumbent/sub-1/units
+R	D/tmp/abathur-bundle-o7BxXq/config/genomes
+R	D/tmp/abathur-bundle-o7BxXq/config/kernels
+R	D/tmp/abathur-bundle-o7BxXq/genome
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/hooks
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/info
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/logs
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/logs/refs
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/logs/refs/heads
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/0d
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/10
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/34
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/36
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/43
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/48
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/49
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/54
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/5b
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/83
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/99
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/9c
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/a5
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/aa
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/c1
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/d3
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/da
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/df
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/ee
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/fa
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/info
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/objects/pack
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/refs
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/refs/heads
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/refs/tags
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/worktrees
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/worktrees/g-20260910T074714Z-68639ee7
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/worktrees/g-20260910T074714Z-68639ee7/logs
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/worktrees/g-20260910T074714Z-68639ee7/refs
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/worktrees/g-20260910T074715Z-bf8e5f66
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/worktrees/g-20260910T074715Z-bf8e5f66/logs
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/worktrees/g-20260910T074715Z-bf8e5f66/refs
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/worktrees/g-20260910T074715Z-c608784b
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/worktrees/g-20260910T074715Z-c608784b/logs
+R	D/tmp/abathur-bundle-o7BxXq/genome/.git/worktrees/g-20260910T074715Z-c608784b/refs
+R	D/tmp/abathur-bundle-o7BxXq/genome/.state
+R	D/tmp/abathur-bundle-o7BxXq/genome/.state/abathur
+R	D/tmp/abathur-bundle-o7BxXq/genome/units
+R	D/tmp/abathur-bundle-o7BxXq/xdg-cache
+R	D/tmp/abathur-bundle-o7BxXq/xdg-cache/abathur
+R	D/tmp/abathur-bundle-o7BxXq/xdg-cache/abathur/worktrees
+R	D/tmp/abathur-bundle-o7BxXq/xdg-cache/abathur/worktrees/ea409f2ce04100ed
+R	D/tmp/abathur-bundle-o7BxXq/xdg-cache/abathur/worktrees/ea409f2ce04100ed/g-20260910T074715Z-bf8e5f66
+R	D/tmp/abathur-bundle-o7BxXq/xdg-cache/abathur/worktrees/ea409f2ce04100ed/g-20260910T074715Z-bf8e5f66/units
+R	D/tmp/abathur-bundle-o7BxXq/xdg-cache/abathur/worktrees/ea409f2ce04100ed/g-20260910T074715Z-c608784b
+R	D/tmp/abathur-bundle-o7BxXq/xdg-cache/abathur/worktrees/ea409f2ce04100ed/g-20260910T074715Z-c608784b/units
+R	D/tmp/abathur-graft-1C6Ivp
+R	D/tmp/abathur-graft-1C6Ivp/bundles-src
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/.locks
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/.locks/9f1ba351916d5fb4.lock
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/g-20260910T074717Z-32c23f9b
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/g-20260910T074717Z-32c23f9b/add-0
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/g-20260910T074717Z-32c23f9b/add-0/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/incumbent
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/incumbent/add-0
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/incumbent/add-0/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/incumbent/add-1
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/incumbent/add-1/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/incumbent/explode-0
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/incumbent/explode-0/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/incumbent/explode-1
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/incumbent/explode-1/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/incumbent/mul-0
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/incumbent/mul-0/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/incumbent/mul-1
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/incumbent/mul-1/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/incumbent/sub-0
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/incumbent/sub-0/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/incumbent/sub-1
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/bench-sandboxes/graft-20260910T074717Z-aaf8dfce/incumbent/sub-1/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/genomes
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/graft-queue
+R	D/tmp/abathur-graft-1C6Ivp/cfg-dst/kernels
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/.locks
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-2522582a
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-2522582a/add-0
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-2522582a/add-0/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-2522582a/add-1
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-2522582a/add-1/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-2522582a/explode-0
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-2522582a/explode-0/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-2522582a/explode-1
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-2522582a/explode-1/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-2522582a/mul-0
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-2522582a/mul-0/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-2522582a/mul-1
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-2522582a/mul-1/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-2522582a/sub-0
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-2522582a/sub-0/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-2522582a/sub-1
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-2522582a/sub-1/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-c4c6c5f7
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-c4c6c5f7/add-0
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-c4c6c5f7/add-0/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-c4c6c5f7/add-1
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-c4c6c5f7/add-1/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-c4c6c5f7/explode-0
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-c4c6c5f7/explode-0/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-c4c6c5f7/explode-1
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-c4c6c5f7/explode-1/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-c4c6c5f7/mul-0
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-c4c6c5f7/mul-0/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-c4c6c5f7/mul-1
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-c4c6c5f7/mul-1/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-c4c6c5f7/sub-0
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-c4c6c5f7/sub-0/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-c4c6c5f7/sub-1
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/g-20260910T074710Z-c4c6c5f7/sub-1/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/incumbent
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/incumbent/add-0
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/incumbent/add-0/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/incumbent/add-1
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/incumbent/add-1/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/incumbent/explode-0
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/incumbent/explode-0/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/incumbent/explode-1
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/incumbent/explode-1/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/incumbent/mul-0
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/incumbent/mul-0/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/incumbent/mul-1
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/incumbent/mul-1/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/incumbent/sub-0
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/incumbent/sub-0/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/incumbent/sub-1
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/bench-sandboxes/a-20260910T074706Z-9f1ba351/incumbent/sub-1/units
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/genomes
+R	D/tmp/abathur-graft-1C6Ivp/cfg-src/kernels
+R	D/tmp/abathur-graft-1C6Ivp/shared
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/hooks
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/info
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/logs
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/logs/refs
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/logs/refs/heads
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/1f
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/34
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/36
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/43
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/48
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/54
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/5b
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/85
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/99
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/9c
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/9d
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/a5
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/a8
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/bb
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/cf
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/da
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/df
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/ee
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/fa
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/info
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/objects/pack
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/refs
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/refs/heads
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/refs/tags
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/worktrees
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/worktrees/g-20260910T074717Z-32c23f9b
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/worktrees/g-20260910T074717Z-32c23f9b/logs
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.git/worktrees/g-20260910T074717Z-32c23f9b/refs
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.state
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/.state/abathur
+R	D/tmp/abathur-graft-1C6Ivp/shared/genome/units
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/g-20260910T074717Z-32c23f9b
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/g-20260910T074717Z-32c23f9b/units
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/hooks
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/info
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/logs
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/objects
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/objects/1f
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/objects/34
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/objects/36
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/objects/43
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/objects/54
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/objects/5b
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/objects/99
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/objects/9c
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/objects/9d
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/objects/bb
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/objects/cf
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/objects/da
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/objects/df
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/objects/ee
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/objects/fa
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/objects/info
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/objects/pack
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/refs
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/refs/heads
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/.git/refs/tags
+R	D/tmp/abathur-graft-1C6Ivp/xdg-dst/abathur/worktrees/9f1ba351916d5fb4/snapshots/9d896e670e8590dafd9c2799c5715354833c172b/units
+R	D/tmp/abathur-graft-1C6Ivp/xdg-src
+R	D/tmp/abathur-graft-1C6Ivp/xdg-src/abathur
+R	D/tmp/abathur-graft-1C6Ivp/xdg-src/abathur/worktrees
+R	D/tmp/abathur-graft-1C6Ivp/xdg-src/abathur/worktrees/9f1ba351916d5fb4
+R	D/tmp/abathur-graft-1C6Ivp/xdg-src/abathur/worktrees/9f1ba351916d5fb4/g-20260910T074710Z-2522582a
+R	D/tmp/abathur-graft-1C6Ivp/xdg-src/abathur/worktrees/9f1ba351916d5fb4/g-20260910T074710Z-2522582a/units
+R	D/tmp/abathur-graft-1C6Ivp/xdg-src/abathur/worktrees/9f1ba351916d5fb4/g-20260910T074710Z-c4c6c5f7
+R	D/tmp/abathur-graft-1C6Ivp/xdg-src/abathur/worktrees/9f1ba351916d5fb4/g-20260910T074710Z-c4c6c5f7/units
+R	D/tmp/abathur-self-WJpn0v
+R	D/tmp/abathur-self-WJpn0v/config
+R	D/tmp/abathur-self-WJpn0v/config/genomes
+R	D/tmp/abathur-self-WJpn0v/config/kernels
+R	D/tmp/abathur-self-WJpn0v/harness
+R	D/tmp/abathur-self-WJpn0v/harness/.git
+R	D/tmp/abathur-self-WJpn0v/harness/.git/hooks
+R	D/tmp/abathur-self-WJpn0v/harness/.git/info
+R	D/tmp/abathur-self-WJpn0v/harness/.git/logs
+R	D/tmp/abathur-self-WJpn0v/harness/.git/logs/refs
+R	D/tmp/abathur-self-WJpn0v/harness/.git/logs/refs/heads
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/0e
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/0f
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/11
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/14
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/15
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/1b
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/1c
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/1f
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/20
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/21
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/23
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/29
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/2b
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/2d
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/2f
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/30
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/34
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/35
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/36
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/39
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/3d
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/40
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/41
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/43
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/44
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/45
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/47
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/4b
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/51
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/52
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/54
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/55
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/5b
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/5e
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/64
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/65
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/68
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/6b
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/6c
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/70
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/71
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/72
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/7c
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/7d
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/7e
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/80
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/83
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/84
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/85
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/89
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/8a
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/8b
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/8d
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/8f
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/90
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/91
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/96
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/99
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/9b
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/9e
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/9f
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/a1
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/a4
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/a5
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/a7
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/a9
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/aa
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/b0
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/b5
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/bb
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/bc
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/c1
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/c2
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/c8
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/c9
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/cb
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/ce
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/d0
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/d1
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/d3
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/d4
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/d5
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/d8
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/da
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/dc
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/dd
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/de
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/df
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/e3
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/e7
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/e8
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/ee
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/f0
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/f1
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/f3
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/f7
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/fd
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/ff
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/info
+R	D/tmp/abathur-self-WJpn0v/harness/.git/objects/pack
+R	D/tmp/abathur-self-WJpn0v/harness/.git/refs
+R	D/tmp/abathur-self-WJpn0v/harness/.git/refs/heads
+R	D/tmp/abathur-self-WJpn0v/harness/.git/refs/tags
+R	D/tmp/abathur-self-WJpn0v/harness/dist
+R	D/tmp/abathur-self-WJpn0v/harness/dist/bench
+R	D/tmp/abathur-self-WJpn0v/harness/dist/commands
+R	D/tmp/abathur-self-WJpn0v/harness/dist/core
+R	D/tmp/abathur-self-WJpn0v/harness/dist/core/evolve
+R	D/tmp/abathur-self-WJpn0v/harness/dist/test
+R	D/tmp/abathur-self-WJpn0v/harness/dist/util
+R	D/tmp/abathur-self-WJpn0v/harness/genomes
+R	D/tmp/abathur-self-WJpn0v/harness/genomes/toy-smoke
+R	D/tmp/abathur-self-WJpn0v/harness/genomes/toy-smoke/units
+R	D/tmp/abathur-self-WJpn0v/harness/graders
+R	D/tmp/abathur-self-WJpn0v/harness/scripts
+R	D/tmp/abathur-self-WJpn0v/harness/selfbench
+R	D/tmp/abathur-self-WJpn0v/harness/src
+R	D/tmp/abathur-self-WJpn0v/harness/src/bench
+R	D/tmp/abathur-self-WJpn0v/harness/src/commands
+R	D/tmp/abathur-self-WJpn0v/harness/src/core
+R	D/tmp/abathur-self-WJpn0v/harness/src/core/evolve
+R	D/tmp/abathur-self-WJpn0v/harness/src/test
+R	D/tmp/abathur-self-WJpn0v/harness/src/util
+R	D/tmp/abathur-self-WJpn0v/toy-genome
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/hooks
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/info
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/logs
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/logs/refs
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/logs/refs/heads
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/objects
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/objects/02
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/objects/34
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/objects/36
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/objects/43
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/objects/54
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/objects/5b
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/objects/69
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/objects/99
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/objects/bf
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/objects/da
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/objects/df
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/objects/ee
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/objects/info
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/objects/pack
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/refs
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/refs/heads
+R	D/tmp/abathur-self-WJpn0v/toy-genome/.git/refs/tags
+R	D/tmp/abathur-self-WJpn0v/toy-genome/units
+R	D/tmp/abathur-self-WJpn0v/xdg
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/selfbench-g-20260910T074720Z-c7e3fd93-R8kH4y
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/selfbench-g-20260910T074720Z-c7e3fd93-R8kH4y/genomes
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/selfbench-g-20260910T074720Z-c7e3fd93-R8kH4y/genomes/toy-smoke
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/selfbench-g-20260910T074720Z-c7e3fd93-R8kH4y/genomes/toy-smoke/units
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/selfbench-g-20260910T074720Z-c7e3fd93-R8kH4y/graders
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/selfbench-g-20260910T074720Z-c7e3fd93-R8kH4y/scripts
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/selfbench-g-20260910T074720Z-c7e3fd93-R8kH4y/selfbench
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/selfbench-g-20260910T074720Z-c7e3fd93-R8kH4y/src
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/selfbench-g-20260910T074720Z-c7e3fd93-R8kH4y/src/bench
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/selfbench-g-20260910T074720Z-c7e3fd93-R8kH4y/src/commands
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/selfbench-g-20260910T074720Z-c7e3fd93-R8kH4y/src/core
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/selfbench-g-20260910T074720Z-c7e3fd93-R8kH4y/src/core/evolve
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/selfbench-g-20260910T074720Z-c7e3fd93-R8kH4y/src/test
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/selfbench-g-20260910T074720Z-c7e3fd93-R8kH4y/src/util
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/.git
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/.git/hooks
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/.git/info
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/.git/logs
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/.git/objects
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/.git/objects/info
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/.git/objects/pack
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/.git/refs
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/.git/refs/heads
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/.git/refs/tags
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/genomes
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/genomes/toy-smoke
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/genomes/toy-smoke/units
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/graders
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/scripts
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/selfbench
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/src
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/src/bench
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/src/commands
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/src/core
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/src/core/evolve
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/src/test
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/1b8f0d8ee0fd50dbc897935c983390d6e4c82968/src/util
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/hooks
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/info
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/logs
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/0e
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/0f
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/11
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/14
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/15
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/1c
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/1f
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/20
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/21
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/23
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/29
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/2b
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/2d
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/2f
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/30
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/34
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/35
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/36
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/39
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/3d
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/40
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/43
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/44
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/45
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/47
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/4b
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/52
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/54
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/55
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/5b
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/64
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/65
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/68
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/6c
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/70
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/71
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/7d
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/7e
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/85
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/89
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/8a
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/8b
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/8d
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/8f
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/90
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/99
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/9b
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/9e
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/9f
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/a1
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/a4
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/a5
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/a7
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/a9
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/b0
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/b5
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/bb
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/bc
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/c1
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/c2
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/c8
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/c9
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/cb
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/ce
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/d0
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/d1
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/d3
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/d4
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/d8
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/da
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/dd
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/df
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/e3
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/e7
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/e8
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/ee
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/f0
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/f1
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/f3
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/f7
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/fd
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/info
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/objects/pack
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/refs
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/refs/heads
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/.git/refs/tags
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/genomes
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/genomes/toy-smoke
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/genomes/toy-smoke/units
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/graders
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/scripts
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/selfbench
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/src
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/src/bench
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/src/commands
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/src/core
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/src/core/evolve
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/src/test
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/4451dc4ccf586bdb021fbdc238b9c02e1133a01a/src/util
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/.git
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/.git/hooks
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/.git/info
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/.git/logs
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/.git/objects
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/.git/objects/info
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/.git/objects/pack
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/.git/refs
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/.git/refs/heads
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/.git/refs/tags
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/genomes
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/genomes/toy-smoke
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/genomes/toy-smoke/units
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/graders
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/scripts
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/selfbench
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/src
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/src/bench
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/src/commands
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/src/core
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/src/core/evolve
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/src/test
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/714cd190648ee1e47fe9229aabe9c59634d2ab37/src/util
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/.git
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/.git/hooks
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/.git/info
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/.git/logs
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/.git/objects
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/.git/objects/info
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/.git/objects/pack
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/.git/refs
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/.git/refs/heads
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/.git/refs/tags
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/genomes
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/genomes/toy-smoke
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/genomes/toy-smoke/units
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/graders
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/scripts
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/selfbench
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/src
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/src/bench
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/src/commands
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/src/core
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/src/core/evolve
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/src/test
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/7c181d18be635215ff727646bcad3dd340e8737f/src/util
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/969f176fe675731343d08dc745c665cb68ba7f23
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/969f176fe675731343d08dc745c665cb68ba7f23/.git
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/969f176fe675731343d08dc745c665cb68ba7f23/.git/hooks
+R	D/tmp/abathur-self-WJpn0v/xdg/abathur/worktrees/1913fcec3f2b015c/snapshots/969f176fe675731343d08dc745c665cb68ba7f23/.git/info
+R
+################ TRANSCRIPT: rt-docker-npm-transcript.txt ################
+=== C0 CONTROL: back-to-back manifests, NOTHING running (noise floor + copy-up check) ===
+7212
+c0a entries=7212 elapsed=2s ts=2026-09-10T16:04:48+08:00
+7212
+c0b entries=7212 elapsed=2s ts=2026-09-10T16:04:50+08:00
+--- C0 diff (c0a -> c0b):
+ADDED(0)
+REMOVED(0)
+MODIFIED(0)
+C0_RC=0
+7212
+c1 entries=7212 elapsed=1s ts=2026-09-10T16:04:51+08:00
+=== INSTALL (npm -g as root; full plant success incl /etc + /usr/local expected) ===
+PLANTED /root/.config/rt-npm-plant/rc-say.sh
+PLANTED /tmp/rt-npm-plant-tmp
+PLANTED /var/tmp/rt-npm-plant-vartmp
+PLANTED /etc/profile.d/rt-npm-plant.sh
+PLANTED /usr/local/bin/rt-npm-plant
+added 1 package in 487ms
+7783
+c2 entries=7783 elapsed=2s ts=2026-09-10T16:04:54+08:00
+--- C1 -> C2 install delta counts:
+ADDED=571
+REMOVED=0
+removed 1 package in 281ms
+7783
+c3 entries=7783 elapsed=2s ts=2026-09-10T16:04:57+08:00
+=== ACCEPTANCE DIFF c1 -> c3 (zero exclusions beyond virtual FS) ===
+ADDED(571)
+A	D/root/.config
+A	D/root/.config/rt-npm-plant
+A	D/root/.npm
+A	D/root/.npm/_cacache
+A	D/root/.npm/_cacache/content-v2
+A	D/root/.npm/_cacache/content-v2/sha512
+A	D/root/.npm/_cacache/content-v2/sha512/15
+A	D/root/.npm/_cacache/content-v2/sha512/15/81
+A	D/root/.npm/_cacache/index-v5
+A	D/root/.npm/_cacache/index-v5/95
+A	D/root/.npm/_cacache/index-v5/95/9d
+A	D/root/.npm/_cacache/index-v5/cc
+A	D/root/.npm/_cacache/index-v5/cc/54
+A	D/root/.npm/_cacache/tmp
+A	D/root/.npm/_logs
+A	D/tmp/node-compile-cache
+A	D/tmp/node-compile-cache/v24.21.0-x64-964aae3f-0
+A	F/etc/profile.d/rt-npm-plant.sh
+A	F/root/.config/rt-npm-plant/rc-say.sh
+A	F/root/.npm/_cacache/content-v2/sha512/15/81/253a6d6f5439904537674bfd886c2087c9d5c08977b1bcebe362d57c9f3763506387aeab256d9c5e6b381779d7424422193dabd383ec1820a84951db9d88
+A	F/root/.npm/_cacache/index-v5/95/9d/a018475c6f545d8af82088e9b8a01d2a0f5ec5f01185449cde2fb2f4bb1d
+A	F/root/.npm/_cacache/index-v5/cc/54/79b78b4a5aedc3423410a322e6e78372ff00a0f4792af3ee2ae1558926a5
+A	F/root/.npm/_logs/2026-09-10T08_04_52_150Z-debug-0.log
+A	F/root/.npm/_logs/2026-09-10T08_04_55_013Z-debug-0.log
+A	F/root/.npm/_update-notifier-last-checked
+A	F/tmp/node-compile-cache/v24.21.0-x64-964aae3f-0/00bf0630
+A	F/tmp/node-compile-cache/v24.21.0-x64-964aae3f-0/00e7fb07
+A	F/tmp/node-compile-cache/v24.21.0-x64-964aae3f-0/01c08d40
+A	F/tmp/node-compile-cache/v24.21.0-x64-964aae3f-0/0275a71a
+--- planted-target grep in c3 diff:
+A	D/root/.config/rt-npm-plant
+A	D/root/.npm
+A	D/root/.npm/_cacache
+A	D/root/.npm/_cacache/content-v2
+A	D/root/.npm/_cacache/content-v2/sha512
+A	D/root/.npm/_cacache/content-v2/sha512/15
+A	D/root/.npm/_cacache/content-v2/sha512/15/81
+A	D/root/.npm/_cacache/index-v5
+A	D/root/.npm/_cacache/index-v5/95
+A	D/root/.npm/_cacache/index-v5/95/9d
+A	D/root/.npm/_cacache/index-v5/cc
+A	D/root/.npm/_cacache/index-v5/cc/54
+=== NOISE-ZEROING EXCLUSION SET: second cycle with tool-noise excluded ===
+7194
+c1n entries=7194 elapsed=2s ts=2026-09-10T16:04:59+08:00
+7199
+c3n entries=7199 elapsed=2s ts=2026-09-10T16:05:02+08:00
+--- diff with NEXCL (planted /etc + /usr/local + /root/.config must show; npm cache hidden by design):
+ADDED(5)
+A	D/root/.config
+A	D/root/.config/rt-npm-plant
+A	F/etc/profile.d/rt-npm-plant.sh
+A	F/root/.config/rt-npm-plant/rc-say.sh
+A	F/usr/local/bin/rt-npm-plant
+REMOVED(0)
+MODIFIED(0)
+SCRIPT_RC=0
+
+################ TRANSCRIPT: rt-docker-pypi-transcript.txt ################
+=== C0 CONTROL: back-to-back manifests, NOTHING running (noise floor + copy-up check) ===
+5572
+c0a entries=5572 elapsed=1s ts=2026-09-10T16:09:12+08:00
+5572
+c0b entries=5572 elapsed=1s ts=2026-09-10T16:09:13+08:00
+--- C0 diff (c0a -> c0b):
+ADDED(0)
+REMOVED(0)
+MODIFIED(0)
+C0_RC=0
+5572
+c1 entries=5572 elapsed=1s ts=2026-09-10T16:09:14+08:00
+=== INSTALL (pip sdist as root; all 5 plants must land incl /etc + /usr/local) ===
+Successfully built rt-pypi-plant
+Successfully installed rt-pypi-plant-0.0.1
+6103
+c2 entries=6103 elapsed=1s ts=2026-09-10T16:10:01+08:00
+--- C1 -> C2 install delta counts:
+ADDED=531
+REMOVED=0
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+6093
+c3 entries=6093 elapsed=1s ts=2026-09-10T16:10:03+08:00
+=== ACCEPTANCE DIFF c1 -> c3 (zero exclusions beyond virtual FS) ===
+ADDED(521)
+A	D/root/.cache
+A	D/root/.cache/pip
+A	D/root/.cache/pip/http-v2
+A	D/root/.cache/pip/http-v2/0
+A	D/root/.cache/pip/http-v2/0/4
+A	D/root/.cache/pip/http-v2/0/4/1
+A	D/root/.cache/pip/http-v2/0/4/1/8
+A	D/root/.cache/pip/http-v2/0/4/1/8/c
+A	D/root/.cache/pip/http-v2/3
+A	D/root/.cache/pip/http-v2/3/7
+A	D/root/.cache/pip/http-v2/3/7/2
+A	D/root/.cache/pip/http-v2/3/7/2/a
+A	D/root/.cache/pip/http-v2/3/7/2/a/d
+A	D/root/.cache/pip/http-v2/a
+A	D/root/.cache/pip/http-v2/a/1
+A	D/root/.cache/pip/http-v2/a/1/9
+A	D/root/.cache/pip/http-v2/a/1/9/5
+A	D/root/.cache/pip/http-v2/a/1/9/5/3
+A	D/root/.cache/pip/http-v2/b
+A	D/root/.cache/pip/http-v2/b/b
+A	D/root/.cache/pip/http-v2/b/b/5
+A	D/root/.cache/pip/http-v2/b/b/5/b
+A	D/root/.cache/pip/http-v2/b/b/5/b/7
+A	D/root/.cache/pip/selfcheck
+A	D/root/.cache/pip/wheels
+A	D/root/.cache/pip/wheels/cb
+A	D/root/.cache/pip/wheels/cb/b1
+A	D/root/.cache/pip/wheels/cb/b1/fc
+A	D/root/.cache/pip/wheels/cb/b1/fc/e5d62f42d37466042571557d4b737c36a931e8f5dd237990e4
+--- planted-target + tool-noise grep in c3 diff:
+A	D/root/.cache
+A	D/root/.cache/pip
+A	D/root/.cache/pip/http-v2
+A	D/root/.cache/pip/http-v2/0
+A	D/root/.cache/pip/http-v2/0/4
+A	D/root/.cache/pip/http-v2/0/4/1
+A	D/root/.cache/pip/http-v2/0/4/1/8
+A	D/root/.cache/pip/http-v2/0/4/1/8/c
+A	D/root/.cache/pip/http-v2/3
+A	D/root/.cache/pip/http-v2/3/7
+A	D/root/.cache/pip/http-v2/3/7/2
+A	D/root/.cache/pip/http-v2/3/7/2/a
+=== NOISE-ZEROING: second cycle, pip cache + tmp trees excluded ===
+6042
+c1n entries=6042 elapsed=1s ts=2026-09-10T16:10:04+08:00
+6046
+c3n entries=6046 elapsed=0s ts=2026-09-10T16:10:09+08:00
+--- diff with NEXCL (planted /etc + /usr/local + /root/.config must show; pip wheel cache hidden by design):
+ADDED(4)
+A	D/root/.config/rt-pypi-plant
+A	F/etc/profile.d/rt-pypi-plant.sh
+A	F/root/.config/rt-pypi-plant/rc-say.sh
+A	F/usr/local/bin/rt-pypi-plant
+REMOVED(0)
+MODIFIED(0)
+SCRIPT_RC=0
+
+################ TRANSCRIPT: rt-lane3-transcript.txt ################
+##### RUBYGEMS (host, -i + GEM_HOME + throwaway HOME) #####
+g-base entries=615566 elapsed=24s
+PLANTED /tmp/rt-host-gc.qm5oJa/ghome/.config/rt-gem-plant/rc-say.sh
+PLANTED /tmp/rt-gem-plant-tmp
+PLANTED /var/tmp/rt-gem-plant-vartmp
+PLANT-DENIED /etc/profile.d/rt-gem-plant.sh Permission denied @ rb_sysopen - /etc/pr
+PLANT-DENIED /usr/local/bin/rt-gem-plant Permission denied @ rb_sysopen - /usr/lo
+  File: rt-gem-plant-0.0.1.gem
+Successfully installed rt-gem-plant-0.0.1
+1 gem installed
+g-mid entries=615571 elapsed=24s
+Successfully uninstalled rt-gem-plant-0.0.1
+g-final entries=615571 elapsed=23s
+--- gem acceptance diff (g-base before build -> g-final after uninstall):
+ADDED(5)
+A	D/tmp/rt-host-gc.qm5oJa/ghome/.config
+A	D/tmp/rt-host-gc.qm5oJa/ghome/.config/rt-gem-plant
+A	F/tmp/rt-gem-plant-tmp
+A	F/tmp/rt-host-gc.qm5oJa/ghome/.config/rt-gem-plant/rc-say.sh
+A	F/var/tmp/rt-gem-plant-vartmp
+REMOVED(0)
+MODIFIED(0)
+GEM_RC=1
+--- gem uninstall reversal of install root:
+gems-tree-entries-after-uninstall=0
+--- HOME survivors:
+~/.config
+~/.config/rt-gem-plant
+~/.config/rt-gem-plant/rc-say.sh
+##### CARGO (host, --root + disposable CARGO_HOME + throwaway HOME) #####
+c-base entries=615568 elapsed=23s
+   Installed package `rt-cargo-plant v0.0.1 (/tmp/rt-host-gc.qm5oJa/rt-cargo-plant)` (executable `rt-cargo-plant`)
+c-final entries=615573 elapsed=24s
+--- cargo acceptance diff base->final:
+ADDED(5)
+A	D/tmp/rt-host-gc.qm5oJa/chome/.config
+A	D/tmp/rt-host-gc.qm5oJa/chome/.config/rt-cargo-plant
+A	F/tmp/rt-cargo-plant-tmp
+A	F/tmp/rt-host-gc.qm5oJa/chome/.config/rt-cargo-plant/rc-say.sh
+A	F/var/tmp/rt-cargo-plant-vartmp
+REMOVED(0)
+MODIFIED(0)
+CARGO_RC=1
+--- cargo root after uninstall:
+cargoroot-entries-after-uninstall=0
+--- HOME survivors (cargo):
+~/.config
+~/.config/rt-cargo-plant
+~/.config/rt-cargo-plant/rc-say.sh
+GEMCARGO_RC=0
+Successfully_installed_lines=1
+Successfully_uninstalled_lines=1
+--- HOME2 survivors after clean uninstall (default cache policy):
+~/.cache
+~/.cache/pip
+HOME2 bytes after uninstall: 1020358
+CACHE_RC=0
+rc sha before: 6f81b105db3f5a953865adda0980bc6c52b17643c2f8a7ec0f0adc849f4c0cca
+
+Successfully installed aihr-0.2.2 annotated-doc-0.0.5 annotated-types-0.8.0 anyio-4.15.1 certifi-2026.7.22 charset_normalizer-3.5.1 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.19 markdown-it-py-4.2.0 mdurl-0.1.2 numpy-2.5.3 psycopg2-binary-2.9.13 pydantic-2.13.5 pydantic-core-2.46.5 pygments-2.21.0 pyyaml-6.0.3 requests-2.34.2 rich-13.9.4 shellingham-1.5.4 typer-0.27.2 typing-extensions-4.16.0 typing-inspection-0.4.4 urllib3-2.7.0
+HOME survivors: 0 (excluding .bashrc)
+--- entry points provided by aihr:
+bin: f2py
+bin: hr
+bin: httpx
+bin: idna
+bin: markdown-it
+bin: normalizer
+bin: numpy-config
+bin: pygmentize
+bin: typer
+bin: 𝜋thon
+--- hr --help (top):
+                                                                                
+ Usage: hr [OPTIONS] COMMAND [ARGS]...                                          
+                                                                                
+ HR Agent (人事) — model evaluation and role assignment for oh-my-openagent     
+                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --install-completion          Install completion for the current shell.      │
+│ --show-completion             Show completion for the current shell, to copy │
+│                               it or customize the installation.              │
+│ --help                        Show this message and exit.                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+--- attempt: hr setup
+installing plugins: opencode-hr-agent@0.2.2 opencode-fastdraw@1.1.1
+npm rejected the global install (directory not writable).
+Fix at user level — see README 'Install': set a user npm prefix
+(npm config set prefix ~/.npm-global) and re-run hr setup. Do not run npm as root.
+SETUP_RC=1
+rc sha after setup:    6f81b105db3f5a953865adda0980bc6c52b17643c2f8a7ec0f0adc849f4c0cca
+--- attempt: hr setup --uninstall
+Usage: hr setup [OPTIONS]
+Try 'hr setup --help' for help.
+╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ No such option: --uninstall                                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+UNINSTALL_RC=2
+rc sha after uninstall: 6f81b105db3f5a953865adda0980bc6c52b17643c2f8a7ec0f0adc849f4c0cca
+VERDICT: BYTE-IDENTICAL (reversibility PASS on this box)
+HR_RC=0
+
+################ TRANSCRIPT: rt-docker-npm-minexcl (rerun) ################
+m1 entries=7209 elapsed=1s
+PLANTED_LINES=5
+m2 entries=7219 elapsed=2s
+m3 entries=7216 elapsed=2s
+=== ACCEPTANCE m1 -> m3 (minimum exclusions; /tmp,/var/tmp,/etc,/usr/local observable) ===
+ADDED(7)
+A	D/root/.config
+A	D/root/.config/rt-npm-plant
+A	F/etc/profile.d/rt-npm-plant.sh
+A	F/root/.config/rt-npm-plant/rc-say.sh
+A	F/tmp/rt-npm-plant-tmp
+A	F/usr/local/bin/rt-npm-plant
+A	F/var/tmp/rt-npm-plant-vartmp
+REMOVED(0)
+MODIFIED(0)
+ACCEPT_RC=1
+MINEXCL_RC=0

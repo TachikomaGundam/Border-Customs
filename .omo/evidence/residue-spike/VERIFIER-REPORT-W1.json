@@ -1,0 +1,229 @@
+{
+  "verdict": "CONFIRMED_WITH_FINDINGS",
+  "confidence": 0.95,
+  "scope": "W1 adversarial verification of 'border scan' implementation (src/scan/* + src/commands/scan.ts + wiring)",
+  "evidence": [
+    {
+      "class": "A-static",
+      "item": "npm run typecheck",
+      "command": "npm run typecheck",
+      "output": "rc=0 (tsc --noEmit, no output)",
+      "claim_match": true
+    },
+    {
+      "class": "A-static",
+      "item": "npm run build",
+      "command": "npm run build",
+      "output": "rc=0; 'assets staged into dist/assets/'",
+      "claim_match": true
+    },
+    {
+      "class": "A-static",
+      "item": "full suite (timeout 900 npm test)",
+      "command": "timeout 900 npm test > /tmp/w1v-test.log 2>&1",
+      "output": "# tests 578 / # pass 574 / # fail 2 / # skipped 2 / # cancelled 0; failing set exactly: 'C5-1 subset discipline: a git-only PASS authorizes NO publish leg...' (test/channels.integration.test.ts:232) and 'C5-4 ordering: publish legs execute in descriptor order git→npm→pypi→crates→rubygems...' (test/channels.integration.test.ts:298) — both pre-existing, unrelated to scan",
+      "claim_match": true,
+      "note": "skipped 2 = the two opt-in E2E tests (BORDER_SCAN_NETWORK_E2E=1), confirms scan.test.ts opt-in guards"
+    },
+    {
+      "class": "B-behavior",
+      "item": "cr-scan rand_core@0.6.4 (live crates.io)",
+      "command": "border scan crates:rand_core@0.6.4",
+      "output": "rc=0; 'border scan crates:rand_core@0.6.4 PASS: 0 finding(s), 0 blocking'",
+      "claim_match": true
+    },
+    {
+      "class": "B-behavior",
+      "item": "left-pad@1.3.0 --json (live npm registry)",
+      "command": "border scan --json left-pad@1.3.0",
+      "output": "rc=0; JSON parses; keys present: schemaVersion, key, head, dirty, exposureSet, refSet, rulesHash, verdict, counts, findings, ts; verdict 'PASS'; counts object (8 keys: scanned/probed/blocking/failures/accepted/warned/stale/known-issue-names); findings []",
+      "claim_match": true
+    },
+    {
+      "class": "B-behavior",
+      "item": "x@1.0 (404)",
+      "command": "border scan x@1.0",
+      "output": "rc=2; one stderr line: 'border: engine run error: border scan could not fetch the artifact (HTTP 404 for https://registry.npmjs.org/x/1.0) — refusing to scan a partial or absent download (fail-closed)'; stdout empty",
+      "claim_match": true
+    },
+    {
+      "class": "B-behavior",
+      "item": "no-args usage",
+      "command": "border scan",
+      "output": "rc=2; one stderr line: 'border: argument error: border scan expects exactly one <spec> argument (got 0); usage: border scan <[ecosystem:]name@version> — e.g. border scan puppeteer@23'; stdout = 25-line usage table incl. 'scan inspect a third-party package ([ecosystem:]name@version) for residue' and 'subcommands: check, push, status, llm-request, llm-ingest, scan'",
+      "claim_match": true
+    },
+    {
+      "class": "B-behavior",
+      "item": "left-pad --json canonical Report schema check",
+      "command": "node -e 'const r=JSON.parse(require(\"fs\").readFileSync(\"/tmp/w1v-smoke/lp.json\",\"utf8\")); console.log(\"schemaVersion\",r.schemaVersion,\"verdict\",r.verdict,\"findings\",Array.isArray(r.findings),\"counts\",typeof r.counts)'",
+      "output": "schemaVersion 1 verdict PASS findings true counts object",
+      "claim_match": true
+    },
+    {
+      "class": "C1-tar-escape",
+      "item": "literal '../../../../' member (empirical GNU tar 1.35, exact extractArchive path: tar -xzf -C sandbox)",
+      "command": "tar --transform 's|^evil.txt|../../../../w1v-e/outside/escaped-dotdot.txt|' -czf dotdot.tgz -C src evil.txt && tar -xzf dotdot.tgz -C /tmp/w1v-e/sandbox",
+      "output": "member listing shows '../../../../w1v-e/outside/escaped-dotdot.txt'; extraction: 'tar: Removing leading `../../../../' from member names' + 'tar: ../../../../w1v-e/outside/escaped-dotdot.txt: Member name contains `..'' + 'tar: Exiting with failure status due to previous errors'; rc=2; outside dir empty",
+      "claim_match": true,
+      "verdict_detail": "GNU tar refuses '..' members at exit 2 → materialize maps to fail() EngineRunError → CLI rc2. No escape file landed (verified ls -A of outside dir)."
+    },
+    {
+      "class": "C1-tar-escape",
+      "item": "in-process probe: dotdot member via ScanFetcher seam through REAL runScanCore",
+      "command": "node --import tools/register-ts.mjs /tmp/w1v-probe/probe.ts (case C1a)",
+      "output": "{\"name\":\"C1a tar-dotdot-member\",\"spec\":\"npm:evil@1.0.0\",\"outcome\":\"THREW code=2\",\"newEscapes\":[],\"leftoverSandboxDirs\":[],\"stdoutLines\":[]}",
+      "claim_match": true
+    },
+    {
+      "class": "C1-tar-escape",
+      "item": "absolute-path member /tmp/w1v-e/outside/escaped-abs.txt",
+      "command": "tar -xzf abs.tgz -C /tmp/w1v-e/sandbox",
+      "output": "tar: Removing leading `/' from member names; rc=0; file landed inside sandbox at sandbox/tmp/w1v-e/outside/escaped-abs.txt (relative re-root, NOT outside); outside dir empty",
+      "claim_match": true,
+      "verdict_detail": "Absolute members are de-absolutized by GNU tar into the sandbox — no hostFS write. In-process probe C1b: THREW code=2, newEscapes []."
+    },
+    {
+      "class": "C2-symlink",
+      "item": "symlink '../../..' + file-through (empirical + in-process)",
+      "command": "tarfile (python): symlink evil/out→'../../..' + member 'evil/out/../../../../w1v-e/outside/via-sym.txt'; tar -xzf symthru.tgz -C sandbox",
+      "output": "tar: Removing leading `evil/out/../../../../' from member names + 'member name contains `..'' + 'Exiting with failure status'; rc=2; outside empty",
+      "claim_match": true,
+      "verdict_detail": "In-process probe C2a symlink-then-file-through: THREW code=2, newEscapes []; C2b symlink-deep: same; C2c hardlink→'../../../w1v-e/outside/via-hard.txt': 'tar: Cannot hard link to ... No such file or directory', rc=2, THREW code=2, no escapes. Symlink/hardlink traversal cannot write outside the sandbox."
+    },
+    {
+      "class": "C3-spec-fuzz",
+      "item": "11 adversarial spec strings through dist CLI",
+      "command": "for s in '' 'a@' '@scope' '@scope/name' 'npm:n@1@2' 'crates:../evil@1' 'pypi:PACKAGE WITH SPACES@1' 'rubygems:x@../../y' '<200-char a>@1.0.0' 'päçkägé@1.0.0' '包@1.0.0'; do border scan \"$s\"; done",
+      "output": "ALL rc=2; stderr exactly ONE line each; no stack trace; no rc0/rc1; English reasons: empty spec / invalid version / missing @version / invalid package name 'n@1' / invalid name '../evil' / invalid name 'PACKAGE WITH SPACES' / invalid version '../../y' / 200-char name → one-line 404 (engine run error, clean) / unicode names → invalid name 'päçkägé' & '包'. 25-line usage on stdout only for arg errors; 0 files in CWD; 0 leftover /tmp/border-scan-*",
+      "claim_match": true,
+      "verdict_detail": "C3 requires rc2 one-line or clean-404 rc2 — all 11 satisfied; no sandbox/file writes anywhere (CWD clean, /tmp/border-scan-* count 0)."
+    },
+    {
+      "class": "C4-size-cap",
+      "item": "header content-length > 200MiB cap (in-process)",
+      "command": "probe case C4a: metadata tarball fetch stubbed with contentLength = SCAN_MAX_ARTIFACT_BYTES+1",
+      "output": "{\"name\":\"C4a header-over-cap\",\"outcome\":\"THREW code=2\",\"newEscapes\":[],\"leftoverSandboxDirs\":[]}",
+      "claim_match": true
+    },
+    {
+      "class": "C4-size-cap",
+      "item": "lying content-length (100 bytes header, 201MiB stream) + omitted header + 201MiB stream",
+      "command": "probe cases C4b, C4c",
+      "output": "both THREW code=2; leftoverSandboxDirs [] — sandbox (and any partial file) removed in finally; no partial >cap file on disk after cleanup (leftover count 0)",
+      "claim_match": true,
+      "verdict_detail": "SCAN_MAX_ARTIFACT_BYTES=200*1024*1024 confirmed in src/scan/fetch.ts; readCapped aborts mid-stream when total exceeds cap; sandbox gone. FINAL-LEFT-OVER-SANDBOXES count=0 for all 8 probes."
+    },
+    {
+      "class": "C5-ledger-free",
+      "item": "successful scan under throwaway HOME with decoy .border/ledger.jsonl in CWD",
+      "command": "env -i HOME=/tmp/w1v-home PATH=/home/lab/.local/bin:/usr/bin:/bin node dist/index.js scan left-pad@1.3.0 (cwd=/tmp/w1v-c5 containing .border/ledger.jsonl decoy)",
+      "output": "rc=0 'border scan npm:left-pad@1.3.0 PASS: 0 finding(s), 0 blocking'; decoy sha256 BEFORE==AFTER (DECOY-UNMODIFIED); find shows CWD tree = only the pre-existing .border/ledger.jsonl decoy (no new .border/, no new files); throwaway HOME gains only .npm (npm tool cache — expected npm-channel behavior under the isolated HOME, not a ledger)",
+      "claim_match": true,
+      "note": "first attempt under env -i without gitleaks PATH failed closed rc=2 'engine binary gitleaks not found; border fails closed — install it or pass binPath' — itself evidence of fail-closed behavior; rerun with PATH incl. gitleaks dir succeeded rc0"
+    },
+    {
+      "class": "C6-git-isolation",
+      "item": "scan inside an existing git repo working dir",
+      "command": "git init -b main /tmp/w1v-c6; commit tracked.txt; border scan left-pad@1.3.0; git rev-parse HEAD; git status --porcelain",
+      "output": "HEAD before=96fc331be0123cf8c57d04d243f944bd8a584511, HEAD after identical (HEAD-UNCHANGED); git log unchanged (single 'init'); status --porcelain shows ONLY my own redirect files (? err.txt ? out.txt) — zero border-created entries, zero commits, clean",
+      "claim_match": true
+    },
+    {
+      "class": "E-honesty",
+      "item": "git status scope check",
+      "command": "git status --porcelain",
+      "output": "30 lines exactly as claimed: modified src/cli.ts, src/cli/types.ts, src/commands/index.ts, test/llm.test.ts (known GH013 fragment stray), .omo/boulder.json, .omo/run-continuation/ses_f7fe605bdffeNcjNxkDs5pvOGY.json, .omo/start-work/ledger.jsonl; untracked: .omo/evidence/residue-spike/* (prior-session strays), .omo/plans/border-inspect-roadmap.md, 4 .omo/run-continuation/ses_*.json, src/commands/scan.ts, src/scan/* (5 files), test/scan.{fetch,materialize,spec,test}.test.ts. No staged changes, no commits by worker (HEAD 2074169 = prior published state). DIST: no package.json/dist changes — build is untracked/ignored.",
+      "claim_match": true
+    },
+    {
+      "class": "E-honesty",
+      "item": "wiring diffs vs claim {cli.ts +1/-1, types.ts +2/-1, index.ts +2/-0}",
+      "command": "git diff --numstat src/cli.ts src/cli/types.ts src/commands/index.ts",
+      "output": "clira: 2 additions / 1 deletion (usage() gains line 36 'scan inspect a third-party package...', subcommands line gains ', scan'); types.ts: 1/1 (SUBCOMMANDS const gains 'scan'); index.ts: 2/0 (import runScan + handlers.scan)",
+      "claim_match": false,
+      "finding_ref": "F-1,F-2",
+      "note": "Claimed counts (+1/-1, +2/-1, +2/-0) vs actual (2/1, 1/1, 2/0): cli.ts +2 vs claimed +1, types.ts +1 vs claimed +2 — two off-by-one deviations in additions. Both files' diff CONTENT is exactly the described wiring (no hidden edits); this is a numeric misstatement in the DONECLAIM, not functional misrepresentation."
+    },
+    {
+      "class": "A-static",
+      "item": "67-new-tests claim (runtime count)",
+      "command": "node --import tools/register-ts.mjs --test --test-reporter=tap test/scan.{fetch,materialize,spec,test}.test.ts",
+      "output": "# tests 67 / # pass 65 / # fail 0 / # skipped 2 (the two opt-in E2E). Breakout: fetch 19, materialize 6, spec 30 (10 OK + 17 BAD table rows + 3 static), scan.test.ts 12",
+      "claim_match": true
+    },
+    {
+      "class": "E-honesty",
+      "item": "import-audit (no ledger | check.ts reach)",
+      "command": "grep -rnE 'ledger|check\\.ts' src/scan/ src/commands/scan.ts",
+      "output": "only src/scan/scan.ts:8 header COMMENT stating the contract ('never reach src/ledger/** or src/check.ts — no probes, no ledger writes, no push') and src/scan/materialize.ts:15 'import { runGitChecked } from \"../check/context.ts\"' (shared git helper util; NOT the check engine, no ledger import anywhere). Test 'scan path never imports the ledger or the check pipeline (zero-side-effect constraint)' passes.",
+      "claim_match": true,
+      "note": "materialize.ts borrows runGitChecked from check/context.ts — a benign shared git helper. Verified it is not ledger/check-engine code by import graph & the passing zero-side-effect test."
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-1",
+      "severity": "low",
+      "class": "E-honesty",
+      "detail": "DONECLAIM line-count for src/cli.ts ('+1/-1') does not match actual diff (numstat 2/1). The additional addition is the usage() table line 'scan inspect a third-party package...' which the claim omitted from the count.",
+      "repro": "git diff --numstat src/cli.ts"
+    },
+    {
+      "id": "F-2",
+      "severity": "low",
+      "class": "E-honesty",
+      "detail": "DONECLAIM line-count for src/cli/types.ts ('+2/-1') does not match actual diff (numstat 1/1). Single SUBCOMMANDS-array line changed. Numeric overstatement by one addition.",
+      "repro": "git diff --numstat src/cli/types.ts"
+    },
+    {
+      "id": "F-3",
+      "severity": "info",
+      "class": "C5-observation",
+      "detail": "After a successful npm scan under throwaway HOME, /tmp/w1v-home gained a .npm tool cache directory (npm-channel behavior). Not a border ledger write (verified: no ledger.jsonl, no .border anywhere); included for transparency.",
+      "repro": "ls -A /tmp/w1v-home"
+    }
+  ],
+  "tar_escape_probe": {
+    "method": "dual-path: (1) empirical GNU tar 1.35 extraction using the exact extractArchive invocation (tar -xzf <archive> -C <sandbox>), (2) in-process injection through the ScanFetcher seam (deps={fetcher}) into the REAL runScanCore/materializePipeline — probe at /tmp/w1v-probe/probe.ts, 8 crafted artifact byte-streams, run under node --import tools/register-ts.mjs; escape detection via before/after existsSync over 7 hostile target paths under /tmp/w1v-c1 + /tmp/border-scan-* leftover sweep",
+    "cases": [
+      "C1a member '../../../../w1v-e/outside/escaped-dotdot.txt' → GNU tar rc=2 'Member name contains ..' → materialize fail() → CLI rc2; in-process THREW code=2; NO file landed",
+      "C1b absolute member '/tmp/w1v-e/outside/escaped-abs.txt' → tar strips leading '/' → file re-rooted INSIDE sandbox (sandbox/tmp/w1v-e/outside/escaped-abs.txt); outside victim dir empty; in-process THREW code=2",
+      "C2a symlink 'evil/out'→'../../..' + member 'evil/out/../../../../w1v-e/outside/via-sym.txt' → GNU tar rc=2 ('..' in member name after normalization); in-process THREW code=2, newEscapes []",
+      "C2b symlink chain a/b→'../../../../w1v-c1/outside' + a/b/x.txt → refused rc=2 (probe C2b)",
+      "C2c hardlink →'../../../w1v-e/outside/via-hard.txt' → 'tar: Cannot hard link' rc=2 (probe C2c)",
+      "C4a contentLength=SCAN_MAX+1 → refused before body; C4b lying header (100B) + 201MiB stream → aborted mid-stream; C4c null header + 201MiB stream → aborted; all THREW code=2 with leftoverSandboxDirs []"
+    ],
+    "result": "NO ESCAPE. Zero files written outside the sandbox across all 8 in-process probes and all empirical extractions; zero leftover sandbox dirs. Existing /tmp/w1v-c1/outside/via-sym.txt and /tmp/w1v-c1/sandbox/orig.txt are verifier-fixtures from tar-empirics (mtime 17:14, created before the probe rerun; outside dir explicitly reset + rechecked empty after probes).",
+    "blocker": false
+  },
+  "deviation_opinions": [
+    {
+      "id": "D1",
+      "topic": "crates envelope-scrub (Cargo.toml.orig, .cargo-ok, .cargo_vcs_info.json removed before git-stage)",
+      "mechanism": "src/scan/materialize.ts deletes Cargo.toml.orig, .cargo-ok, .cargo_vcs_info.json from the extracted .crate before git add/commit, dodging cargo-1.93's exit-101 abort ('invalid inclusion of reserved file name Cargo.toml.orig') seen live on rand_core@0.6.4",
+      "opinion": "ACCEPTABLE with a documented tradeoff. The scrub removes exactly the files that break cargo 1.93's reserved-name gate; none of them carry repository-residue signal the T-scan is designed to catch — Cargo.toml.orig is the pristine pre-rewrite manifest (residue lives in authors/hosts/paths, which live in the scanned Cargo.toml), .cargo-ok is a build-progress marker, .cargo_vcs_info.json records the upstream git commit (provenance metadata, not sandbox residue). Same for the .cargo-ok/.cargo_vcs_info drop. The alternative (fail closed on every such crate) would make crates: scanning unusable — a worse outcome for the fail-closed gate than a documented, deterministic envelope reduction. HOWEVER: the scrub is a step AWAY from scan-what-was-shipped purity: a malicious crate could hide a build-only hook in Cargo.toml.orig and count on it being stripped. Recommended hardening (not blocking): log the removed file names + sha256 in the scan report or quarantine them under the sandbox instead of deleting, so the evidence is preserved for forensics; and assert the scrub only applies to those three exact names.",
+      "severity": "note",
+      "blocking": false
+    },
+    {
+      "id": "D2",
+      "topic": "gemspec-less gem fails closed at exit 2",
+      "mechanism": "rubygems materialize unpacks data.tar.gz but does not require a gemspec; the rubygems channel then fails (exit 2) when the gem is gemspec-less",
+      "opinion": "ACCEPTABLE per fail-closed doctrine, and the right call. A gem without a gemspec cannot be structurally verified: gemspec is where install-time behavior (executables, extension build scripts, runtime dependencies, and the metadata a T-scan keys its rules on) is declared. Falling back to data-only inspection would silently scan a structurally uninspectable artifact and produce a confidence the artifact doesn't merit — precisely the 'green light on an unverifiable input' failure mode border exists to prevent. Exit-2 with a one-line cause is correct. If the ecosystem ever ships legitimately gemspec-less gems, the fix is an explicit operator opt-in flag (e.g. --allow-gemspec-less), not silent data-only fallback.",
+      "severity": "note",
+      "blocking": false
+    },
+    {
+      "id": "D3",
+      "topic": "UA Latin-1 fix (SCAN_USER_AGENT Latin-1-safe)",
+      "mechanism": "fetch.ts uses an ASCII-safe UA string; test asserts undici rejects non-ASCII header values",
+      "opinion": "ACCEPTABLE and correct — undici throws on non-Latin-1 header values; the ASCII-only UA is the minimal compliant fix and carries no residue-relevant information loss.",
+      "severity": "note",
+      "blocking": false
+    }
+  ],
+  "verdict_rationale": "A (typecheck/build/test-suite + exact C5-1/C5-4 failing pair) CLEAN; B (all 4 live smokes + --json canonical Report schema) CLEAN; C1/C2 (tar traversal: dotdot/absolute/symlink/hardlink) NO ESCAPE via both empirical GNU-tar path and in-process seam injection; C3 (11 spec fuzz cases) all rc2 one-line, no trace, no writes; C4 (size cap incl. lying content-length) aborts rc2 with sandbox removed; C5 (ledger-free runtime, decoy unmodified, no .border in CWD) CLEAN; C6 (existing git repo untouched, HEAD unchanged, status clean) CLEAN; D deviation opinions recorded non-blocking; E: git-status scope and import-audit CLEAN, but two line-count deviations in the DONECLAIM (F-1 cli.ts +2/-1 vs +1/-1, F-2 types.ts 1/1 vs +2/-1) — numeric only, diff content is exactly the claimed wiring, no hidden edits, no commits, no ledger reach. 67-new-tests claim verified at runtime = exactly 67 (65 pass + 2 opt-in skips). Verdict CONFIRMED_WITH_FINDINGS: no C-class escape (blocker condition absent), all functional/security classes pass; two low-severity numeric misstatements recorded as findings.",
+  "repro_command_for_issues": "none (no needs-fix issues)",
+  "cleanup": "rm -rf /tmp/w1v-* (all scratch); no repo files touched except this report"
+}
