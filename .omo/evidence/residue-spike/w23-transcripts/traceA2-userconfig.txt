@@ -1,0 +1,46 @@
+===== baseline shas =====
+b56a53fc5b9a82d2c9a1a18b0c4bf4a599946cfa4e0cff1dfbc0f7fafb04de81  /root/.config/opencode/opencode.json
+162915313b372b4a97e0018946d49c8a86343a5c63c22678e77fca78d8a83e37  /root/.config/opencode/tui.json
+npm-install rc=0
+===== opencode-hr install =====
+ADD  /root/.config/opencode/opencode.json
+     + opencode-hr-agent@0.2.2
+ADD  /root/.config/opencode/opencode.json
+     + opencode-fastdraw@1.1.1
+ADD  /root/.config/opencode/tui.json
+     + opencode-fastdraw@1.1.1
+
+Restart opencode, then expect hr_* + fastdraw_* tools (and /fastdraw in the TUI).
+Uninstall with: opencode-hr uninstall
+install rc=0
+===== opencode-hr uninstall =====
+DEL  /root/.config/opencode/opencode.json (-2)
+DEL  /root/.config/opencode/tui.json (-1)
+
+Note: opencode keeps installed copies under ~/.cache/opencode/packages; delete there if you also want the code gone.
+uninstall rc=0
+===== byte comparison vs original =====
+8955c8023b553ce29ba49801fd839fa92901af7d3a80badd7312127061e7e441  /root/.config/opencode/opencode.json
+d7ed84abb92015505aeee12498310b8f80f718d605902bfec515afa6f48499ea  /root/.config/opencode/tui.json
+CFG: MODIFIED — diff:
+2,4c2,6
+<     "$schema": "https://opencode.ai/config.json",
+<     "model": "anthropic/claude-x",
+<     "plugin": ["acme-user-plugin@1.0.0"]
+---
+>   "$schema": "https://opencode.ai/config.json",
+>   "model": "anthropic/claude-x",
+>   "plugin": [
+>     "acme-user-plugin@1.0.0"
+>   ]
+TUI: MODIFIED — diff:
+2c2,3
+<     "theme": "dracula"
+---
+>   "theme": "dracula",
+>   "plugin": []
+===== semantics check: foreign entry survived? =====
+1
+1
+cleanup npm rc=0
+===== TRACE A2 DONE =====

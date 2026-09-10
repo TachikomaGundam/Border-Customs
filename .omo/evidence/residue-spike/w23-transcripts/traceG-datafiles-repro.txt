@@ -1,0 +1,21 @@
++ pip install -q --no-deps -i https://mirrors.aliyun.com/pypi/simple/ aihr==0.2.2
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+
+[notice] A new release of pip is available: 25.0.1 -> 26.2.1
+[notice] To update, run: pip install --upgrade pip
++ find /usr/local/share/aihr -exec ls -ld '{}' ';'
+drwxr-xr-x 3 root root 4096 Sep 10 18:23 /usr/local/share/aihr
+drwxr-xr-x 2 root root 4096 Sep 10 18:23 /usr/local/share/aihr/configs
+-rw-r--r-- 1 root root 3124 Sep 10 18:23 /usr/local/share/aihr/configs/fleet.yaml
+-rw-r--r-- 1 root root 6451 Sep 10 18:23 /usr/local/share/aihr/configs/seats.yaml
+-rw-r--r-- 1 root root 18581 Sep 10 18:23 /usr/local/share/aihr/configs/knowledge.yaml
+-rw-r--r-- 1 root root 1476 Sep 10 18:23 /usr/local/share/aihr/configs/deployable.yaml
+-rw-r--r-- 1 root root 3525 Sep 10 18:23 /usr/local/share/aihr/configs/models.yaml
+-rw-r--r-- 1 root root 3311 Sep 10 18:23 /usr/local/share/aihr/configs/thresholds.yaml
+-rw-r--r-- 1 root root 1106 Sep 10 18:23 /usr/local/share/aihr/configs/hr.toml.example
++ pip uninstall -y -q aihr
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
++ find /usr/local/share/aihr -exec ls -ld '{}' ';'
+drwxr-xr-x 2 root root 4096 Sep 10 18:24 /usr/local/share/aihr
++ echo 'exit=0 (dir listing: only orphan dir remains, no children)'
+exit=0 (dir listing: only orphan dir remains, no children)

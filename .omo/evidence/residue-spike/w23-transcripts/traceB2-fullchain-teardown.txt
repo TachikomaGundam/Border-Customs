@@ -1,0 +1,24 @@
+--- USER-SURFACE delta base vs after-setup (excluding npm/pip internal stores) ---
+1a2,3
+> 8050c45aa0d7f0abf20ddbb31db424ced9fa434a8f0626db1c9d867fe7b772e0  /root/.config/opencode/opencode.json
+> 577ff7e1337062745ad5d24077140ad88d36330617f9421206099052bf3a5fe8  /root/.config/opencode/tui.json
+===== PHASE 5: wheel-side removal attempt (expect: NO such verb) =====
+╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ No such option: --uninstall                                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+wheel-uninstall rc=0 (nonzero + usage error = founding gap: wheel owns install, ships no inverse)
+===== PHASE 6: manual chain teardown (npm-managed + registrar uninstall) =====
+DEL  /root/.config/opencode/opencode.json (-2)
+DEL  /root/.config/opencode/tui.json (-1)
+
+Note: opencode keeps installed copies under ~/.cache/opencode/packages; delete there if you also want the code gone.
+removed 56 packages in 517ms
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a 
+===== PHASE 7: final residue over FULL user surface =====
+1a2,3
+> 068a0adbb2eba2c396b7e935d87ef13d1cf36926d96114939678d1053c5861f3  /root/.config/opencode/opencode.json
+> 068a0adbb2eba2c396b7e935d87ef13d1cf36926d96114939678d1053c5861f3  /root/.config/opencode/tui.json
+FULLCHAIN: RESIDUE PRESENT (files above)
+3e93e169b6239e8ce2302532741ceb2ba84c1261abd52048c2a7782e84eb915f  /root/.bashrc
+4efc26cce9fc137a852f36eaf356f2da243f4022c3cac86f051feb2e1f46c59b  /root/.profile
+===== TRACE B DONE =====

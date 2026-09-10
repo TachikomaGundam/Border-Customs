@@ -1,0 +1,63 @@
+===== PHASE 0: baseline =====
+PATH: /opt/node-v22.20.0-linux-x64/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+python: Python 3.12.14
+3e93e169b6239e8ce2302532741ceb2ba84c1261abd52048c2a7782e84eb915f  /root/.bashrc
+4efc26cce9fc137a852f36eaf356f2da243f4022c3cac86f051feb2e1f46c59b  /root/.profile
+===== PHASE 1: pip install aihr (published wheel — install-time behaviour) =====
+
+[notice] A new release of pip is available: 25.0.1 -> 26.2.1
+[notice] To update, run: pip install --upgrade pip
+pip rc=0
+installed hr.__version__ = 0.2.1
+--- pip INSTALL-TIME mutation check (wheel must write nothing outside site-packages) ---
+/root/.bashrc: OK
+/root/.profile: OK
+RC: UNTOUCHED by pip install
+PIP: ZERO user-surface mutation (rc/PATH/config clean)
+===== PHASE 2: python3 -m hr setup --help (what removal verbs does the wheel expose?) =====
+                                                                                
+ Usage: hr setup [OPTIONS]                                                      
+                                                                                
+ Install the pinned OpenCode plugins and register them — one-shot bootstrap.    
+                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --no-npm          Skip the npm install step; only (re-)run opencode config   │
+│                   registration.                                              │
+│ --help            Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+grep --uninstall in option list:
+0
+0 (no uninstall option exists in wheel CLI)
+===== PHASE 3: python3 -m hr setup (drives npm install -g + opencode-hr install) =====
+installing plugins: opencode-hr-agent@0.2.2 opencode-fastdraw@1.1.1
+ADD  /root/.config/opencode/opencode.json
+     + opencode-hr-agent@0.2.2
+ADD  /root/.config/opencode/opencode.json
+     + opencode-fastdraw@1.1.1
+ADD  /root/.config/opencode/tui.json
+     + opencode-fastdraw@1.1.1
+Restart opencode, then expect hr_* + fastdraw_* tools (and /fastdraw in the TUI).
+Uninstall with: opencode-hr uninstall
+done. Restart opencode; hr_* and fastdraw_* tools (and /fastdraw) should now be present.
+hr-setup rc=0
+===== PHASE 4: post-setup observation =====
+--- rc/PATH after hr setup: did the PATH story materialise on Linux? ---
+/root/.bashrc: OK
+/root/.profile: OK
+RC: BYTE-UNCHANGED after hr setup (wheel writes NO rc)
+PATH still: /opt/node-v22.20.0-linux-x64/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+--- what hr setup actually persisted ---
+8050c45aa0d7f0abf20ddbb31db424ced9fa434a8f0626db1c9d867fe7b772e0  /root/.config/opencode/opencode.json
+577ff7e1337062745ad5d24077140ad88d36330617f9421206099052bf3a5fe8  /root/.config/opencode/tui.json
+{
+  "plugin": [
+    "opencode-hr-agent@0.2.2",
+    "opencode-fastdraw@1.1.1"
+  ]
+}
+/opt/node-v22.20.0-linux-x64/bin/opencode-hr
+--- USER-SURFACE delta base vs after-setup (excluding npm/pip internal stores) ---
+1a2,3
+> 8050c45aa0d7f0abf20ddbb31db424ced9fa434a8f0626db1c9d867fe7b772e0  /root/.config/opencode/opencode.json
+> 577ff7e1337062745ad5d24077140ad88d36330617f9421206099052bf3a5fe8  /root/.config/opencode/tui.json

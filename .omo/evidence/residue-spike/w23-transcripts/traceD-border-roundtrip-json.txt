@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "key": "24ac117a2d15153d095daf002e24642d2a362e8c6412109218c16bdd2a8182b7",
+  "head": "7c06e6adba7bdee4568923e7bdddf8368a18e879",
+  "dirty": false,
+  "exposureSet": [
+    "npm:opencode-hr-agent@0.2.2"
+  ],
+  "refSet": [],
+  "rulesHash": "9af6047e90b213a33f1d3573e9abecb8a8cc4784a037ed58e9ff6a51e8879b53",
+  "verdict": "PASS",
+  "counts": {
+    "INFO": 0,
+    "LOW": 0,
+    "MEDIUM": 0,
+    "HIGH": 0,
+    "CRITICAL": 0,
+    "total": 0,
+    "blocking": 0,
+    "warnings": 0
+  },
+  "findings": [],
+  "ts": "2026-09-10T17:27:32.957Z"
+}
