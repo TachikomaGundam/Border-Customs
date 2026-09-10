@@ -65,6 +65,7 @@ test("published artifact consumer smoke: border --help fires through the npm bin
     const helpOut = help.stdout ?? "";
     assert.ok(helpOut.trim().length > 0, "silent-bin incident regression: shim --help exited 0 with ZERO stdout");
     assert.match(helpOut, /scan/, "`border --help` via shim must list the scan subcommand");
+    assert.match(helpOut, /roundtrip/, "`border --help` via shim must list the roundtrip subcommand");
 
     // Control path the smoke step already used pre-incident: absolute dist —
     // proves both spellings now resolve to the same canonical module.
@@ -72,6 +73,7 @@ test("published artifact consumer smoke: border --help fires through the npm bin
     const direct = spawnSync(process.execPath, [installedDist, "--help"], { cwd: project, env, encoding: "utf8", timeout: 60_000 });
     runChecked(direct, "border --help via absolute dist", 60_000);
     assert.match(direct.stdout ?? "", /scan/, "`border --help` via absolute dist path must list the scan subcommand");
+    assert.match(direct.stdout ?? "", /roundtrip/, "`border --help` via absolute dist path must list the roundtrip subcommand");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
