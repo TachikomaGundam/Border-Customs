@@ -1,6 +1,7 @@
 {
   "name": "border-customs",
-  "version": "0.3.1",
+  "version": "0.3.2",
+  "//": "publint is a runtime dep (exact pin): the npm-stage engine is invoked via bin resolution against the installed layout, so consumers get the publint-fail leg out of the box; the dev suite resolves the same node_modules/.bin/publint — no devDependencies entry is needed for it to stay green.",
   "description": "Fail-closed git push gate: secret scanning + supply-chain checks before any remote leaves the machine",
   "type": "module",
   "bin": {
@@ -30,13 +31,13 @@
     "@secretlint/secretlint-rule-no-homedir": "13.0.5",
     "@secretlint/secretlint-rule-pattern": "13.0.5",
     "@secretlint/secretlint-rule-preset-recommend": "13.0.5",
+    "publint": "0.3.24",
     "yaml": "2.9.0",
     "zod": "4.5.4"
   },
   "devDependencies": {
     "@types/node": "22.19.0",
     "esbuild": "0.25.12",
-    "publint": "0.3.24",
     "secretlint": "13.0.5",
     "typescript": "5.9.3",
     "verdaccio": "6.10.2"
