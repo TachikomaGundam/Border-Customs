@@ -214,6 +214,28 @@ restate. The empirical roundtrip (install → snapshot → uninstall → rc-delt
 valve. **border is NOT a malware sandbox**: it never executes, intercepts, or sandboxes the
 code it reads; it matches text and blocks the push.
 
+#### Proof valve: `residue.requireProof` (0.4.0)
+
+Static analysis stops at capability. `residue: { requireProof: true }` (strict; default **off**)
+raises the bar for publish channels: when the residue scan flags a blocking-capable finding on a
+staged artifact, `border check` can no longer PASS that channel on signatures alone — the
+artifact's sha256 must also carry a **fresh empirical roundtrip verdict** in the ledger.
+
+The check gate NEVER runs Docker itself (there is nothing to trust it to run); the proof is
+pre-supplied out-of-band by `border roundtrip <spec>`, which installs the real bytes, diffs the
+filesystem, and appends a `t:"roundtrip"` ledger record — `{artifactSha256, verdict:
+clean|residue, rulesHash, ts, rows}` — keyed by the exact bytes it fetched. A `residue` verdict
+still counts as a proof-of-fact: the valve demands *evidence someone looked*, and the finding
+itself keeps blocking until it stops tripping the scan.
+
+- Missing proof ⇒ new native CRITICAL `roundtrip-proof-missing`; proof whose `rulesHash` no
+  longer matches (classifier, engine, or config changed — including the flag flip itself) ⇒
+  `roundtrip-proof-stale`. Freshness is exactly the fingerprint pattern: rotating the policy
+  invalidates cached verdicts, PASSes included.
+- `border roundtrip` records by default (`--record` is the default; opt out with `--no-record`).
+- Both new rules are ordinary findings: the allow-list can waive them and every waiver is
+  enumerated in `allowHits` — no hidden channel.
+
 ## Architecture: `border push`
 
 `border push` is a state machine over per-target states, recomputed from live git queries,
@@ -630,4 +652,10 @@ MIT, see [LICENSE](LICENSE).
 
 ## 中文概要
 
-border 是一个 fail-closed(失败即拦截)的推送前门禁 CLI:`npm install -g border-customs` 安装,在仓库里跑 `border check`。它扫描 git 历史、工作区(未跟踪文件同样是一等输入)、归档、tag 注释和将要发布的 npm/PyPI/crates/RubyGems 字节,检出密钥与供应链风险;只有当"当前状态指纹"存在新鲜且完整的 PASS 记录时才允许 `border push --yes` 放行。指纹是 sha256(head、porcelain 摘要、规则哈希、暴露面、ref 集合、有效目标)六元组,任何一处变动,旧的 PASS 立即失效,必须重查。流水线:gitleaks(历史+工作区+tag,内置 8.30.1 规则,仓库自带的 ignore 文件直接判 CRITICAL)+ secretlint(进程内,AWS Key 规则强制开启)+ 原生规则(AI 会话产物闭集、提交身份白名单含传输对象检查)+ 注册表预检(版本已存在=必须 bump,名称被外人占有=拒绝;空响应/超时/解析失败一律 exit 2,沉默绝不等于不存在)。构件只构建一次进 `.border/dist/`,扫描的就是发布的字节,发布时再哈希比对,不一致直接拒发。跳过台账让重复检查不到 1 秒,但回放前先重算指纹并重新 pack 验证新鲜度。报告只输出掩码片段(sha256 摘要 + 前4…后4)。push 是多目标状态机,多 remote 先做全有或全无的 fast-forward 预检,永不 force-push;npm/twine/cargo/gem 的凭据经 stdio 透传,border 从不触碰。0.2.0 新增 crates.io 与 RubyGems 通道(公开 crates.io 固定、rubygems 可用 host 覆盖私有镜像),既有配置行为不变。0.3.0 新增残留扫描(residue gate):发布字节里的安装期钩子按 T0-T4 闭集签名表分类(闭集 T1 树内钩子降为 MEDIUM,未知形态原样保留 CRITICAL),外加跨包管理器写入、配对标记缺失(`# BEGIN` 块只检测不豁免)与 gem 不可解析扩展共七条 `residue-*` 规则;`residue.enabled` 是唯一豁免开关且改动指纹使旧 PASS 失效,规则表与分类器源码进入 rulesHash,改一个签名即强制重查。静态分析只证明"能力"不证明"事实",border 不是恶意软件沙箱,从不执行被读代码。可选 LLM 层 border 自身从不调用模型 API:`llm-request` 导出掩码审阅包,`llm-ingest` 严格校验 agent 结论并重算裁决。退出码即合同:0 通过、1 拦截、2 门禁无法作答,任何"工具不健康"都不可能被误读为干净。MIT 许可,无遥测,除你配置的注册表预检外不联网。
+border 是一个 fail-closed(失败即拦截)的推送前门禁 CLI:`npm install -g border-customs` 安装,在仓库里跑 `border check`。它扫描 git 历史、工作区(未跟踪文件同样是一等输入)、归档、tag 注释和将要发布的 npm/PyPI/crates/RubyGems 字节,检出密钥与供应链风险;只有当"当前状态指纹"存在新鲜且完整的 PASS 记录时才允许 `border push --yes` 放行。指纹是 sha256(head、porcelain 摘要、规则哈希、暴露面、ref 集合、有效目标)六元组,任何一处变动,旧的 PASS 立即失效,必须重查。流水线:gitleaks(历史+工作区+tag,内置 8.30.1 规则,仓库自带的 ignore 文件直接判 CRITICAL)+ secretlint(进程内,AWS Key 规则强制开启)+ 原生规则(AI 会话产物闭集、提交身份白名单含传输对象检查)+ 注册表预检(版本已存在=必须 bump,名称被外人占有=拒绝;空响应/超时/解析失败一律 exit 2,沉默绝不等于不存在)。构件只构建一次进 `.border/dist/`,扫描的就是发布的字节,发布时再哈希比对,不一致直接拒发。跳过台账让重复检查不到 1 秒,但回放前先重算指纹并重新 pack 验证新鲜度。报告只输出掩码片段(sha256 摘要 + 前4…后4)。push 是多目标状态机,多 remote 先做全有或全无的 fast-forward 预检,永不 force-push;npm/twine/cargo/gem 的凭据经 stdio 透传,border 从不触碰。0.2.0 新增 crates.io 与 RubyGems 通道(公开 crates.io 固定、rubygems 可用 host 覆盖私有镜像),既有配置行为不变。0.3.0 新增残留扫描(residue gate):发布字节里的安装期钩子按 T0-T4 闭集签名表分类(闭集 T1 树内钩子降为 MEDIUM,未知形态原样保留 CRITICAL),外加跨包管理器写入、配对标记缺失(`# BEGIN` 块只检测不豁免)与 gem 不可解析扩展共七条 `residue-*` 规则;`residue.enabled` 是唯一豁免开关且改动指纹使旧 PASS 失效,规则表与分类器源码进入 rulesHash,改一个签名即强制重查。静态分析只证明"能力"不证明"事实",border 不是恶意软件沙箱,从不执行被读代码。0.4.0 新增证明阀
+`residue.requireProof`(默认关,strict):开启后,发布构件若触发阻断级 `residue-*` 发现,通道 PASS
+还要求账本里存在按其 sha256 索引且 rulesHash 新鲜的 `border roundtrip` 实测记录——check 自身从不
+运行 Docker,证据由 `border roundtrip` 离线写入(默认记账,`--no-record` 关闭),clean 与 residue
+两种裁决都算"事实已在";缺记录判 `roundtrip-proof-missing`、rulesHash 过期判
+`roundtrip-proof-stale`(均 CRITICAL/native,与普通发现同受白名单管辖并在 allowHits 枚举),翻转
+该配置即轮换 rulesHash,所有缓存 PASS 自动失效。可选 LLM 层 border 自身从不调用模型 API:`llm-request` 导出掩码审阅包,`llm-ingest` 严格校验 agent 结论并重算裁决。退出码即合同:0 通过、1 拦截、2 门禁无法作答,任何"工具不健康"都不可能被误读为干净。MIT 许可,无遥测,除你配置的注册表预检外不联网。

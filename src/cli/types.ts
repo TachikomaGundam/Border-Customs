@@ -26,6 +26,8 @@ export type Flags = {
   readonly requireEngine?: readonly string[];
   readonly llm: boolean;
   readonly json: boolean;
+  /** `border roundtrip` proof leg: undefined/true = record (default ON), false only via --no-record. */
+  readonly record?: boolean;
 };
 
 export type Writer = (line: string) => void;

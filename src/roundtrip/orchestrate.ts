@@ -24,7 +24,12 @@ import { join } from "node:path";
 
 import { EXIT_ERROR, exitCodeFromVerdict, UnknownArgError, type BorderExit } from "../cli/exit.ts";
 import type { Ctx } from "../cli/types.ts";
-import { EngineRunError } from "../engines/support.ts";
+import { loadConfig } from "../config.ts";
+import { resolveRepoDir } from "../check/context.ts";
+import { computeCheckRulesHash, computeConfigDigest, type LoadedConfig } from "../check/rulesHash.ts";
+import { probeEngines } from "../engines/policy.ts";
+import { EngineRunError, type EngineOptions } from "../engines/support.ts";
+import { appendRecord, buildRoundtripRecord } from "../ledger/records.ts";
 import { computeVerdict, countFindings, type Finding, type Report } from "../findings.ts";
 import { TextSanitizer } from "../redact.ts";
 import { renderReportJson } from "../report.ts";
@@ -242,9 +247,54 @@ export async function runRoundtripCore(ctx: Ctx, deps: RoundtripDeps = {}): Prom
       }
       ctx.stdout(line(`roundtrip: ${String(report.findings.length)} residue row(s); install-delta ${String(installDelta)} files`));
     }
+    // Default-ON proof leg (W2.2): the roundtrip VERDICT decides the exit code;
+    // the ledger RECORD is the portable fact `border check` consumes under
+    // residue.requireProof. Both outcomes are recorded — clean and residue
+    // alike; the existence of the fact, not its content, is the proof.
+    if (ctx.flags.record !== false) {
+      await recordRoundtripProof(ctx, sha256Hex(bytes), report.findings.length, report.findings.length === 0 ? "clean" : "residue");
+    }
     return exitCodeFromVerdict(verdict);
   } finally {
     rmSync(baseDir, { recursive: true, force: true });
+  }
+}
+
+// Fail-closed-by-absence, writer side: any problem minting the proof (no
+// config, not a repo, probe degraded, disk error) degrades to a stderr notice
+// and NO record — the valve then blocks on absence rather than trusting a
+// half-minted one. Never changes the roundtrip exit code.
+async function recordRoundtripProof(ctx: Ctx, artifactSha256: string, rows: number, verdict: "clean" | "residue"): Promise<void> {
+  const notice = (msg: string): void => ctx.stderr(`roundtrip: ${msg}`);
+  try {
+    const env: EngineOptions["env"] = ctx.env;
+    const load = loadConfig({
+      cwd: ctx.cwd,
+      ...(ctx.flags.config !== undefined ? { configPath: ctx.flags.config } : {}),
+      ...(env !== undefined ? { env } : {}),
+    });
+    let effective: LoadedConfig | null = null;
+    if (load.kind === "loaded") effective = load;
+    else if (load.explicit !== undefined) effective = { kind: "loaded", config: load.explicit.config, warnings: [], source: load.explicit.source };
+    if (effective === null) {
+      notice("no border.yaml here — proof NOT recorded");
+      return;
+    }
+    const repoDir = resolveRepoDir(ctx.cwd, { ...(env !== undefined ? { env } : {}) });
+    const probe = await probeEngines(effective.config, { ...(env !== undefined ? { env } : {}) });
+    if (probe.degraded) {
+      notice("engine probe degraded — cannot mint the rulesHash this proof must match; proof NOT recorded");
+      return;
+    }
+    const rulesHash = await computeCheckRulesHash({
+      engineVersions: probe.engineVersions,
+      configDigest: computeConfigDigest(effective),
+      ...(env !== undefined ? { env } : {}),
+    });
+    appendRecord(repoDir, buildRoundtripRecord({ artifactSha256, verdict, rulesHash, rows }));
+    notice(`proof recorded for ${artifactSha256.slice(0, 12)}… (verdict ${verdict}, ${String(rows)} residue row(s))`);
+  } catch (err) {
+    notice(`proof NOT recorded (${err instanceof Error ? err.message : String(err)}) — 'border check' with residue.requireProof will treat this artifact as unproven`);
   }
 }
 
