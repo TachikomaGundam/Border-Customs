@@ -33,6 +33,7 @@ export function usage(): string {
     "  status         show gate state, config, and engine versions",
     "  llm-request    emit the provenance request for LLM-authored commits",
     "  llm-ingest     record provenance captured by the harness",
+    "  scan           inspect a third-party package ([ecosystem:]name@version) for residue",
     "",
     "flags:",
     "  --config <path>             config file (default: ./border.yaml, then git-remote fallback)",
@@ -46,7 +47,7 @@ export function usage(): string {
     "",
     "exit codes: 0 pass (MEDIUM/INFO/LOW allowed) | 1 gate-blocked (CRITICAL/HIGH) or partial push | 2 config/tool error",
     "",
-    "subcommands: check, push, status, llm-request, llm-ingest",
+    "subcommands: check, push, status, llm-request, llm-ingest, scan",
   ].join("\n");
 }
 
