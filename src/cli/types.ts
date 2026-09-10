@@ -13,7 +13,7 @@
 // gate-blocked⇒1, gate-unavailable⇒2. It must never print a misleading 0.
 import type { BorderExit } from "./exit.ts";
 
-export const SUBCOMMANDS = ["check", "push", "status", "llm-request", "llm-ingest"] as const;
+export const SUBCOMMANDS = ["check", "push", "status", "llm-request", "llm-ingest", "scan"] as const;
 
 export type Subcommand = (typeof SUBCOMMANDS)[number];
 
