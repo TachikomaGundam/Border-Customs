@@ -345,7 +345,7 @@ test("R4-JSON: border check --json keeps the exact report/Finding schema with th
 
 // ---------------------------------------------------------------- 6. README / Changelog pins
 
-test("R4-DOC: README names all seven residue rule ids with severities matching the single RESIDUE_SEVERITIES home, honest-boundary lines, and the 0.3.0 bump", () => {
+test("R4-DOC: README names all seven residue rule ids with severities matching the single RESIDUE_SEVERITIES home, honest-boundary lines, and the pinned package version", () => {
   const readme = readFileSync(join(BORDER_ROOT, "README.md"), "utf8");
   for (const [rule, severity] of Object.entries(RESIDUE_SEVERITIES)) {
     const rows = readme.split("\n").filter((l) => l.includes(`\`${rule}\``) && l.toUpperCase().includes(severity.toUpperCase()));
@@ -358,5 +358,5 @@ test("R4-DOC: README names all seven residue rule ids with severities matching t
   assert.ok(readme.includes("0.4.0"), "roundtrip valve pointer = 0.4.0");
   assert.ok(readme.includes("### 0.3.0"), "Changelog 0.3.0 entry present");
   const pkg = JSON.parse(readFileSync(join(BORDER_ROOT, "package.json"), "utf8")) as { version: string };
-  assert.equal(pkg.version, "0.3.0", "plan R4 line 93 pins the 0.3.0 bump");
+  assert.equal(pkg.version, "0.3.1", "W1.4 supersedes R4's 0.3.0 pin: patch bump for the scan polish (package.json remains the single version source)");
 });
