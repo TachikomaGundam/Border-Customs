@@ -117,7 +117,11 @@ disk (established R-series protocol).
   negotiation, loopback bind vs `localhost` IPv6 resolution, runner proxy env
   (HTTP_PROXY unset but npm globalconfig?), verdaccio sqlite/logs under /tmp cleanup race.
   Fix at source (test or product), revert forensics, dry-run green with AC trio gone.
-- [ ] W3.2 golden normalization: replace raw-sha goldens with NORMALIZED digests — .gem:
+- [x] W3.2 golden normalization — DONE 2026-09-12 (this commit): runner-proven green
+  (34629359428), adversarial CONVERGED (VERIFIER-REPORT-W32.json, 36-case parser table,
+  RAW publish re-hash backstop proven); product-side .gem skip-parity normalization
+  audit-justified (RubyGems 3.4.x gzip-mtime stamps).
+  Original: replace raw-sha goldens with NORMALIZED digests — .gem:
   sha over uncompressed contents.tar.gz + metadata MINUS `rubygems_version`/
   `gem_version` fields; channels golden: strip env-fingerprint components from the check
   key (enumerate which hash inputs carry toolchain truth — audit first, then normalize);
@@ -125,6 +129,8 @@ disk (established R-series protocol).
 - [ ] W3.3 allowlist v2 → allowlist v0: PARTIAL 2026-09-11 (v2->v3, AC trio retired in
   583c76c); remainder blocked on W3.2 (channels golden + gem duo incl flaky-green) +
   border-push-channels C5 landing.
+  All 6 env reds now gone (v4 = {C5-1,C5-4}); remainder awaits border-push-channels
+  landing, then pure allowlist deletion.
   Original: with 6 env reds gone, revert gate to sanctioned-
   pair only; when border-push-channels lands C5-1/C5-4 green (separate plan, not here) →
   plain `npm test`. Update workflow comments + ledger retirement log. If the 2 C5s still

@@ -15,10 +15,32 @@
 // Anything that can go wrong (packer missing, pack failure, zero artifacts,
 // artifacts never recorded) fails toward a FULL re-check: freshness is
 // proven, never assumed.
+// W3.2 (.omo/plans/border-inspect-roadmap.md): the .gem parity metric is a
+// NORMALIZED content digest, not the raw file sha256 — `gem build` embeds
+// toolchain stamps (rubygems_version/gem_version, and on RubyGems versions
+// without pinned timestamps also the gzip-header mtime and the metadata
+// date) whose byte-stability is a property of the local toolchain, not of
+// the packaged content: the raw sha is per-environment truth (spike §e held
+// on the measured RubyGems 3.6.7; runner images drift — W3.1 residual, the
+// gem duo was flaky-green on CI). The normalized digest is sha256 over the
+// gunzipped data.tar.gz canonicalized per entry (name, typeflag, exec bits,
+// content sha256 — mtimes/uid/gid/uname/gname/umask-only mode bits dropped)
+// plus the gunzipped metadata minus its `rubygems_version`/`gem_version`/
+// `date` stamp lines and the EMPTY deprecated-serializer keys 3.4.x emits and
+// 3.6.x drops (autorequire/description/email/homepage/post_install_message/
+// signing_key — a SET value still rides the digest); checksums.yaml.gz is
+// excluded (it hashes the raw gz member bytes). Still caught: every shipped
+// file's bytes, path, order and exec bit, and the metadata's substance.
+// Tolerated: build stamps and empty legacy keys only. Ledger
+// records and the publish-time same-bytes re-hash stay RAW — a drifted
+// builder still uploads the exact certified bytes; only the skip-ledger
+// repack comparison normalizes. Anything unparseable fails closed to null
+// ⇒ parity mismatch ⇒ FULL re-check, never a skip.
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 
 import type { CheckContext } from "../check/context.ts";
 import type { EngineOptions } from "../engines/support.ts";
@@ -40,6 +62,117 @@ export type FreshnessOptions = { readonly env?: EngineOptions["env"] };
 
 function sha256File(path: string): string {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+/* ------------------------------------------------------------------ .gem content digest (W3.2) */
+
+/** One member of a plain ustar archive: the header fields the content digest reads. */
+type TarMember = { readonly content: Buffer; readonly typeFlag: number; readonly mode: number; readonly linkName: string };
+
+/** Octal tar header field ("0000664\0" / "664 ") → number. */
+function octalField(block: Buffer, start: number, end: number): number | null {
+  const text = block.subarray(start, end).toString("utf8").replace(/[\0 ].*$/, "");
+  if (text === "") return 0;
+  if (!/^[0-7]+$/.test(text)) return null;
+  return Number.parseInt(text, 8);
+}
+
+/**
+ * Walk a plain ustar buffer into its entries, in archive order, duplicates
+ * kept (parity must not let a repeated name shadow a payload entry). A
+ * malformed header (bad magic, unparseable size, truncation) yields null —
+ * callers treat that as "cannot prove parity" (fail closed), never as "clean".
+ * The .gem members and a rubygems data.tar.gz are plain ustar; pax/GNU
+ * extended-header entries (x, g, L, K) are skipped: they carry per-file
+ * timestamps and long-name plumbing, i.e. exactly the toolchain truth the
+ * content digest must not be sensitive to (fixture paths fit the 100-byte
+ * name field in every measured RubyGems version).
+ */
+function tarEntries(buf: Buffer): { readonly name: string; readonly member: TarMember }[] | null {
+  const magic = buf.subarray(257, 263).toString("latin1");
+  if (!magic.startsWith("ustar")) return null;
+  const out: { name: string; member: TarMember }[] = [];
+  let off = 0;
+  while (off + 512 <= buf.length) {
+    const header = buf.subarray(off, off + 512);
+    if (header.every((b) => b === 0)) return out;
+    const size = octalField(header, 124, 136);
+    if (size === null) return null;
+    const mode = octalField(header, 100, 108);
+    if (mode === null) return null;
+    const typeFlag = header[156] ?? 0x30;
+    const body = off + 512;
+    if (body + size > buf.length) return null;
+    const name = header.subarray(0, 100).toString("utf8").replace(/\0.*$/, "");
+    const linkName = header.subarray(157, 257).toString("utf8").replace(/\0.*$/, "");
+    if (typeFlag !== 0x78 && typeFlag !== 0x67 && typeFlag !== 0x4c && typeFlag !== 0x4b) {
+      out.push({ name, member: { content: buf.subarray(body, body + size), typeFlag, mode, linkName } });
+    }
+    off = body + Math.ceil(size / 512) * 512;
+  }
+  return out;
+}
+
+/** Metadata lines that stamp the BUILDING toolchain / build instant, never the payload. */
+const GEM_METADATA_STAMP_RE = /^(rubygems_version|gem_version|date):/;
+
+/**
+ * Deprecated Gem::Specification fields: RubyGems <= 3.4 serializes them as
+ * EMPTY keys, 3.6+ drops them from the stream entirely (measured locally by
+ * building the same fixture under RubyGems 3.6.7 and 3.4.20 — the runner
+ * image's version). Dropping only the empty forms keeps the pin blind to the
+ * serializer's housekeeping while a gemspec that actually SETS one of these
+ * fields still rides the digest (a value line survives the filter).
+ */
+const GEM_LEGACY_EMPTY_RE = /^(autorequire|description|email|homepage|post_install_message|signing_key):[ ]*$/;
+
+function sha256Hex(buf: Buffer): string {
+  return createHash("sha256").update(buf).digest("hex");
+}
+
+/**
+ * Normalized content digest of a .gem (the plain-tar container `gem build`
+ * emits: metadata.gz + data.tar.gz [+ checksums.yaml.gz]). Raw byte parity
+ * across two builds holds only on RubyGems versions that pin every build
+ * timestamp; the content digest holds for ANY builder as long as the packaged
+ * payload is identical — see module header for the exact tolerate/catch line.
+ * null ⇒ not a parseable .gem ⇒ parity unprovable ⇒ fail closed to a re-check.
+ */
+export function gemContentDigest(bytes: Buffer): string | null {
+  const outer = tarEntries(bytes);
+  if (outer === null) return null;
+  const meta = outer.find((e) => e.name === "metadata.gz")?.member;
+  const data = outer.find((e) => e.name === "data.tar.gz")?.member;
+  if (meta === undefined || data === undefined) return null;
+  let metadata: string;
+  let inner: Buffer;
+  try {
+    metadata = gunzipSync(meta.content).toString("utf8");
+    inner = gunzipSync(data.content);
+  } catch {
+    return null;
+  }
+  const innerEntries = tarEntries(inner);
+  if (innerEntries === null) return null;
+  const chain = createHash("sha256");
+  for (const { name, member: m } of innerEntries) {
+    chain
+      .update(name)
+      .update("\u0000")
+      .update(String(m.typeFlag))
+      .update("\u0000")
+      .update(String(m.mode & 0o111))
+      .update("\u0000")
+      .update(m.linkName)
+      .update("\u0000")
+      .update(sha256Hex(m.content))
+      .update("\u0000");
+  }
+  const metaStripped = metadata
+    .split("\n")
+    .filter((line) => !GEM_METADATA_STAMP_RE.test(line) && !GEM_LEGACY_EMPTY_RE.test(line))
+    .join("\n");
+  return createHash("sha256").update("border-gem-content-v1\u0000").update(chain.digest("hex")).update("\u0000").update(metaStripped).digest("hex");
 }
 
 let packSeq = 0;
@@ -100,10 +233,13 @@ export function packCrateArtifacts(repoDir: string, o: FreshnessOptions = {}): r
  *  multi-gemspec tree, a non-literal identity or any s.date assignment makes
  *  the repack return null ⇒ full re-check every time, fail-closed never a
  *  skip ✓), built with -o into a throwaway dir under .border/tmp and digested.
- *  Digest parity holds because gem build is byte-deterministic per tree
- *  (spike §e: fixed 1980-01-02 date); the digest is blind to git HEAD, so the
- *  key match (HEAD) + this repack (worktree bytes) compose the real proof. */
-export function packRubygemsArtifacts(repoDir: string, o: FreshnessOptions = {}): readonly LedgerArtifact[] | null {
+ *  Parity is the W3.2 normalized content digest (module header): raw bytes
+ *  are byte-deterministic per tree only on RubyGems versions that pin every
+ *  build timestamp (spike §e measured 3.6.7), so the raw sha rides the ledger
+ *  for the same-bytes publish proof while the repack comparison reads
+ *  content. The digest is blind to git HEAD, so the key match (HEAD) + this
+ *  repack (worktree bytes) compose the real proof. */
+export function packRubygemsArtifacts(repoDir: string, o: FreshnessOptions = {}): readonly RepackArtifact[] | null {
   packSeq += 1;
   const ident = singleTreeGemspec(repoDir);
   if (ident === null) return null;
@@ -120,16 +256,25 @@ export function packRubygemsArtifacts(repoDir: string, o: FreshnessOptions = {})
     if (r.error !== undefined || r.status !== 0) return null;
     const files = readdirSync(dest).filter((f) => f.endsWith(".gem")).sort();
     if (files.length === 0) return null;
-    return files.map((f) => ({ file: f, sha256: sha256File(join(dest, f)) }));
+    return files.map((f) => {
+      const raw = readFileSync(join(dest, f));
+      return { file: f, sha256: sha256Hex(raw), contentDigest: gemContentDigest(raw) };
+    });
   } finally {
     rmSync(dest, { recursive: true, force: true });
   }
 }
 
+/** A freshness repack entry: the recorded {file, sha256} plus, for formats
+ *  whose raw bytes carry builder stamps (.gem, W3.2), the normalized content
+ *  digest the parity check compares. `contentDigest: null` ⇒ the built file
+ *  is not a parseable .gem ⇒ parity unprovable ⇒ fail closed to a re-check. */
+export type RepackArtifact = LedgerArtifact & { readonly contentDigest?: string | null };
+
 /** Re-pack implementations, keyed by channel id — the ONE look-up for the
  *  "repack" strategy (npm, crates and rubygems; a channel with no entry —
  *  pypi's key-match proof is the whole strategy — can never be a repacker). */
-export const REPACKERS: Readonly<Partial<Record<PublishChannelId, (repoDir: string, o: FreshnessOptions) => readonly LedgerArtifact[] | null>>> = {
+export const REPACKERS: Readonly<Partial<Record<PublishChannelId, (repoDir: string, o: FreshnessOptions) => readonly RepackArtifact[] | null>>> = {
   npm: packNpmArtifacts,
   crates: packCrateArtifacts,
   rubygems: packRubygemsArtifacts,
@@ -142,23 +287,43 @@ function repackChannels(): readonly PublishChannelId[] {
     .map((c) => c.id);
 }
 
+/** Parity value of one .gem entry: the repack side carries the precomputed
+ *  content digest; the record side is re-derived from its bytes (fail closed
+ *  to null on missing/unparseable files). */
+function gemParity(entry: RepackArtifact, repoDir: string): string | null {
+  if (entry.contentDigest !== undefined) return entry.contentDigest;
+  try {
+    return gemContentDigest(readFileSync(join(repoDir, entry.file)));
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Compare the repack-per-channel digests only (extension-filtered). Records
  * list repo-relative .border/dist paths (GAP B: the pipeline's own pack) while
  * the freshness repack yields bare tarball names from a deleted tmp dir —
  * basenames are the shared identity. The repackable subset excludes non-
  * reproducible formats (pypi wheels/sdists), whose freshness rides the
- * key match (round-2 LOW).
+ * key match (round-2 LOW). .gem entries compare by the W3.2 normalized
+ * content digest; any unprovable parity (null) fails closed to a re-check.
  */
-function sameArtifacts(a: readonly LedgerArtifact[], b: readonly LedgerArtifact[], extensions: readonly string[]): boolean {
-  const digests = (xs: readonly LedgerArtifact[]): string[] =>
-    xs
-      .filter((x) => extensions.some((ext) => x.file.slice(x.file.lastIndexOf("/") + 1).endsWith(ext)))
-      .map((x) => `${x.file.slice(x.file.lastIndexOf("/") + 1)}\u0000${x.sha256}`)
-      .sort();
+function sameArtifacts(a: readonly LedgerArtifact[], b: readonly RepackArtifact[], extensions: readonly string[], repoDir: string): boolean {
+  const digests = (xs: readonly RepackArtifact[]): string[] | null => {
+    const out: string[] = [];
+    for (const x of xs) {
+      const base = x.file.slice(x.file.lastIndexOf("/") + 1);
+      const ext = extensions.find((e) => base.endsWith(e));
+      if (ext === undefined) continue;
+      const parity = ext === ".gem" ? gemParity(x, repoDir) : x.sha256;
+      if (parity === null) return null;
+      out.push(`${base}\u0000${parity}`);
+    }
+    return out.sort();
+  };
   const ka = digests(a);
   const kb = digests(b);
-  return ka.length === kb.length && ka.every((x, i) => x === kb[i]);
+  return ka !== null && kb !== null && ka.length === kb.length && ka.every((x, i) => x === kb[i]);
 }
 
 /**
@@ -178,7 +343,7 @@ export function verifyArtifactFreshness(
   const needed = repackChannels().filter((t) => record.effectiveTargets.includes(t));
   if (needed.length === 0) return true;
   if (record.artifacts === null) return false;
-  const now: LedgerArtifact[] = [];
+  const now: RepackArtifact[] = [];
   for (const id of needed) {
     const pack = REPACKERS[id];
     if (pack === undefined) return false;
@@ -193,5 +358,6 @@ export function verifyArtifactFreshness(
       const channel = publishChannels().find((c) => c.id === id);
       return channel?.artifactExtensions ?? [];
     }),
+    repoDir,
   );
 }

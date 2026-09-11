@@ -1,0 +1,189 @@
+publish	Setup Node	﻿2026-09-11T17:03:40.5114663Z ##[group]Run actions/setup-node@v6
+publish	Setup Node	2026-09-11T17:03:40.5115319Z with:
+publish	Setup Node	2026-09-11T17:03:40.5115757Z   node-version: 24
+publish	Setup Node	2026-09-11T17:03:40.5116248Z   package-manager-cache: false
+publish	Setup Node	2026-09-11T17:03:40.5116786Z   check-latest: false
+publish	Setup Node	2026-09-11T17:03:40.5120514Z   token: ***
+publish	Setup Node	2026-09-11T17:03:40.5120957Z env:
+publish	Setup Node	2026-09-11T17:03:40.5121415Z   REF_NAME: forensics/w32-normalization
+publish	Setup Node	2026-09-11T17:03:40.5122010Z   EVENT_NAME: workflow_dispatch
+publish	Setup Node	2026-09-11T17:03:40.5122555Z ##[endgroup]
+publish	Setup Node	2026-09-11T17:03:40.6598560Z Found in cache @ /opt/hostedtoolcache/node/24.20.0/x64
+publish	Setup Node	2026-09-11T17:03:40.6601359Z ##[group]Environment details
+publish	Setup Node	2026-09-11T17:03:41.0554103Z node: v24.20.0
+publish	Setup Node	2026-09-11T17:03:41.0556124Z npm: 11.19.0
+publish	Setup Node	2026-09-11T17:03:41.0557285Z yarn: 1.22.22
+publish	Setup Node	2026-09-11T17:03:41.0559752Z ##[endgroup]
+publish	Install dependencies	﻿2026-09-11T17:03:41.0724023Z ##[group]Run npm ci
+publish	Install dependencies	2026-09-11T17:03:41.0775611Z shell: /usr/bin/bash -e {0}
+publish	Install dependencies	2026-09-11T17:03:41.0776845Z env:
+publish	Install dependencies	2026-09-11T17:03:41.0777874Z   REF_NAME: forensics/w32-normalization
+publish	Install dependencies	2026-09-11T17:03:41.0779234Z   EVENT_NAME: workflow_dispatch
+publish	Install dependencies	2026-09-11T17:03:41.0780439Z ##[endgroup]
+publish	Install dependencies	2026-09-11T17:03:46.3709347Z 
+publish	Install dependencies	2026-09-11T17:03:46.3719228Z added 419 packages, and audited 420 packages in 5s
+publish	Install dependencies	2026-09-11T17:03:46.3720041Z 
+publish	Install dependencies	2026-09-11T17:03:46.3720722Z 98 packages are looking for funding
+publish	Install dependencies	2026-09-11T17:03:46.3721358Z   run `npm fund` for details
+publish	Install dependencies	2026-09-11T17:03:46.3812682Z 
+publish	Install dependencies	2026-09-11T17:03:46.3813443Z 6 moderate severity vulnerabilities
+publish	Install dependencies	2026-09-11T17:03:46.3814006Z 
+publish	Install dependencies	2026-09-11T17:03:46.3814449Z To address issues that do not require attention, run:
+publish	Install dependencies	2026-09-11T17:03:46.3815051Z   npm audit fix
+publish	Install dependencies	2026-09-11T17:03:46.3815302Z 
+publish	Install dependencies	2026-09-11T17:03:46.3815750Z To address all issues (including breaking changes), run:
+publish	Install dependencies	2026-09-11T17:03:46.3816411Z   npm audit fix --force
+publish	Install dependencies	2026-09-11T17:03:46.3816728Z 
+publish	Install dependencies	2026-09-11T17:03:46.3816959Z Run `npm audit` for details.
+publish	Install dependencies	2026-09-11T17:03:46.3827326Z npm warn install-scripts 1 package has install scripts not yet covered by allowScripts:
+publish	Install dependencies	2026-09-11T17:03:46.3829088Z npm warn install-scripts   esbuild@0.25.12 (postinstall: node install.js)
+publish	Install dependencies	2026-09-11T17:03:46.3830388Z npm warn install-scripts
+publish	Install dependencies	2026-09-11T17:03:46.3832057Z npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	﻿2026-09-11T17:03:46.9161503Z ##[group]Run set -euo pipefail
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:46.9214158Z shell: /usr/bin/bash -e {0}
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:46.9214560Z env:
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:46.9214898Z   REF_NAME: forensics/w32-normalization
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:46.9215395Z   EVENT_NAME: workflow_dispatch
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:46.9215681Z ##[endgroup]
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:47.1038474Z gitleaks_8.30.1_linux_x64.tar.gz: OK
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:47.6565989Z gitleaks version 8.30.1
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.4752662Z Collecting build==1.6.0
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.5143939Z   Downloading build-1.6.0-py3-none-any.whl.metadata (5.6 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.5517999Z Collecting twine==7.0.0
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.5555165Z   Downloading twine-7.0.0-py3-none-any.whl.metadata (3.5 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.5937874Z Collecting wheel==0.46.3
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.5994204Z   Downloading wheel-0.46.3-py3-none-any.whl.metadata (2.4 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.7848918Z Collecting setuptools==78.1.1
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.7912097Z   Downloading setuptools-78.1.1-py3-none-any.whl.metadata (6.5 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.8246952Z Collecting httpx==0.28.1
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.8284771Z   Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.8386813Z Requirement already satisfied: packaging>=24.0 in /usr/lib/python3/dist-packages (from build==1.6.0) (24.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.8509444Z Collecting pyproject_hooks (from build==1.6.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.8544383Z   Downloading pyproject_hooks-1.2.0-py3-none-any.whl.metadata (1.3 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.8855205Z Collecting readme-renderer>=35.0 (from twine==7.0.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.8894168Z   Downloading readme_renderer-46.0-py3-none-any.whl.metadata (3.0 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.8939130Z Requirement already satisfied: requests>=2.20 in /usr/lib/python3/dist-packages (from twine==7.0.0) (2.31.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.9095326Z Collecting requests-toolbelt!=0.9.0,>=0.8.0 (from twine==7.0.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.9129639Z   Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl.metadata (14 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.9181601Z Requirement already satisfied: urllib3>=1.26.0 in /usr/lib/python3/dist-packages (from twine==7.0.0) (2.0.7)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.9655991Z Collecting keyring>=21.2.0 (from twine==7.0.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.9695415Z   Downloading keyring-25.7.0-py3-none-any.whl.metadata (21 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.9881662Z Collecting rfc3986>=1.4.0 (from twine==7.0.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:48.9914990Z   Downloading rfc3986-2.0.0-py2.py3-none-any.whl.metadata (6.6 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.0629823Z Collecting rich>=14.3.3 (from twine==7.0.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.0668766Z   Downloading rich-15.0.0-py3-none-any.whl.metadata (18 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.0995540Z Collecting packaging>=24.0 (from build==1.6.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.1032785Z   Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.1192538Z Collecting id (from twine==7.0.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.1251128Z   Downloading id-1.6.1-py3-none-any.whl.metadata (5.1 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.1981838Z Collecting anyio (from httpx==0.28.1)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.2017413Z   Downloading anyio-4.15.1-py3-none-any.whl.metadata (4.7 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.2053939Z Requirement already satisfied: certifi in /usr/lib/python3/dist-packages (from httpx==0.28.1) (2023.11.17)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.2472227Z Collecting httpcore==1.* (from httpx==0.28.1)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.2551706Z   Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.2601347Z Requirement already satisfied: idna in /usr/lib/python3/dist-packages (from httpx==0.28.1) (3.6)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.2774677Z Collecting h11>=0.16 (from httpcore==1.*->httpx==0.28.1)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.2807921Z   Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.3171718Z Collecting SecretStorage>=3.2 (from keyring>=21.2.0->twine==7.0.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.3205792Z   Downloading secretstorage-3.5.0-py3-none-any.whl.metadata (4.0 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.3379587Z Collecting jeepney>=0.4.2 (from keyring>=21.2.0->twine==7.0.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.3413483Z   Downloading jeepney-0.9.0-py3-none-any.whl.metadata (1.2 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.3611261Z Collecting jaraco.classes (from keyring>=21.2.0->twine==7.0.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.3650570Z   Downloading jaraco.classes-3.4.0-py3-none-any.whl.metadata (2.6 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.3892003Z Collecting jaraco.functools (from keyring>=21.2.0->twine==7.0.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.3925431Z   Downloading jaraco_functools-4.6.0-py3-none-any.whl.metadata (2.9 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.4122447Z Collecting jaraco.context (from keyring>=21.2.0->twine==7.0.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.4156341Z   Downloading jaraco_context-6.1.2-py3-none-any.whl.metadata (4.2 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.4713799Z Collecting nh3>=0.2.14 (from readme-renderer>=35.0->twine==7.0.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.4753762Z   Downloading nh3-0.3.7-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (2.0 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.5022945Z Collecting docutils>=0.21.2 (from readme-renderer>=35.0->twine==7.0.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.5088802Z   Downloading docutils-0.23-py3-none-any.whl.metadata (15 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.5146073Z Requirement already satisfied: Pygments>=2.5.1 in /usr/lib/python3/dist-packages (from readme-renderer>=35.0->twine==7.0.0) (2.17.2)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.5286185Z Requirement already satisfied: markdown-it-py>=2.2.0 in /usr/lib/python3/dist-packages (from rich>=14.3.3->twine==7.0.0) (3.0.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.5682856Z Collecting typing_extensions>=4.16.0 (from anyio->httpx==0.28.1)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.5719552Z   Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.6189868Z Requirement already satisfied: mdurl~=0.1 in /usr/lib/python3/dist-packages (from markdown-it-py>=2.2.0->rich>=14.3.3->twine==7.0.0) (0.1.2)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.6304595Z Requirement already satisfied: cryptography>=2.0 in /usr/lib/python3/dist-packages (from SecretStorage>=3.2->keyring>=21.2.0->twine==7.0.0) (41.0.7)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.6670789Z Collecting more-itertools (from jaraco.classes->keyring>=21.2.0->twine==7.0.0)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.6707768Z   Downloading more_itertools-11.1.0-py3-none-any.whl.metadata (41 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.6749388Z      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 41.4/41.4 kB 17.0 MB/s eta 0:00:00
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.7264530Z Downloading build-1.6.0-py3-none-any.whl (31 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.7321846Z Downloading twine-7.0.0-py3-none-any.whl (43 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.7367323Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 43.2/43.2 kB 15.9 MB/s eta 0:00:00
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.7411451Z Downloading wheel-0.46.3-py3-none-any.whl (30 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.7471909Z Downloading setuptools-78.1.1-py3-none-any.whl (1.3 MB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.7650353Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 77.9 MB/s eta 0:00:00
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.7685662Z Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.7722868Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 30.9 MB/s eta 0:00:00
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.7759150Z Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.7796885Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 32.8 MB/s eta 0:00:00
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.7835448Z Downloading keyring-25.7.0-py3-none-any.whl (39 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.7892148Z Downloading packaging-26.3-py3-none-any.whl (129 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.7933859Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 130.0/130.0 kB 51.2 MB/s eta 0:00:00
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.7969907Z Downloading readme_renderer-46.0-py3-none-any.whl (14 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8020767Z Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl (54 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8056919Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 54.5/54.5 kB 22.6 MB/s eta 0:00:00
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8093773Z Downloading rfc3986-2.0.0-py2.py3-none-any.whl (31 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8145421Z Downloading rich-15.0.0-py3-none-any.whl (310 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8195300Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.7/310.7 kB 92.3 MB/s eta 0:00:00
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8232782Z Downloading anyio-4.15.1-py3-none-any.whl (132 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8272557Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 132.1/132.1 kB 53.5 MB/s eta 0:00:00
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8393459Z Downloading id-1.6.1-py3-none-any.whl (14 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8451721Z Downloading pyproject_hooks-1.2.0-py3-none-any.whl (10 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8518546Z Downloading docutils-0.23-py3-none-any.whl (634 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8588241Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 634.7/634.7 kB 124.2 MB/s eta 0:00:00
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8634939Z Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8689103Z Downloading jeepney-0.9.0-py3-none-any.whl (49 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8726824Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 49.0/49.0 kB 20.7 MB/s eta 0:00:00
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8759758Z Downloading nh3-0.3.7-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (832 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8841862Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 832.2/832.2 kB 129.4 MB/s eta 0:00:00
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8876236Z Downloading secretstorage-3.5.0-py3-none-any.whl (15 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8940129Z Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.8975994Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 45.6/45.6 kB 18.5 MB/s eta 0:00:00
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.9009924Z Downloading jaraco.classes-3.4.0-py3-none-any.whl (6.8 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.9067445Z Downloading jaraco_context-6.1.2-py3-none-any.whl (7.9 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.9116393Z Downloading jaraco_functools-4.6.0-py3-none-any.whl (11 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.9168674Z Downloading more_itertools-11.1.0-py3-none-any.whl (72 kB)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:49.9204764Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 72.2/72.2 kB 31.4 MB/s eta 0:00:00
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:50.3129930Z Installing collected packages: typing_extensions, setuptools, rfc3986, requests-toolbelt, pyproject_hooks, packaging, nh3, more-itertools, jeepney, jaraco.context, id, h11, docutils, wheel, SecretStorage, rich, readme-renderer, jaraco.functools, jaraco.classes, httpcore, build, anyio, keyring, httpx, twine
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:52.1939480Z Successfully installed SecretStorage-3.5.0 anyio-4.15.1 build-1.6.0 docutils-0.23 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 id-1.6.1 jaraco.classes-3.4.0 jaraco.context-6.1.2 jaraco.functools-4.6.0 jeepney-0.9.0 keyring-25.7.0 more-itertools-11.1.0 nh3-0.3.7 packaging-26.3 pyproject_hooks-1.2.0 readme-renderer-46.0 requests-toolbelt-1.0.0 rfc3986-2.0.0 rich-15.0.0 setuptools-78.1.1 twine-7.0.0 typing_extensions-4.16.0 wheel-0.46.3
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:52.3778742Z build 1.6.0 (/home/runner/.local/lib/python3.12/site-packages/build)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:52.5500535Z twine version 7.0.0 (readme-renderer: 46.0, requests: 2.31.0, requests-
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:52.5501639Z toolbelt: 1.0.0, urllib3: 2.0.7, keyring: 25.7.0, rfc3986: 2.0.0, rich:
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:52.5502417Z 15.0.0, packaging: 26.3, id: 1.6.1)
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:52.6797097Z setuptools 78.1.1
+publish	Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)	2026-09-11T17:03:52.9589014Z httpx 0.28.1
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	﻿2026-09-11T17:03:52.9827547Z ##[group]Run # errexit OFF: the runner's default `bash -e` kills this script at the
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:03:52.9897760Z shell: /usr/bin/bash -e {0}
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:03:52.9898024Z env:
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:03:52.9898229Z   REF_NAME: forensics/w32-normalization
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:03:52.9898520Z   EVENT_NAME: workflow_dispatch
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:03:52.9898767Z ##[endgroup]
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3256340Z ok 706 - F3: two named remotes both pushed => both rows pushed (no substring sloppiness)
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3256888Z   ---
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3257158Z   duration_ms: 61.930698
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3257566Z   type: 'test'
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3257869Z   ...
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3258551Z # Subtest: F3: one of two remotes pushed => per-remote pushed + pending split
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3259870Z ok 707 - F3: one of two remotes pushed => per-remote pushed + pending split
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3260482Z   ---
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3260790Z   duration_ms: 62.619025
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3261171Z   type: 'test'
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3261436Z   ...
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3261753Z 1..707
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3262057Z # tests 707
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3262366Z # suites 0
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3262679Z # pass 694
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3263545Z # fail 3
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3263871Z # cancelled 0
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3264205Z # skipped 10
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3264540Z # todo 0
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3264902Z # duration_ms 234137.841844
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3442935Z --- /tmp/sanctioned.sorted.txt	2026-09-11 17:07:47.340968896 +0000
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3444036Z +++ /tmp/actual-failures.txt	2026-09-11 17:07:47.339968878 +0000
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3444402Z @@ -1,2 +1,3 @@
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3445105Z  C5-1 subset discipline: a git-only PASS authorizes NO publish leg; a full PASS authorizes no crates-only push (fingerprint effectiveTargets scope binding)
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3447916Z  C5-4 ordering: publish legs execute in descriptor order git→npm→pypi→crates→rubygems (exact spawn sequence), all five push-records under ONE key
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3450139Z +stage: real gem build lands .border/dist/<name>-<version>.gem, deterministic sha256, tmp cleaned, scans are artifact-root-relative
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3473656Z ##[error]failing-test set is NOT exactly the sanctioned allowlist (diff above: - expected / + actual) — failing closed
+publish	Release gate (npm test, fail-closed sanctioned-failure allowlist)	2026-09-11T17:07:47.3482948Z ##[error]Process completed with exit code 1.
