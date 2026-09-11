@@ -128,6 +128,11 @@ jobs:
       # RELEASE GATE (fail-closed): run the suite, allow ONLY the exact sanctioned
       # failing tests below. Any other failure, ANY sanctioned test newly passing,
       # or unparsable TAP counts ⇒ exit 1.
+      # FORENSICS (W33 I4 triage): the full TAP transcript of every gate run — green
+      # or red — is archived by the "Upload full test log" step below, and each
+      # fail-closed red branch additionally dumps the per-red TAP YAML detail into
+      # the step log itself. Verdict semantics (exit codes, allowlist, parsing) are
+      # unchanged by these additions.
       #
       # ALLOWLIST RETIREMENT: these two reds belong to the in-progress push-channels
       # scope (.omo/plans/border-push-channels.md, C5 cross-channel integration);
@@ -143,6 +148,14 @@ jobs:
           BORDER_PACK_TEST=1 npm test > "$TEST_LOG" 2>&1
           TEST_EXIT=$?
           tail -n 20 "$TEST_LOG"
+          # Archive BEFORE the EXIT trap deletes $TEST_LOG, so the "Upload full test
+          # log" step ships the corpse regardless of which branch fails below. The
+          # copy is read-only forensics: every parse/diff still runs on "$TEST_LOG".
+          LOG_ARCHIVE="${RUNNER_TEMP:-/tmp}/border-test-log.txt"
+          cp "$TEST_LOG" "$LOG_ARCHIVE" 2>/dev/null || true
+          # h4 evidence: the runner's resource shape at gate time (cores, load,
+          # memory, disk, node/npm) — archived alongside the log below.
+          { date -u +"%FT%TZ"; nproc; cat /proc/loadavg; free -m | head -n 3; node -v; npm -v; df -h "$PWD" | tail -n 1; } > "${RUNNER_TEMP:-/tmp}/border-env-snapshot.txt" 2>/dev/null || true
 
           SUM_TESTS="$(sed -n 's/^# tests \([0-9][0-9]*\)$/\1/p' "$TEST_LOG" | tail -n 1)"
           SUM_PASS="$(sed -n 's/^# pass \([0-9][0-9]*\)$/\1/p' "$TEST_LOG" | tail -n 1)"
@@ -191,12 +204,23 @@ jobs:
 
           if ! diff -u /tmp/sanctioned.sorted.txt /tmp/actual-failures.txt; then
             echo "::error::failing-test set is NOT exactly the sanctioned allowlist (diff above: - expected / + actual) — failing closed"
+            # Dump each actual red's TAP YAML error block into the step log before
+            # the trap deletes $TEST_LOG (W32 residual: I4 detail was unrecoverable).
+            echo '::group::not-ok TAP detail (grep -A 25 "^not ok ")'
+            grep -A 25 '^not ok ' "$TEST_LOG" || true
+            echo '::endgroup'
+            # Verdaccio server logs + fixture state survive under test/tmp — the
+            # counter-flush race (h2) is only decidable from the server-side clock.
+            tar -czf "${RUNNER_TEMP:-/tmp}/border-testtmp.tgz" test/tmp 2>/dev/null || true
             exit 1
           fi
 
           ACTUAL_N="$(grep -c . /tmp/actual-failures.txt || true)"
           if [ "$SUM_FAIL" != "$ACTUAL_N" ] || [ "$((SUM_PASS + SUM_FAIL + SUM_SKIPPED))" != "$SUM_TESTS" ] || [ "$SUM_FAIL" -eq 0 ]; then
             echo "::error::TAP counts inconsistent (tests=${SUM_TESTS} pass=${SUM_PASS} fail=${SUM_FAIL} not-ok-lines=${ACTUAL_N}) — failing closed"
+            echo '::group::not-ok TAP detail (grep -A 25 "^not ok ")'
+            grep -A 25 '^not ok ' "$TEST_LOG" || true
+            echo '::endgroup'
             exit 1
           fi
           # with a non-empty allowlist enforced above, a suite carrying exactly the
@@ -207,6 +231,19 @@ jobs:
           fi
           rm -f /tmp/sanctioned.txt /tmp/actual-failures.txt /tmp/sanctioned.sorted.txt
           echo "release gate green: ${SUM_TESTS} tests / ${SUM_PASS} pass / exactly ${SUM_FAIL} sanctioned failure(s) matching the allowlist"
+
+      # if: always() — a cancelled/timed-out run's partial log is forensics too;
+      # the gate's own exit code is this step's sibling, never altered by it.
+      - name: Upload full test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/border-test-log.txt
+            ${{ runner.temp }}/border-env-snapshot.txt
+            ${{ runner.temp }}/border-testtmp.tgz
+          if-no-files-found: warn
 
       - name: Pack and verify tarball
         run: |
