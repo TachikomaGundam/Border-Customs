@@ -51,6 +51,15 @@ import {
   type DockerExec,
   type ExecResult,
 } from "./docker.ts";
+import {
+  CLAIM_SCANNER_PY,
+  PIP_REPORT_PATH,
+  RT_DEP_RULE,
+  buildAttribution,
+  normalizePipName,
+  parsePipReport,
+  type DepAttribution,
+} from "./calibrate.ts";
 import { classifyResidue, diffManifests, parseManifest } from "./manifest.ts";
 
 export type { DockerExec, ExecResult } from "./docker.ts";
@@ -147,6 +156,63 @@ function execChecked(
 
 type PipelineResult = { readonly findings: Finding[]; readonly installDelta: number; readonly baselineDigest: string };
 
+/**
+ * W2.4(a) closure leg: `pip install --dry-run --report` against the copied
+ * artifact, in a SEPARATE throwaway resolver container. Running it inside the
+ * measurement container is forbidden: an sdist's setup.py executes during
+ * metadata preparation (the very channel the e2e plant fixture abuses), so a
+ * pre-m1 dry-run there would poison the pristine baseline — proven by design,
+ * pinned by test ("the measurement container's m1 stays pristine").
+ */
+function resolvePipClosure(exec: DockerExec, profile: EcoProfile, hostPath: string, label: string, spec: ScanSpec): Map<string, string> {
+  const ctr = containerNameFor(`${label}#closure`);
+  try {
+    execChecked(exec, ["run", "-d", "--name", ctr, profile.image, "sleep", String(CONTAINER_TTL_SEC)], DOCKER_RUN_TIMEOUT_MS, "closure resolver start");
+    execChecked(exec, ["cp", hostPath, `${ctr}:${profile.artifactPath}`], DOCKER_CP_TIMEOUT_MS, "resolver artifact copy");
+    execChecked(
+      exec,
+      ["exec", ctr, "pip", "install", "--dry-run", "--report", PIP_REPORT_PATH, "--no-input", "--root-user-action=ignore", profile.artifactPath],
+      PHASE_TIMEOUT_MS,
+      "pypi closure dry-run",
+    );
+    const rep = execChecked(exec, ["exec", ctr, "cat", PIP_REPORT_PATH], SNAPSHOT_TIMEOUT_MS, "pypi closure report read");
+    const closure = parsePipReport(rep.stdout);
+    if (!closure.has(normalizePipName(spec.name))) {
+      throw new EngineRunError(`roundtrip: pip closure report does not list the target ${spec.name} — cannot verify (fail-closed)`, null);
+    }
+    return closure;
+  } finally {
+    // Same trap discipline as the measurement container: rm on EVERY path, TTL backstop.
+    try {
+      exec(["rm", "-f", ctr], DOCKER_RM_TIMEOUT_MS);
+    } catch {
+      /* daemon unreachable mid-cleanup: the 900s TTL is the backstop */
+    }
+  }
+}
+
+/**
+ * m3 attribution scan INSIDE the measurement container (the only process that
+ * can answer "which dist still owns this path" post-uninstall). A scan failure
+ * must never demote anything: an empty attribution keeps every row at its
+ * W2.1 grade — over-report tolerated, silent-clean is not.
+ */
+function scanDepClaims(exec: DockerExec, container: string, closure: ReadonlyMap<string, string>, target: string, note: (msg: string) => void): DepAttribution {
+  const guard = { pins: closure, target };
+  const argv = ["exec", "-e", `BORDER_CLOSURE=${JSON.stringify(Object.fromEntries(closure))}`, container, "python3", "-c", CLAIM_SCANNER_PY];
+  try {
+    const r = exec(argv, SNAPSHOT_TIMEOUT_MS);
+    if (r.status !== 0) {
+      note(`roundtrip: dep-attribution scan failed (exit ${String(r.status)}) — every row keeps its blocking grade (over-report tolerated)`);
+      return buildAttribution("", guard);
+    }
+    return buildAttribution(r.stdout, guard);
+  } catch {
+    note("roundtrip: dep-attribution scan could not run — every row keeps its blocking grade (over-report tolerated)");
+    return buildAttribution("", guard);
+  }
+}
+
 function runPipeline(
   exec: DockerExec,
   profile: EcoProfile,
@@ -154,6 +220,8 @@ function runPipeline(
   label: string,
   hostPath: string,
   container: string,
+  closure: ReadonlyMap<string, string> | null,
+  note: (msg: string) => void,
 ): PipelineResult {
   execChecked(exec, ["run", "-d", "--name", container, profile.image, "sleep", String(CONTAINER_TTL_SEC)], DOCKER_RUN_TIMEOUT_MS, "container start");
   try {
@@ -172,8 +240,9 @@ function runPipeline(
     }
     execChecked(exec, ["exec", container, ...profile.uninstall(spec)], PHASE_TIMEOUT_MS, `uninstall ${label}`);
     const m3 = parseManifest(takeSnapshot(exec, container, profile.excludes));
+    const attribution = closure !== null ? scanDepClaims(exec, container, closure, normalizePipName(spec.name), note) : null;
     return {
-      findings: classifyResidue(label, diffManifests(m1, m3)),
+      findings: classifyResidue(label, diffManifests(m1, m3), attribution),
       installDelta,
       baselineDigest: sha256Hex([...m1.keys()].join("\n")),
     };
@@ -220,7 +289,10 @@ export async function runRoundtripCore(ctx: Ctx, deps: RoundtripDeps = {}): Prom
     writeFileSync(hostPath, bytes);
 
     const container = containerNameFor(label);
-    const { findings, installDelta, baselineDigest } = runPipeline(exec, profile, spec, label, hostPath, container);
+    // W2.4(a) pypi gate: only the pip lane resolves a closure; npm's transitive
+    // tree is manager-owned (npm uninstall -g removes it), cargo/gem untouched.
+    const closure = spec.ecosystem === "pypi" ? resolvePipClosure(exec, profile, hostPath, label, spec) : null;
+    const { findings, installDelta, baselineDigest } = runPipeline(exec, profile, spec, label, hostPath, container, closure, (msg) => ctx.stderr(msg));
 
     const verdict = computeVerdict(findings);
     const report: Report = {
@@ -244,6 +316,10 @@ export async function runRoundtripCore(ctx: Ctx, deps: RoundtripDeps = {}): Prom
     } else {
       for (const f of report.findings) {
         ctx.stdout(line(`  ${f.severity} ${f.rule} [${f.engine}] ${f.path ?? f.target} ${f.message}`));
+      }
+      const depOwned = findings.reduce((n, f) => n + (f.rule === RT_DEP_RULE ? 1 : 0), 0);
+      if (depOwned > 0) {
+        ctx.stdout(line(`roundtrip: ${String(depOwned)} row(s) attributed to still-installed pip dependencies — demoted to ${RT_DEP_RULE} (non-blocking, informational)`));
       }
       ctx.stdout(line(`roundtrip: ${String(report.findings.length)} residue row(s); install-delta ${String(installDelta)} files`));
     }
