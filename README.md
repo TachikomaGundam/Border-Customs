@@ -222,9 +222,10 @@ staged artifact, `border check` can no longer PASS that channel on signatures al
 artifact's sha256 must also carry a **fresh empirical roundtrip verdict** in the ledger.
 
 The check gate NEVER runs Docker itself (there is nothing to trust it to run); the proof is
-pre-supplied out-of-band by `border roundtrip <spec>`, which installs the real bytes, diffs the
+pre-supplied out-of-band by `border roundtrip <spec-or-local-file>`, which installs the real
+bytes — fetched from a registry or read from a local artifact (W2.4(b)) — diffs the
 filesystem, and appends a `t:"roundtrip"` ledger record — `{artifactSha256, verdict:
-clean|residue, rulesHash, ts, rows}` — keyed by the exact bytes it fetched. A `residue` verdict
+clean|residue, rulesHash, ts, rows}` — keyed by the exact bytes it proved. A `residue` verdict
 still counts as a proof-of-fact: the valve demands *evidence someone looked*, and the finding
 itself keeps blocking until it stops tripping the scan.
 
@@ -262,12 +263,39 @@ editing a matcher invalidates every cached PASS.
 
 ### Running `border roundtrip`
 
-`border roundtrip <[ecosystem:]name@version>` fetches the real registry bytes, installs them in a
-throwaway Docker container (per-ecosystem image, whole-filesystem content-hash manifest before
-install and after the manager's own uninstall), prints the residue manifest, and records the
-verdict. Known fidelity envelope, from the W2.0 spike and the W2.3 registrar-chain demo:
+`border roundtrip <[ecosystem:]name@version | local-artifact-file>` fetches the real registry
+bytes — or, since W2.4(b), accepts a LOCAL artifact file (`border roundtrip
+dist/foo-1.0.0-py3-none-any.whl`) — installs them in a throwaway Docker container
+(per-ecosystem image, whole-filesystem content-hash manifest before install and after the
+manager's own uninstall), prints the residue manifest, and records the verdict.
+
+The local lane exists so unpublished/hardened artifacts can be proven **pre-publish**. Its rules
+are deliberately narrow: the ecosystem comes from the extension alone, a closed table
+(`.whl`→pypi, `.tgz`→npm, `.crate`→crates, `.gem`→rubygems); anything else exits 2, because
+content-sniffing would grade an artifact through a guessed manager's install/uninstall contract.
+Local mode touches no network: the file passes one streaming sha256 pass (the 200 MiB cap fails
+closed mid-stream), the exact bytes are staged and `docker cp`'d, and every later leg — closure
+resolution, m1/m2/m3, residue rows, ledger proof — runs the identical registry pipeline.
+Provenance stays honest: human and `--json` output stamp `source: "local:<abs-path>"` plus the
+`artifactSha256` — the digest is the identity, and the requireProof valve consumes a local proof
+by the same digest it uses for a fetched one. A directory argument, or a path-shaped argument
+that does not resolve to an existing file, exits 2 before anything is fetched.
+
+Wheel-lane boundary, stated honestly: the LOCAL PyPI-wheel lane is residue-INERT by
+construction — pip fully records what it installs and prunes its own directories, so even a
+wheel planted with hostile `.data/data/...` entries leaves a zero survivor set after uninstall
+(verified live on pip 25.0.1 AND 24.0, 2026-09-11, verifier harness); a PASS on such a plant is
+pip's contract working, not a missed detection. The local wheel roundtrip still proves
+installability, benign-clean, and exact-bytes identity — but planted-detection demos belong to
+the lanes whose managers execute install hooks: npm (`.tgz` postinstall EXECUTES under
+`npm install -g --foreground-scripts`), gem (extconf custom writes) and crates (build.rs).
+
+Known fidelity envelope, from the W2.0 spike and the W2.3 registrar-chain demo:
 
 - Docker is required; absence or any step failure ⇒ exit 2, never a silent `clean`.
+- A local run proves its own bytes and says so: `source`/`artifactSha256` in the report and the
+  `t:"roundtrip"` ledger record all key on the streamed digest of the file given — never phrased
+  as registry-verified.
 - npm/gem/crates lanes diff exactly; the pypi lane calibrates pip's left-behind **transitive
   dependencies** (W2.4): before install, `pip install --dry-run --report` resolves the closure in a
   throwaway resolver container, and post-uninstall rows still claimed by a still-installed closure
@@ -717,11 +745,22 @@ MIT, see [LICENSE](LICENSE).
 border 是一个 fail-closed(失败即拦截)的推送前门禁 CLI:`npm install -g border-customs` 安装,在仓库里跑 `border check`。它扫描 git 历史、工作区(未跟踪文件同样是一等输入)、归档、tag 注释和将要发布的 npm/PyPI/crates/RubyGems 字节,检出密钥与供应链风险;只有当"当前状态指纹"存在新鲜且完整的 PASS 记录时才允许 `border push --yes` 放行。指纹是 sha256(head、porcelain 摘要、规则哈希、暴露面、ref 集合、有效目标)六元组,任何一处变动,旧的 PASS 立即失效,必须重查。流水线:gitleaks(历史+工作区+tag,内置 8.30.1 规则,仓库自带的 ignore 文件直接判 CRITICAL)+ secretlint(进程内,AWS Key 规则强制开启)+ 原生规则(AI 会话产物闭集、提交身份白名单含传输对象检查)+ 注册表预检(版本已存在=必须 bump,名称被外人占有=拒绝;空响应/超时/解析失败一律 exit 2,沉默绝不等于不存在)。构件只构建一次进 `.border/dist/`,扫描的就是发布的字节,发布时再哈希比对,不一致直接拒发。跳过台账让重复检查不到 1 秒,但回放前先重算指纹并重新 pack 验证新鲜度。报告只输出掩码片段(sha256 摘要 + 前4…后4)。push 是多目标状态机,多 remote 先做全有或全无的 fast-forward 预检,永不 force-push;npm/twine/cargo/gem 的凭据经 stdio 透传,border 从不触碰。0.2.0 新增 crates.io 与 RubyGems 通道(公开 crates.io 固定、rubygems 可用 host 覆盖私有镜像),既有配置行为不变。0.3.0 新增残留扫描(residue gate):发布字节里的安装期钩子按 T0-T4 闭集签名表分类(闭集 T1 树内钩子降为 MEDIUM,未知形态原样保留 CRITICAL),外加跨包管理器写入、配对标记缺失(`# BEGIN` 块只检测不豁免)与 gem 不可解析扩展共七条 `residue-*` 规则;`residue.enabled` 是唯一豁免开关且改动指纹使旧 PASS 失效,规则表与分类器源码进入 rulesHash,改一个签名即强制重查。静态分析只证明"能力"不证明"事实",border 不是恶意软件沙箱,从不执行被读代码。0.4.0 新增证明阀
 `residue.requireProof`(默认关,strict):开启后,发布构件若触发阻断级 `residue-*` 发现,通道 PASS
 还要求账本里存在按其 sha256 索引且 rulesHash 新鲜的 `border roundtrip` 实测记录——check 自身从不
-运行 Docker,证据由 `border roundtrip` 离线写入(默认记账,`--no-record` 关闭),clean 与 residue
+运行 Docker,证据由 `border roundtrip`(注册表 spec 或本地构件文件,W2.4b)离线写入(默认记账,`--no-record` 关闭),clean 与 residue
 两种裁决都算"事实已在";缺记录判 `roundtrip-proof-missing`、rulesHash 过期判
 `roundtrip-proof-stale`(均 CRITICAL/native,与普通发现同受白名单管辖并在 allowHits 枚举),翻转
 该配置即轮换 rulesHash,所有缓存 PASS 自动失效。`border roundtrip` 本身保真边界:Docker 必需、
- 缺失即 exit 2 绝不假装干净;pypi 通道已做目标收窄校准(W2.4)——安装前先在一次性解析容器里用
+ 缺失即 exit 2 绝不假装干净;本地构件输入(W2.4b)——参数解析为已存在的文件即走本地模式,生态仅由扩展名闭表判定
+  (.whl→pypi、.tgz→npm、.crate→crates、.gem→rubygems),表外一律 exit 2:内容嗅探等于猜测某个管理器的装卸契约,
+  按猜测定级不予采纳;本地模式全程不触网,文件流式过一遍 sha256(200 MiB 上限在流内超限即闭),同一批字节暂存后
+  docker cp,闭包解析、m1/m2/m3、残留行与账本证明走的都是与注册表模式完全相同的流水线;出处保持诚实:人机与
+  --json 输出都盖上 `source: "local:<绝对路径>"` 与 artifactSha256——摘要即身份,requireProof 阀按同一摘要原样
+   消费本地证明,本地证明绝不表述为注册表已验证;目录参数、或形如路径却并不存在的参数,在任何拉取发生之前即 exit 2;
+   wheel 通道诚实边界:本地 PyPI-wheel 通道天然残留惰性(residue-INERT)——pip 完整登记所装文件并清理自建目录,
+   即便往 wheel 里种入恶意 `.data/data/...` 条目,卸载后幸存集也为空(2026-09-11 在 pip 25.0.1 与 24.0 上实机验证,
+   验证器工装);对这种种植判 PASS 是 pip 契约在起作用,不是漏检。本地 wheel 往返仍证明可安装性、benign-clean
+   与字节级同一性,但种植检测演示属于会执行安装钩子的通道:npm(.tgz 的 postinstall 在 `npm install -g
+   --foreground-scripts` 下真实执行)、gem(extconf 自定义写入)与 crates(build.rs);
+   pypi 通道已做目标收窄校准(W2.4)——安装前先在一次性解析容器里用
  `pip install --dry-run --report` 解析依赖闭包,卸载后仍被闭包内在册依赖认领的残留行降级为 LOW
  `residue-roundtrip-dep-owned`(非阻断,注明归属依赖,仍照常打印);认领只对合法主张者生效:其 dist-info 必须与
  解析器的 name-version 钉值完全一致、目录名规范且为该名字唯一发行版,且只能认领自身 site-packages 根内的路径——

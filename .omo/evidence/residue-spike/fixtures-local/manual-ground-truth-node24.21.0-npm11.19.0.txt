@@ -1,0 +1,32 @@
+== versions ==
+v24.21.0
+11.19.0
+
+> rt-plant-npm@1.0.0 postinstall
+> sh postinstall.sh
+
+
+added 1 package in 495ms
+npm warn install-scripts 1 package has install scripts not yet covered by allowScripts:
+npm warn install-scripts   rt-plant-npm@1.0.0 (postinstall: sh postinstall.sh)
+npm warn install-scripts
+npm warn install-scripts Run `npm install -g --allow-scripts=rt-plant-npm` to allow these scripts once, or `npm config set allow-scripts=rt-plant-npm --location=user` to allow them for all global installs.
+== AFTER INSTALL ==
+-rwxr-xr-x 1 root root 31 Sep 11 11:11 /usr/local/bin/rt-plant-orphan
+35:export RT_W24B_PLANT_MARKER=1
+corepack
+npm
+rt-plant-npm
+
+removed 1 package in 289ms
+== AFTER UNINSTALL: GROUND-TRUTH SURVIVOR STATE ==
+--- /usr/local/bin/rt-plant-orphan:
+-rwxr-xr-x 1 root root 31 Sep 11 11:11 /usr/local/bin/rt-plant-orphan
+--- /etc/profile marker:
+35:export RT_W24B_PLANT_MARKER=1
+--- node_modules:
+corepack
+npm
+--- orphan executable?
+rt-plant-orphan
+== ground truth done ==

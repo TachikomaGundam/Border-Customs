@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "key": "a6322971717f985a592788146539b9f99447bec20af1261edc73802ca2281cf0",
+  "head": "7c06e6adba7bdee4568923e7bdddf8368a18e879",
+  "dirty": false,
+  "exposureSet": [
+    "npm:rt-plant-npm@1.0.0"
+  ],
+  "refSet": [],
+  "rulesHash": "9a589b8e233d3ed61be444e4e88f14c18acea2d4176665c4cfd176cdd098d29c",
+  "verdict": "FAIL",
+  "counts": {
+    "INFO": 0,
+    "LOW": 0,
+    "MEDIUM": 0,
+    "HIGH": 1,
+    "CRITICAL": 1,
+    "total": 2,
+    "blocking": 2,
+    "warnings": 0
+  },
+  "findings": [
+    {
+      "rule": "roundtrip-residue-file",
+      "severity": "HIGH",
+      "target": "npm:rt-plant-npm@1.0.0",
+      "path": "/usr/local/bin/rt-plant-orphan",
+      "engine": "roundtrip",
+      "message": "installed file survived uninstall (ADDED in post-uninstall manifest)",
+      "valueDigest": "e870010bc6244628f988f61ebc8d8e770a7a21299fda817a9a39ad42ca469aa0",
+      "snippet": "residue: /usr/local/bin/rt-plant-orphan"
+    },
+    {
+      "rule": "roundtrip-modified-persistence",
+      "severity": "CRITICAL",
+      "target": "npm:rt-plant-npm@1.0.0",
+      "path": "/etc/profile",
+      "engine": "roundtrip",
+      "message": "uninstall mutated a persistence surface (rc/systemd/cron/PATH) — content differs pre-install vs post-uninstall",
+      "valueDigest": "84255341cf8ff8de73780665bd2bef97d206cef6bf9f6b2c7e05d71acd14ff0e",
+      "snippet": "persistence: /etc/profile"
+    }
+  ],
+  "source": "local:/tmp/rt-w24b/dist/rt-plant-npm-1.0.0.tgz",
+  "artifactSha256": "70435f93c270d93c087c34a3c32fdf666101cbf691b32d17c56d8f2b58d540cb",
+  "ts": "2026-09-11T11:08:52.510Z"
+}
