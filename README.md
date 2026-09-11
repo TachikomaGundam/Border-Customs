@@ -236,6 +236,30 @@ itself keeps blocking until it stops tripping the scan.
 - Both new rules are ordinary findings: the allow-list can waive them and every waiver is
   enumerated in `allowHits` — no hidden channel.
 
+### Release coherence (0.4.1)
+
+Founding case — **aihr**: the wheel published on PyPI under version `0.2.2` carried
+`__init__.__version__ = "0.2.1"` while `pyproject.toml` declared `0.2.2`. The artifact's name,
+its metadata and its actual module behaviour disagreed, and every consumer who pinned `==0.2.2`
+silently installed the older behaviour. The same drift class bit this repo twice: the published
+npm tarball's User-Agent string said `0.3.0` while `package.json` said `0.3.1`, and
+`package-lock.json`'s root version sat at `0.1.0` through two releases. Version truth must AGREE
+across every source **inside the artifact** before anything ships — so the publish-stage artifact
+scanners cross-check those sources statically. No second source of truth outside the artifact is
+consulted: no registry, no git tag.
+
+| Rule | Severity | Fires when |
+| --- | --- | --- |
+| `release-coherence-version-drift` | CRITICAL | two version sources packed in one artifact disagree: `package.json` vs a force-packed `package-lock.json` root or `packages[""]` (npm); wheel filename vs `*-*.dist-info` directory vs `METADATA Version:` vs a literal `__version__` in any `__init__.py`; sdist `pyproject.toml [project].version` vs `PKG-INFO` / `setup.cfg` / `setup.py` string literals vs `__init__`; `Cargo.toml [package].version` vs the `Cargo.lock` entry when the lock is packed; `.gemspec` first-literal vs the built gem's `metadata.gz` name/version; `dist` filename vs the packed root `PKG-INFO` (sdist) |
+| `release-coherence-unverifiable-source` | MEDIUM | a second version source is present but not statically parseable — a computed/dynamic `__version__`, a `setup.cfg` `attr:`/interpolation, a `dynamic = ["version"]` pyproject, a malformed lockfile, a missing `Cargo.lock` entry, an unreadable gemspec block. Fail-closed beats silent-clean: the gate refuses to call uncheckable "clean" |
+| `release-coherence-twin-drift` | CRITICAL | opt-in `release.twin` pairs (see Configuration): a configured PyPI↔npm twin pair publishes different versions. This is the one cross-manager equality that is statically enforceable — both artifacts are already in `.border/dist/` in the same run |
+
+The absent-source boundary is load-bearing: a missing `package-lock.json`/`Cargo.lock`/`PKG-INFO`
+means nothing was packed — **not** that anything drifted — and no row is emitted. Publishing
+gatekeepers that cry wolf train users to pass `--force`; these rules fire only on evidence inside
+the shipped bytes. Like the residue rule table, this family's source folds into `rulesHash`, so
+editing a matcher invalidates every cached PASS.
+
 ### Running `border roundtrip`
 
 `border roundtrip <[ecosystem:]name@version>` fetches the real registry bytes, installs them in a
@@ -244,9 +268,17 @@ install and after the manager's own uninstall), prints the residue manifest, and
 verdict. Known fidelity envelope, from the W2.0 spike and the W2.3 registrar-chain demo:
 
 - Docker is required; absence or any step failure ⇒ exit 2, never a silent `clean`.
-- npm/gem/crates lanes diff exactly; the pypi lane reports pip's left-behind **transitive
-  dependencies** as orphan rows (calibration to a target-only diff is a known follow-up —
-  the over-report direction is deliberately conservative).
+- npm/gem/crates lanes diff exactly; the pypi lane calibrates pip's left-behind **transitive
+  dependencies** (W2.4): before install, `pip install --dry-run --report` resolves the closure in a
+  throwaway resolver container, and post-uninstall rows still claimed by a still-installed closure
+  dist demote to LOW `residue-roundtrip-dep-owned` — non-blocking, owner named, still printed.
+  A claim only counts from a legitimate claimant: its dist-info must match the resolver's
+  name-version pin exactly, be canonically named and the unique dist-info for that name, and may
+  only claim paths inside its own site-packages root — a shadow or forged `X-Y.dist-info` planted
+  by install code launders nothing. What the demotion cannot see stays blocking, deliberately:
+  dependency writes outside their own RECORD, paths ambiguously claimed by two dists, every MODIFIED
+  row (the W2.3 founding run's genuine `/usr/local/share/aihr` orphan is exactly this shape), and if the
+  closure itself cannot be resolved the run exits 2 — cannot-verify is never clean.
 - Only manager-lifecycle surfaces are observed: persistence performed by explicitly-invoked
   bins (not npm hooks) is outside what the roundtrip watches — W2.3 measured exactly this
   blind spot on our own registrar and documented its `{"plugin": []}` config residue.
@@ -510,6 +542,8 @@ engines:
   require: [gitleaks, secretlint]           # trufflehog: true adds the third-party engine
 residue:
   enabled: true                             # default; false hides ONLY the residue-* rows
+release:
+  twin: []                                  # opt-in [{pypi, npm}] pairs — see Release coherence
 ```
 
 Notes that change behavior:
@@ -687,7 +721,15 @@ border 是一个 fail-closed(失败即拦截)的推送前门禁 CLI:`npm install
 两种裁决都算"事实已在";缺记录判 `roundtrip-proof-missing`、rulesHash 过期判
 `roundtrip-proof-stale`(均 CRITICAL/native,与普通发现同受白名单管辖并在 allowHits 枚举),翻转
 该配置即轮换 rulesHash,所有缓存 PASS 自动失效。`border roundtrip` 本身保真边界:Docker 必需、
-缺失即 exit 2 绝不假装干净;pypi 通道会把 pip 遗留的传递依赖如实报成孤儿行(收窄到目标包自身是
-已知后续项);只有包管理器生命周期触发的写入被观测,显式调用的 bin 自写配置不在射程——W2.3 在
+ 缺失即 exit 2 绝不假装干净;pypi 通道已做目标收窄校准(W2.4)——安装前先在一次性解析容器里用
+ `pip install --dry-run --report` 解析依赖闭包,卸载后仍被闭包内在册依赖认领的残留行降级为 LOW
+ `residue-roundtrip-dep-owned`(非阻断,注明归属依赖,仍照常打印);认领只对合法主张者生效:其 dist-info 必须与
+ 解析器的 name-version 钉值完全一致、目录名规范且为该名字唯一发行版,且只能认领自身 site-packages 根内的路径——
+ 安装代码私设的伪影 shadow dist-info 洗白不了任何残留;分类器看不见的刻意继续阻断:
+ 依赖写在自身 RECORD 之外的路径、被两个发行包同时认领的歧义路径、一切 MODIFIED 行(W2.3 首轮那条真实孤儿
+ `/usr/local/share/aihr` 正是此类),闭包解析失败则整轮 exit 2,不可验证绝不等于干净;
+只有包管理器生命周期触发的写入被观测,显式调用的 bin 自写配置不在射程——W2.3 在
 自家 registrar 链上实测到该盲区并留下了 `{"plugin": []}` 残留证据。clean 是"某一版本构件在某类
 机器上"的事实证明,不是安全担保。可选 LLM 层 border 自身从不调用模型 API:`llm-request` 导出掩码审阅包,`llm-ingest` 严格校验 agent 结论并重算裁决。退出码即合同:0 通过、1 拦截、2 门禁无法作答,任何"工具不健康"都不可能被误读为干净。MIT 许可,无遥测,除你配置的注册表预检外不联网。
+
+发布一致性(0.4.1):起因是 aihr 事故——PyPI 上标为 0.2.2 的 wheel 里 `__init__.__version__` 却写着 0.2.1,构件名、元数据与实际模块行为三者不一致,所有 `==0.2.2` 的用户静默装上了旧行为;同类漂移在本仓库也出现过两次(npm tarball 的 User-Agent 停在 0.3.0 而 package.json 是 0.3.1;package-lock.json 根版本两个 release 一直躺在 0.1.0)。发布阶段扫描器因此在构件内部逐源交叉核对版本号:`release-coherence-version-drift` 为 CRITICAL(package.json 与被强制打包的 package-lock、wheel 文件名对 dist-info 目录对 METADATA `Version:` 对 `__init__` 字面量、sdist 的 pyproject 对 PKG-INFO/setup 系字面量、Cargo.toml 对已打包的 Cargo.lock、.gemspec 对 metadata.gz、dist 文件名对 sdist 内 PKG-INFO);版本源存在但无法静态解析(动态 `__version__`、`attr:`、`dynamic = ["version"]`、坏 lockfile)判 MEDIUM `release-coherence-unverifiable-source`——不可核查绝不静默算干净;第二版本源根本没被打包时不发现在内,缺源不是漂移,这条边界是承重的,误报的门禁会把用户训练成 `--force`。唯一可静态强制的跨包管理器声明是 opt-in `release.twin`(`{pypi, npm}` 严格 zod 对列表,未知键 exit 2):同一 run 的 dist 里孪生版本不等 ⇒ CRITICAL `release-coherence-twin-drift`,消息点名两个构件。规则源文件与 residue 指纹表一样并入 rulesHash,改一个匹配器即令全部缓存 PASS 失效。
