@@ -675,6 +675,25 @@ same one that wrote the commit) how to run the five subcommands, how to produce 
 
 ## Changelog
 
+### 0.4.1 (2026-09-11)
+- Add: release-coherence rule family — every version source inside a published artifact
+  must agree (pyproject vs MODULE vs filename, gemspec vs gem metadata, Cargo.toml vs
+  crate filename, package.json self-consistency; the git-tag half is a publish-workflow
+  hard gate). Trigger: the aihr incident where a wheel labeled 0.2.2 shipped modules
+  self-reporting 0.2.1 — every pinned consumer silently got old behavior.
+- Add: `border roundtrip` local-artifact input — an argument resolving to an existing
+  file (.whl/.tgz/.crate/.gem, closed table) proves unpublished bytes end-to-end; the
+  streaming sha256 of those exact bytes is the ledger identity and the report carries
+  `source:local:<abs>` provenance. Honest boundary documented: the local PyPI-wheel lane
+  is residue-INERT by construction (pip fully tracks and prunes; verified live on pip
+  24.0 AND 25.0.1) — planted-detection demos belong to the hook-executing lanes
+  (npm postinstall, gem extconf, crates build.rs).
+- Change: pypi roundtrip lane dep-closure calibration — pip's resolver report demotes
+  dependency-storm files to LOW `dep-owned` rows, so genuine orphans stand alone; the
+  demotion requires a legitimate claimant dist-info (pin Name+Version match, canonical
+  dirname, unique, own site-packages root, not the target) after an independent verifier
+  proved a shadow `*-9.9.9.dist-info` could otherwise launder hostile writes.
+
 ### 0.4.0 (2026-09-10)
 - Add: `border roundtrip <[ecosystem:]name@version>` — fact-proof valve. Installs the
   package inside a throwaway Docker container, content-hashes the whole filesystem before
