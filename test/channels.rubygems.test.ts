@@ -17,7 +17,7 @@
 //     targets.rubygems.name"), literal-only s.name/s.version regexes (dynamic
 //     values ⇒ typed exit-2, never eval), targets.rubygems.name
 //     disambiguation, s.date assignment rejection (non-reproducible build);
-//   * stage with REAL gem build: deterministic .gem lands in .border/dist/,
+//   * stage with REAL gem build: content-deterministic (W3.2) .gem lands in .border/dist/,
 //     extracted-tree scans (one outer `tar -xf` pass — gitleaks descends into
 //     data.tar.gz natively, paths arrive `data.tar.gz!lib/x.rb` and are
 //     scoped artifact-root-relative) attribute findings outside .border/;
@@ -45,6 +45,7 @@ import { createHash } from "node:crypto";
 import { chmodSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, test } from "node:test";
+import { gunzipSync, gzipSync } from "node:zlib";
 
 import type { BorderConfig } from "../src/config.ts";
 import type { CheckRecord, LedgerArtifact } from "../src/ledger/records.ts";
@@ -72,7 +73,7 @@ import {
   runRubygemsPublish,
 } from "../src/channels/rubygems.ts";
 import { runRubygemsArtifactStage, singleTreeGemspec } from "../src/artifacts/rubygems.ts";
-import { packRubygemsArtifacts, packNpmArtifacts, packCrateArtifacts, verifyArtifactFreshness, REPACKERS } from "../src/ledger/freshness.ts";
+import { packRubygemsArtifacts, packNpmArtifacts, packCrateArtifacts, verifyArtifactFreshness, gemContentDigest, REPACKERS } from "../src/ledger/freshness.ts";
 import { ConfigError } from "../src/channels/errors.ts";
 import { recordPushSuccess } from "../src/pushstate.ts";
 import { gitRevParseHead } from "./helpers/fixtures.ts";
@@ -90,6 +91,16 @@ import {
 requireGitleaks();
 
 const HEX64 = "0".repeat(64);
+
+// W3.2 golden (border-inspect-roadmap): normalized content digest of the
+// `writeGemSource(repo, "border-demo", "1.0.0", "")` stage fixture — sha256 over
+// the gunzipped data.tar.gz (per-entry name/typeflag/exec-bit/content, order kept)
+// plus the metadata minus rubygems_version/gem_version/date stamps and the
+// empty deprecated 3.4.x serializer keys. Captured on the dev box (RubyGems
+// 3.6.7 / ruby 3.3.8) and cross-proven against the runner image's RubyGems
+// 3.4.20 builder (measured locally via rubygems-update-3.4.20 lib-overload) —
+// see .omo/evidence/residue-spike/W32-GOLDEN-NORMALIZATION.md for the audit table.
+const GOLDEN_BORDER_DEMO_CONTENT = "1458976b12ddc416cab3cf18067a9611906abc0cd2c7d5322bd72219b2ebd951";
 
 function emptyCounts(): CheckRecord["counts"] {
   return { INFO: 0, LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0, total: 0, blocking: 0, warnings: 0 };
@@ -404,8 +415,21 @@ test("stage: real gem build lands .border/dist/<name>-<version>.gem, determinist
   const distFiles = readdirSync(join(repo, ".border", "dist"));
   assert.deepEqual(distFiles, ["border-demo-1.0.0.gem"], "dist must hold exactly the single built gem");
 
+  // W3.2: the determinism proof is the NORMALIZED content digest, not the raw
+  // file sha256 — `gem build` stamps the building toolchain (rubygems_version
+  // /gem_version, and on builders without pinned timestamps also the gzip
+  // header mtimes and the metadata date), so raw cross-build parity is
+  // per-environment luck (W3.1 residual: flaky-green on the runner image,
+  // coin-flipping the exact-set gate). Same tree ⇒ same content digest,
+  // anywhere; the digest also pins the fixture's substance (golden).
+  const distGem = join(repo, ".border", "dist", "border-demo-1.0.0.gem");
+  const firstContent = gemContentDigest(readFileSync(distGem));
+  assert.ok(firstContent !== null, "the staged .gem must yield a content digest (unparseable ⇒ fail closed)");
+  assert.equal(firstContent, GOLDEN_BORDER_DEMO_CONTENT, "gem content drifted from the W3.2 re-captured golden");
+
   const second = await runRubygemsArtifactStage({ repoDir: repo, cfg });
-  assert.equal(second.artifact?.sha256, first.artifact?.sha256, "gem build is byte-deterministic per tree (spike §e) — freshness repack is sound");
+  assert.equal(second.artifact?.sha256, sha256File(distGem), "the recorded digest must match the freshly built file bytes (same-build raw check)");
+  assert.equal(gemContentDigest(readFileSync(distGem)), firstContent, "gem build is CONTENT-deterministic per tree (W3.2) — freshness repack is sound");
 
   assert.deepEqual(readdirSync(join(repo, ".border", "tmp")), [], "extract sandbox must be removed after the stage");
   assert.deepEqual(first.findings, [], "clean tree + clean gem => no findings");
@@ -601,13 +625,21 @@ test("freshness: rubygems repacks via the shared REPACKERS lookup; ambiguous tre
   const artifacts = packRubygemsArtifacts(repo, {});
   assert.ok(artifacts !== null && artifacts.length === 1, "repack must produce the single .gem");
   assert.equal(artifacts[0]?.file, "fresh-gem-1.0.0.gem");
-  assert.equal(artifacts[0]?.sha256, artifact.sha256, "repack digest must equal the stage digest (deterministic build)");
+  // W3.2 parity: the repack's NORMALIZED content digest must equal the stage
+  // gem's — raw cross-build sha equality is builder-timestamp luck (see the
+  // stage test). contentDigest null would be fail-closed (unprovable).
+  const stageContent = gemContentDigest(readFileSync(join(repo, ".border", "dist", "fresh-gem-1.0.0.gem")));
+  assert.ok(stageContent !== null);
+  assert.equal(artifacts[0]?.contentDigest, stageContent, "repack content digest must equal the stage gem's (content-deterministic build)");
+  // The record rides the STAGE artifact — repo-relative .border/dist path, the
+  // shape recordCheckRun writes; verify re-derives the content digest from
+  // those bytes rather than trusting a stored raw sha match.
   const record: CheckRecord = {
     t: "check", key: HEX64, key8: HEX64.slice(0, 8), head: HEX64, dirtyDigest: HEX64, refSetHash: HEX64,
-    exposureSet: [], effectiveTargets: ["rubygems"], rulesHash: HEX64, artifacts, llm: false, verdict: "PASS",
+    exposureSet: [], effectiveTargets: ["rubygems"], rulesHash: HEX64, artifacts: [artifact], llm: false, verdict: "PASS",
     counts: emptyCounts(), reportPath: ".border/runs/x/report.json", degraded: false, ts: new Date().toISOString(),
   };
-  assert.equal(verifyArtifactFreshness(record, ctx, repo, {}), true, "digest-identical repack must prove freshness");
+  assert.equal(verifyArtifactFreshness(record, ctx, repo, {}), true, "content-identical repack must prove freshness (W3.2 normalized .gem parity)");
   assert.ok(REPACKERS["npm"] === packNpmArtifacts, "npm moves through the same lookup as rubygems (one site, no parallel if)");
   assert.ok(REPACKERS["crates"] === packCrateArtifacts, "crates stays in the shared lookup");
   assert.ok(REPACKERS["rubygems"] === packRubygemsArtifacts, "rubygems is registered in the shared lookup");
@@ -617,6 +649,136 @@ test("freshness: rubygems repacks via the shared REPACKERS lookup; ambiguous tre
   assert.equal(verifyArtifactFreshness(record, dirtyCtx, repo, {}), false, "a dirty tree can never skip");
   writeFileSync(join(repo, "lib", "answer.rb"), "def answer; 7; end\n");
   assert.equal(verifyArtifactFreshness(record, ctx, repo, {}), false, "changed bytes must invalidate the skip");
+});
+
+/* ------------------------------------------- W3.2 mutation proofs for the .gem content digest.
+   The tolerate/catch line of the normalized golden, pinned by test: build stamps
+   drift ⇒ digest unchanged; payload/metadata substance drift ⇒ digest changes.
+   A test-LOCAL ustar reader/writer keeps these proofs independent of the product
+   parser (a shared parser could hide its own bug in the very test meant to
+   catch it). */
+
+function testTarRead(buf: Buffer): { name: string; body: Buffer }[] {
+  const out: { name: string; body: Buffer }[] = [];
+  let off = 0;
+  while (off + 512 <= buf.length) {
+    const header = buf.subarray(off, off + 512);
+    if (header.every((b) => b === 0)) break;
+    const name = header.subarray(0, 100).toString("utf8").replace(/\0.*$/, "");
+    const size = Number.parseInt(header.subarray(124, 136).toString("utf8").replace(/[\0 ].*$/, "") || "0", 8);
+    const body = off + 512;
+    out.push({ name, body: buf.subarray(body, body + size) });
+    off = body + Math.ceil(size / 512) * 512;
+  }
+  return out;
+}
+
+function testTarWrite(entries: { name: string; body: Buffer }[]): Buffer {
+  const blocks: Buffer[] = [];
+  for (const { name, body } of entries) {
+    const h = Buffer.alloc(512);
+    h.write(name, 0, "utf8");
+    h.write("0000664\0", 100);
+    h.write("0000000\0", 108);
+    h.write("0000000\0", 116);
+    h.write(`${body.length.toString(8).padStart(11, "0")}\0`, 124);
+    h.write("0000000000\0", 136);
+    h[156] = 0x30;
+    h.write("ustar\0", 257);
+    h.write("00", 263);
+    let sum = 0;
+    for (const b of h) sum += b;
+    h.write(`${sum.toString(8).padStart(6, "0")}\0 `, 148);
+    blocks.push(h, body, Buffer.alloc(Math.ceil(body.length / 512) * 512 - body.length));
+  }
+  blocks.push(Buffer.alloc(1024));
+  return Buffer.concat(blocks);
+}
+
+function rebuildGem(members: { name: string; body: Buffer }[]): Buffer {
+  return testTarWrite(members.map((m) => ({ name: m.name, body: Buffer.from(m.body) })));
+}
+
+/** Rewrite a gzip member's header MTIME field (bytes 4-7) — the exact stamp a
+ *  builder without pinned timestamps drifts on between two in-run builds. */
+function patchGzipMtime(gz: Buffer, mtime: number): Buffer {
+  const out = Buffer.from(gz);
+  out.writeUInt32LE(mtime, 4);
+  return out;
+}
+
+test("W3.2 digest mutation: build stamps tolerated; payload bytes, file list and metadata substance caught; junk fails closed", async () => {
+  const repo = fixture("digest-mutate");
+  writeGemSource(repo, "mutate-gem", "1.0.0", "");
+  const { artifact } = await runRubygemsArtifactStage({ repoDir: repo, cfg: borderCfg() });
+  assert.ok(artifact !== null);
+  const gem = readFileSync(join(repo, ".border", "dist", "mutate-gem-1.0.0.gem"));
+  const base = gemContentDigest(gem);
+  assert.ok(base !== null, "a real gem build must yield a content digest");
+  const members = testTarRead(gem);
+  const metaEntry = members.find((m) => m.name === "metadata.gz");
+  const dataEntry = members.find((m) => m.name === "data.tar.gz");
+  if (metaEntry === undefined || dataEntry === undefined) throw new Error("gem must carry metadata.gz + data.tar.gz");
+  const checksums = members.find((m) => m.name === "checksums.yaml.gz");
+  const reMeta = (text: string) =>
+    rebuildGem([
+      { name: "metadata.gz", body: gzipSync(Buffer.from(text)) },
+      { name: "data.tar.gz", body: dataEntry.body },
+      ...(checksums === undefined ? [] : [{ name: "checksums.yaml.gz", body: checksums.body }]),
+    ]);
+
+  // TOLERATED — the two rubygems version stamps the W3.2 spec names...
+  const versioned = gunzipSync(metaEntry.body).toString("utf8");
+  assert.match(versioned, /^rubygems_version:/m);
+  assert.equal(gemContentDigest(reMeta(versioned.replace(/^rubygems_version: .*/m, "rubygems_version: 9.9.9"))), base,
+    "tampered rubygems_version must NOT move the content digest (toolchain stamp, now tolerated)");
+  assert.equal(gemContentDigest(reMeta(versioned.replace(/^version: !ruby\/object:Gem::Version/m, "gem_version: 9.9.9\nversion: !ruby/object:Gem::Version"))), base,
+    "an injected legacy gem_version line must NOT move the content digest");
+  // ...plus every time/identity stamp a drifting builder may embed: build date,
+  // gzip header mtimes (the runner-vs-devbox second-boundary flake itself),
+  // and a recomputed checksums member (stale by construction after any swap).
+  assert.equal(gemContentDigest(reMeta(versioned.replace(/^date: .*/m, "date: 2031-05-05 00:00:00.000000000 Z"))), base,
+    "a re-stamped metadata date must NOT move the content digest");
+  const innerPlain = gunzipSync(dataEntry.body);
+  assert.equal(gemContentDigest(rebuildGem([
+    { name: "metadata.gz", body: patchGzipMtime(metaEntry.body, 1234567890) },
+    { name: "data.tar.gz", body: patchGzipMtime(gzipSync(innerPlain), 987654321) },
+  ])), base, "gzip header mtimes must NOT move the content digest (in-run second-boundary flake neutralized)");
+  const noChecksums = rebuildGem([{ name: "metadata.gz", body: metaEntry.body }, { name: "data.tar.gz", body: dataEntry.body }]);
+  assert.equal(gemContentDigest(noChecksums), base, "the outer checksums.yaml.gz member must NOT feed the content digest");
+  // The exact 3.4.x-vs-3.6.x serializer delta measured under both builders
+  // (runner image = RubyGems 3.4.20): the old builder emits these deprecated
+  // keys EMPTY, the new one drops them from the stream — the empty lines must
+  // not move the digest, but a gemspec that SETS one still rides it (the
+  // legacy-key tolerance is serializer housekeeping, never substance).
+  assert.equal(gemContentDigest(reMeta(versioned.replace("bindir: bin", "bindir: bin\nemail:\nhomepage:\nautorequire:\nsigning_key:"))), base,
+    "old-builder EMPTY deprecated keys must NOT move the content digest");
+  assert.notEqual(gemContentDigest(reMeta(versioned.replace("bindir: bin", "bindir: bin\nemail: sneaky@evil.example"))), base,
+    "a SET deprecated field (email with a value) MUST move the content digest");
+
+  // CAUGHT — payload bytes: one digit inside lib/answer.rb, in the UNCOMPRESSED
+  // contents tar (same length so only the content differs, never framing).
+  const tampered = Buffer.from(innerPlain);
+  const at = tampered.indexOf("42", 512);
+  assert.ok(at > 0);
+  tampered[at + 1] = tampered[at + 1] === 0x37 ? 0x38 : 0x37;
+  assert.notEqual(gemContentDigest(rebuildGem([
+    { name: "metadata.gz", body: metaEntry.body },
+    { name: "data.tar.gz", body: gzipSync(tampered) },
+  ])), base, "tampering one byte inside contents.tar.gz MUST move the content digest (golden still fails)");
+  // CAUGHT — file list: a fourth entry appended to the contents tar.
+  const withExtra = testTarWrite([...testTarRead(innerPlain), { name: "lib/injected.rb", body: Buffer.from("evil\n") }]);
+  assert.notEqual(gemContentDigest(rebuildGem([
+    { name: "metadata.gz", body: metaEntry.body },
+    { name: "data.tar.gz", body: gzipSync(withExtra) },
+  ])), base, "adding a file to contents.tar.gz MUST move the content digest");
+  // CAUGHT — metadata substance: the summary text (not a stamp field).
+  assert.notEqual(gemContentDigest(reMeta(versioned.replace("summary: border rubygems test gem", "summary: evil gem"))), base,
+    "tampered metadata substance MUST move the content digest");
+
+  // FAIL CLOSED — anything that is not a parseable .gem yields null.
+  assert.equal(gemContentDigest(Buffer.from("not a tar at all")), null);
+  assert.equal(gemContentDigest(rebuildGem([{ name: "metadata.gz", body: metaEntry.body }])), null);
 });
 
 test("freshness: singleTreeGemspec mirrors the stage doctrine — multi gemspec / s.date / dynamic version => null", () => {
