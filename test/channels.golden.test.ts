@@ -59,7 +59,14 @@ after(() => {
 // exposureSet and DRY-RUN stdout goldens are UNTOUCHED — they still prove the
 // digest extension drifted nothing else. Re-captured from two identical
 // standalone runs at this location (deterministic; same fixture recipe).
-const GOLDEN_KEY = "d6b83c4c366a9077e1360247f5a93d8c5026d2ef735809239709578ca5707abc";
+//
+// W4 re-pin (.omo/plans/border-inspect-roadmap.md W4.2): computeCheckRulesHash now ALSO
+// digests src/rules/releaseCoherence.ts (RELEASE_FINGERPRINT_SOURCES) and the `release`
+// config block rides computeConfigDigest — so the key MOVED BY DESIGN again; editing a
+// release-coherence matcher invalidating cached PASSes IS the stale-PASS mechanism.
+// Old R4-era value: d6b83c4c366a9077e1360247f5a93d8c5026d2ef735809239709578ca5707abc.
+// exposureSet / DRY-RUN stdout goldens stay UNTOUCHED — the rotation drifted nothing else.
+const GOLDEN_KEY = "98c9a1e509a5ffcb4933d432095664fd69413ca5a950fd21ae8f7bf38afa92ef";
 const GOLDEN_EXPOSURE = ["https://example.com/origin.git", "npm:widgets@1.0.0", "pypi:pushdemo@0.1.0"];
 const GOLDEN_DRYRUN_STDOUT = [
   "border DRY-RUN: no --yes, so nothing runs — this is the plan (m-R5-a) contract",
