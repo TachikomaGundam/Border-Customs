@@ -34,7 +34,7 @@ export function usage(): string {
     "  llm-request    emit the provenance request for LLM-authored commits",
     "  llm-ingest     record provenance captured by the harness",
     "  scan           inspect a third-party package ([ecosystem:]name@version) for residue",
-    "  roundtrip      install+uninstall a package in a throwaway container, report uninstall residue",
+    "  roundtrip      install+uninstall a package (registry spec or local artifact file) in a throwaway container, report uninstall residue",
     "",
     "flags:",
     "  --config <path>             config file (default: ./border.yaml, then git-remote fallback)",

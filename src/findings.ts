@@ -93,6 +93,10 @@ export type Report = {
   findings: readonly Finding[];
   /** G14: present (non-empty) only when the allow post-filter suppressed findings. */
   allowHits?: readonly AllowHit[];
+  /** W2.4(b) G-LOCAL, roundtrip reports only: "local:<abs-path>" — the bytes proven were read from disk, not fetched. Absent on registry runs. */
+  source?: string;
+  /** W2.4(b) G-LOCAL, roundtrip reports only: sha256 of the exact proven bytes — the digest is the identity the ledger proof keys on. */
+  artifactSha256?: string;
   /** ISO-8601 timestamp of report creation. */
   ts: string;
 };

@@ -35,6 +35,7 @@ import { TextSanitizer } from "../redact.ts";
 import { renderReportJson } from "../report.ts";
 import { defaultScanFetcher, fetchArtifact, sha256Hex, type ScanFetcher } from "../scan/fetch.ts";
 import { parseScanSpec, SCAN_SPEC_USAGE, type ScanEcosystem, type ScanSpec } from "../scan/spec.ts";
+import { classifyLocalInput, readLocalArtifact } from "./localArtifact.ts";
 import {
   BASE_EXCLUDES,
   CARGO_EXCLUDES,
@@ -269,11 +270,22 @@ export async function runRoundtripCore(ctx: Ctx, deps: RoundtripDeps = {}): Prom
   const raw = ctx.positionals[0];
   if (ctx.positionals.length !== 1 || raw === undefined) {
     throw new UnknownArgError(
-      `border roundtrip expects exactly one <spec> argument (got ${String(ctx.positionals.length)}); ${SCAN_SPEC_USAGE}`,
+      `border roundtrip expects exactly one argument — a registry spec or a local artifact file (got ${String(ctx.positionals.length)}); ${SCAN_SPEC_USAGE}`,
     );
   }
-  const spec = parseScanSpec(raw);
-  const profile = profileFor(spec.ecosystem);
+  // W2.4(b) G-LOCAL: an argument resolving to an EXISTING FILE is local mode —
+  // detection is pure fs and runs BEFORE the docker probe, so a bad path can
+  // never downgrade into a registry fetch of different bytes. A path that
+  // parses as a registry spec keeps the W2.1 lane untouched (byte-identical).
+  const local = classifyLocalInput(raw, ctx.cwd, parsesRegistrySpec);
+  const spec: ScanSpec = local !== null
+    ? { ecosystem: local.ecosystem, name: local.name, version: local.version }
+    : parseScanSpec(raw);
+  const laneProfile = profileFor(spec.ecosystem);
+  // Local wheels ride a wheel-suffixed container name (pip keys on the
+  // suffix); every other leg — image, excludes, install/uninstall argv —
+  // stays the lane's profile verbatim.
+  const profile: EcoProfile = local !== null ? { ...laneProfile, artifactPath: local.containerPath } : laneProfile;
   const label = `${spec.ecosystem}:${spec.name}@${spec.version}`;
 
   const exec = deps.exec ?? realDockerExec();
@@ -284,7 +296,13 @@ export async function runRoundtripCore(ctx: Ctx, deps: RoundtripDeps = {}): Prom
 
   const baseDir = mkdtempSync(join(tmpdir(), "border-roundtrip-"));
   try {
-    const { bytes } = await fetchArtifact(spec, { fetcher: deps.fetcher ?? defaultScanFetcher });
+    // Local mode skips the network ENTIRELY: the fetcher seam is never
+    // constructed-into (await short-circuits) and the bytes + digest come
+    // from one streaming pass over the file (the digest covers exactly the
+    // bytes staged for docker cp — digest-is-identity).
+    const localRead = local !== null ? await readLocalArtifact(local.absPath) : null;
+    const bytes = localRead?.bytes ?? (await fetchArtifact(spec, { fetcher: deps.fetcher ?? defaultScanFetcher })).bytes;
+    const artifactSha256 = localRead !== null ? localRead.sha256 : sha256Hex(bytes);
     const hostPath = join(baseDir, "artifact");
     writeFileSync(hostPath, bytes);
 
@@ -306,6 +324,10 @@ export async function runRoundtripCore(ctx: Ctx, deps: RoundtripDeps = {}): Prom
       verdict,
       counts: countFindings(findings),
       findings,
+      // W2.4(b) provenance honesty: a local run proves ITS OWN bytes. The
+      // fields are absent (byte-identical JSON) on the registry lane and
+      // never phrase the artifact as registry-verified.
+      ...(local !== null ? { source: local.source, artifactSha256 } : {}),
       ts: new Date().toISOString(),
     };
 
@@ -314,6 +336,9 @@ export async function runRoundtripCore(ctx: Ctx, deps: RoundtripDeps = {}): Prom
     if (ctx.flags.json) {
       ctx.stdout(renderReportJson(report));
     } else {
+      if (local !== null) {
+        ctx.stdout(line(`roundtrip: source ${local.source} artifact sha256 ${artifactSha256}`));
+      }
       for (const f of report.findings) {
         ctx.stdout(line(`  ${f.severity} ${f.rule} [${f.engine}] ${f.path ?? f.target} ${f.message}`));
       }
@@ -328,11 +353,23 @@ export async function runRoundtripCore(ctx: Ctx, deps: RoundtripDeps = {}): Prom
     // residue.requireProof. Both outcomes are recorded — clean and residue
     // alike; the existence of the fact, not its content, is the proof.
     if (ctx.flags.record !== false) {
-      await recordRoundtripProof(ctx, sha256Hex(bytes), report.findings.length, report.findings.length === 0 ? "clean" : "residue");
+      await recordRoundtripProof(ctx, artifactSha256, report.findings.length, report.findings.length === 0 ? "clean" : "residue");
     }
     return exitCodeFromVerdict(verdict);
   } finally {
     rmSync(baseDir, { recursive: true, force: true });
+  }
+}
+
+/** parseScanSpec without the throw — G-LOCAL detection asks "is this ALSO a
+ *  valid spec?" to keep slash-bearing specs (@scope/pkg@1.0.0) on the registry
+ *  lane even when no such file exists on disk. */
+function parsesRegistrySpec(raw: string): boolean {
+  try {
+    parseScanSpec(raw);
+    return true;
+  } catch {
+    return false;
   }
 }
 

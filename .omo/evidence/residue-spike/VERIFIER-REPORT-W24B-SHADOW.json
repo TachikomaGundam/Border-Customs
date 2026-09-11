@@ -1,0 +1,125 @@
+{
+ "status": "done",
+ "verifier": "independent-reverify-W24b-shadow",
+ "head": "8e95582 + 7 uncommitted W2.4b files (working tree as-under-test)",
+ "probes": {
+  "recon": "done: HEAD 8e95582, 46b5fdf ancestor confirmed, /tmp/verify-a missing (rebuilt at /tmp/vw24b), code read: calibrate/orchestrate/localArtifact/manifest/e2e+calibrate tests",
+  "harness": "venv python3.14 created, building S1/S2 scanner+seam harness",
+  "S1_S2_seam": {
+   "result": "PASS 33/33",
+   "method": "real CLAIM_SCANNER_PY (emitted verbatim from src) run in fixture venv python3.14.4 + buildAttribution guard seam + classifyResidue pipeline parity",
+   "harness": "/tmp/vw24b/{emit.ts,plant.py,seam.ts,out/*.claims}",
+   "cases": {
+    "s1_original_attack": "shadow traitlets-9.9.9.dist-info + real traitlets-5.16.1: BOTH metas emitted, normCount=2 rejects BOTH (calibrate.ts:133); version!=pin also rejects (:131); python-side RECORD ../-escape filtered (CLAIM_SCANNER_PY :231-232); ALL 7 surviving rows HIGH, 0 LOW laundered",
+    "m2_version_ne_pin": "reject :131",
+    "m3_dirname_vs_metadata_name": "reject :132 dirName",
+    "m4a_two_claimants_one_path": "ambiguous-drop BOTH owners for that path :73-81, unrelated owners intact",
+    "m4b_duplicate_name_case_spelling": "normCount=2 ALL rejected :133",
+    "m5_root_outside_site_packages": "scanner emits zero metas (roots only site.getsitepackages() :197-210); forged TS seam claims confined to claimant root :145",
+    "m6_claimant_is_target": "jupyter_core-5.8.1 canonical+unique+pin-matched self-cert rejected :130",
+    "m7_metadata_vs_dirname_ver": "reject :132 dirVer",
+    "benign_control": "traitlets+platformdirs canonical claims demote LOW incl. dirOwners parent chain"
+   }
+  },
+  "S1_live": {
+   "result": "PASS",
+   "detail": "hostile sdist rt-shadow-plant@0.0.1 (setup.py plants SP/traitlets-9.9.9.dist-info w/ RECORD claiming SP/payload/backdoor.py + ../-escape to /usr/local/share/rt-shadow-orphan/payload.py; install_requires traitlets==5.16.1 real dep) through real docker resolver+measurement containers via runRoundtripCore+scripted fetcher: rc=EXIT_BLOCKED, ALL rows HIGH (incl. real traitlets storm via normCount=2 duplicate-name all-reject), ZERO LOW demotions, 0 leaked rt-* containers, 66s",
+   "harness": "/tmp/vw24b/live_s1.ts"
+  },
+  "S2_matrix": {
+   "result": "PASS 8 mutants, guard cites: :131 pin, :132 dirName+dirVer, :133 normCount uniqueness, :130 target, :145 root containment, :73-81 ambiguous-all-reject, CLAIM_SCANNER_PY:231-232 RECORD escape filter, :197-210 roots=site.getsitepackages() only",
+   "see": "S1_S2_seam"
+  },
+  "S3_benign_parity": {
+   "result": "PASS exact",
+   "detail": "live pypi:jupyter-core@5.8.1: rc=0 verdict=PASS, total=54 findings, blocking=0, LOW dep-owned=54, owners=platformdirs==4.11.8,traitlets==5.16.1, elapsed 117s",
+   "harness": "/tmp/vw24b/live_benign.ts"
+  },
+  "S4_fail_open_sweep": {
+   "result": "PASS",
+   "detail": "ownerOf/classifyResidue: demotion ONLY when exact/dirOwners hit (manifest.ts:106-107); attribution null (non-pypi orchestrate.ts:244) or scan-failure buildAttribution('',guard) (orchestrate.ts:208/213) or empty claim text => zero demotion, every row keeps W2.1 grade (probe t_empty PASS). dirOwners consulted for D-kind only \u2014 files cannot hide under claimed dirs (probe PASS). Report-version stringly quirk calibrate.ts:51 not weaponizable: report is produced by pip INSIDE our resolver container at tmpfs /dev/shm/rt-report.json; closure never ingests artifact bytes (resolvePipClosure orchestrate.ts:168-193: docker cp of OUR staged bytes -> pip dry-run -> cat); worst theoretical resolver-side race can only widen pins, and even a fully forged closure cannot launder outside-site-packages paths: every claim is structurally confined to a scanned site-packages root under a canonical unique pin-matched dist-info (TS :143-145 + python :231-232); forged closure omitting target => exit 2 (:181-183)."
+  },
+  "G1_cli_typed_exits": {
+   "result": "PASS",
+   "detail": "5 cases all rc=2 with distinct messages (missing-relative ./nope-1.0.0.whl + missing-absolute 'not an existing file \u2014 ... never fetched' localArtifact.ts:159-161; dir :131; ./x.zip closed-table :140 'no content sniffing'; broken.whl grammar :145) via dist CLI; PATH shim /tmp/vw24b/bin/docker logged ZERO invocations => typed exits precede docker; order also provable orchestrate.ts:280 classify before :292 dockerAvailableGuard; fetch precedes nothing: local branch :303-305 short-circuits fetchArtifact"
+  },
+  "G2_zero_network": {
+   "result": "PASS",
+   "detail": "decisive: globalThis.fetch REPLACED WITH THROWER in-process, runRoundtripCore on zero-dep wheel rt_clean-1.0.0-py3-none-any.whl => rc=0 PASS 0 findings 15s, no HOST-FETCH-ATTEMPTED; artifactSha256=7a25b79e8639a1bedbe1382358a8a268d2f410d6fa6f5608025de934b059fe4f == sha256sum; CLI run under HTTP(S)_PROXY=http://127.0.0.1:9 rc=0 PASS, JSON source local:<abs> + artifactSha256, human line 'roundtrip: source local:...' present. NIT: worker's literal 'live benign sha 6620b266\u2026' not found anywhere on disk (their fixture ephemeral) \u2014 equality PROPERTY verified on my bytes instead"
+  },
+  "G3_provenance": {
+   "result": "PASS",
+   "detail": "roundtrip.test.ts+roundtrip.record.test.ts 29/29 (valve key = sha256 of artifact bytes, record.test.ts:135); roundtrip.local.test.ts 16/16 incl. source==local:<abs> :155, human+JSON provenance :266/:309/:316, registry-mode byte-identical (no source/artifactSha256 keys) covered in those 16"
+  },
+  "G5_spec_routing": {
+   "result": "PASS",
+   "detail": "scoped '@scope/pkg@1.0.0' and 'npm:foo.bar@1.0' unit-tested un-hijacked (inside local.test.ts 16/16); detection order localArtifact.ts:128 existsSync-first \u2014 only a real FILE (or path-shaped-missing) enters local lane, :160 requires !parsesRegistrySpec for missing paths so no valid spec can ever be intercepted; orchestrate.ts:364-374 parsesRegistrySpec = parseScanSpec"
+  },
+  "G4_planted_live": {
+   "result": "FAIL-CLAIM (code OK)",
+   "detail": "DONECLAIM 'planted wheel RC1 /usr/local/.config HIGH' NOT reproducible: (1) border LIVE on dirs+files .data/data/.config plant wheel (9236b41d\u2026) \u2192 verdict PASS, 0 rows, rc 0; (2) manual docker python:3.12-slim pip 25.0.1 install+uninstall \u2192 /usr/local/.config FULLY pruned; (3) pinned pip 24.0 same result; (4) dirs-only plant (no .data files): pip 25.0.1 NEVER EXTRACTS pure zip dir entries (absent even pre-uninstall), pip 24.0 dirs-only also zero survivors. Worker's recorded doctrine 'files don't survive, DIRECTORIES do' is false for pip>=24 (empty-dir pruning + dir-entry non-extraction). Manual-pip parity HOLDS 1:1 in every case run (border rows == manual survivors, incl. benign 54-row S3 and hostile S1 all-HIGH). Residue-detection wiring itself green via unit fake-manifest exit-1 test (:300-310) + S1 live sdist-channel HIGH rows. Verdict: measurement honest, DONECLAIM live clause unsubstantiated.",
+   "blocker": true
+  },
+  "G6_ceilings_hygiene": {
+   "result": "PASS w/ nits",
+   "detail": "non-.omo dirty set = exactly 6 files (4 M + 2 ??), claim said '7 files +212/-24' \u2014 tracked diff +80/-14 plus 190+374 untracked lines; NIT file-count off by one, line-count doesn't decompose. '17 units' claim vs 16 tests in file (verify next cmd). plans/start-work diff vs HEAD EMPTY (retraction rows are HEAD content, worker wrote no ledger); test/residue.npm.test.ts untouched; findings.ts +4 = optional source?/artifactSha256? doc-commented fields only, registry key-absence pinned by test :338-339; rt-* leaked containers 0"
+  }
+ },
+ "shadow_reverify": "CONVERGED",
+ "shadow_reverify_confidence": 0.93,
+ "shadow_reverify_basis": "W2.4a blocker (shadow dist-info self-certification) FIXED in 46b5fdf. S1 live hostile sdist (plants SP/traitlets-9.9.9.dist-info w/ RECORD claims + ../-escape orphan, real dep closure) -> all rows HIGH, ZERO demotions; dup-name normCount=2 even rejects the real dep's claims (fail-safe over-report). S2: 8 mutants vs shipped CLAIM_SCANNER_PY (venv py3.14) + buildAttribution seam 33/33: pin :131, dirName+dirVer :132, uniqueness :133, target :130, root-containment :143-145, ambiguous-all-reject :73-81, py escape filter :231-232, roots=site.getsitepackages only. S3 benign parity EXACT (see benign_parity_row). S4 fail-closed: null/empty attribution => zero demotion; report bytes pip-produced in OUR resolver container tmpfs (orchestrate.ts:168-193, closure never ingests artifact bytes); String(version) quirk calibrate.ts:51 unweaponizable.",
+ "w24b": "NEEDS-FIX",
+ "w24b_confidence": 0.88,
+ "w24b_basis": "Core fully reproduced: G1 5x rc=2 distinct msgs, docker PATH-shim log EMPTY (classify precedes guard: localArtifact.ts:126-164 before orchestrate.ts:292); G2 decisive zero-network (in-process fetch-killer, rc0 PASS) + CLI under blackhole proxy PASS, artifactSha256 7a25b79e8639a1bedbe1382358a8a268d2f410d6fa6f5608025de934b059fe4f == sha256sum, provenance in human+JSON, registry byte-identical; G3 29/29+16/16, valve keys by digest (record.test.ts:135), key-absence pinned (local.test.ts:338-339); G5 scoped + npm: specs un-hijacked; G6 hygiene clean (plans/ledger diff vs HEAD empty, residue.npm.test.ts untouched, findings.ts +4 optional-only). Blockers are unsubstantiated DONECLAIM live clauses, not code defects.",
+ "blockers": [
+  {
+   "id": "G4-live-plant-unreproducible",
+   "claim": "DONECLAIM (ledger.jsonl:181 @HEAD): 'planted RC1 /usr/local/.config HIGH, manual-pip parity 1:1'",
+   "file_line": "src/roundtrip/localArtifact.ts:34-39 (pypi local lane = .whl only) \u2014 no wheel plant can leave residue on pip>=24 via that lane",
+   "repro": "plant wheel (zip: rt_plant-0.0.1.data/data/.config/{,systemd/,systemd/user/,empty/} + .config/evil.txt + .config/systemd/user/s.service, sha256 9236b41d77181613c62eea38225ab6b74f80a38b6ddc3b487db6ee2f72e0ecd5): (1) border roundtrip --no-record => rc0 PASS 0 rows; (2) manual docker python:3.12-slim pip 25.0.1 install+uninstall => /usr/local/.config FULLY pruned; (3) pinned pip 24.0: same, zero survivors; (4) dirs-only variant: pip 25.0.1 never extracts pure zip dir entries (absent even pre-uninstall); pip 24.0 dirs-only zero survivors. Worker doctrine 'files don't survive, DIRECTORIES do' is false for pip>=24. Residue detection independently proven LIVE via SDIST channel (S1 all-HIGH EXIT_BLOCKED) + unit fake-manifest exit-1 (roundtrip.local.test.ts:300-310).",
+   "disposition": "code honest (border rows == manual survivors 1:1 in every run incl. empty set); DONECLAIM live clause must be corrected or re-demonstrated sdist-shaped before merge"
+  },
+  {
+   "id": "G2-sha6620b266-untraceable",
+   "claim": "'live benign sha 6620b266...==sha256sum'",
+   "file_line": "n/a \u2014 hex absent from repo/.omo; fixture ephemeral (canonical jupyter_core-5.8.1-py3-none-any.whl = c28d268fc90fb53f1338ded2eb410704c5449a358406e8a948b75706e24863d0)",
+   "repro": "grep 6620b266 repo+.omo => 0 hits; equality PROPERTY verified on verifier bytes",
+   "disposition": "minor honesty nit elevated for visibility"
+  }
+ ],
+ "nits": [
+  "DONECLAIM '7 files +212/-24' vs measured 6 non-.omo files (tracked +80/-14; new 190+374 lines)",
+  "DONECLAIM '17 units' vs 16 test cases in roundtrip.local.test.ts",
+  "shadow residual under-claim directions (accepted design, fail-safe boundary): legit dep's dist-info subtree files self-demote (scanner always-claim); empty-D rows under claimed parents demote (dirOwners kind-D only, calibrate.ts:158-162 \u2014 files can never hide)"
+ ],
+ "benign_parity_row": {
+  "package": "pypi:jupyter-core@5.8.1",
+  "docker": "python:3.12-slim",
+  "rc": 0,
+  "verdict": "PASS",
+  "blocking": 0,
+  "total_findings": 54,
+  "low_dep_owned": 54,
+  "owners": [
+   "platformdirs==4.11.8",
+   "traitlets==5.16.1"
+  ],
+  "elapsed_s": 117
+ },
+ "integration": {
+  "full_npm_test": "704/691/2fail/11skip \u2014 matches claim exactly",
+  "not_ok": [
+   "C5-1 subset discipline (git-only PASS authorizes no publish leg...)",
+   "C5-4 ordering (publish legs descriptor order...)"
+  ],
+  "skips_enumerated": "1 pack (BORDER_PACK_TEST) + 8 docker (BORDER_ROUNDTRIP_DOCKER) + 2 network (BORDER_SCAN_NETWORK_E2E)",
+  "typecheck_rc": 0,
+  "build_rc": 0,
+  "note": "suite executed twice (2nd run tee'd solely to enumerate fail/skip names; 137s each, within heartbeat budget)"
+ },
+ "cleanup": {
+  "rt_leaked_containers": 0,
+  "manual_containers": "vw24b-manual + vw24b-p24 removed",
+  "tmp": "/tmp/vw24b removed (harnesses rebuildable from repro fields; /tmp/verify-a was already absent)"
+ }
+}
