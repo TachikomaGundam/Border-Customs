@@ -1,6 +1,6 @@
 {
   "name": "border-customs",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "//": "publint is a runtime dep (exact pin): the npm-stage engine is invoked via bin resolution against the installed layout, so consumers get the publint-fail leg out of the box; the dev suite resolves the same node_modules/.bin/publint — no devDependencies entry is needed for it to stay green.",
   "description": "Fail-closed git push gate: secret scanning + supply-chain checks before any remote leaves the machine",
   "type": "module",
