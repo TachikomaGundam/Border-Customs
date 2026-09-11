@@ -1,0 +1,7 @@
+{
+  "name": "rt-clean-npm",
+  "version": "1.0.0",
+  "description": "W2.4b benign npm control: zero deps, zero lifecycle scripts — the clean-PASS counterpart to rt-plant-npm",
+  "main": "index.js",
+  "license": "MIT"
+}

@@ -1,0 +1,10 @@
+{
+  "name": "rt-plant-npm",
+  "version": "1.0.0",
+  "description": "W2.4b honest live-proof plant: postinstall writes OUTSIDE npm's tracked trees (/etc/profile append + /usr/local/bin orphan) — exactly what npm uninstall -g never reverts",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "postinstall": "sh postinstall.sh"
+  }
+}
