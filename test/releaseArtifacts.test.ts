@@ -27,6 +27,25 @@ function spawnLogged(cmd: string, args: string[], opts: { cwd: string; env: Node
   runChecked(spawnSync(cmd, args, { ...opts, encoding: "utf8" }), what, opts.timeout);
 }
 
+// bin-form lock (npm publish "invalid and removed" triage, 2026-09-11):
+// npm's publish-time fixer (@npmcli/package-json normalize.js secureAndUnixifyPath)
+// rewrites any bin target that is not its own canonical pass-through form and
+// prints `npm warn publish "bin[border]" script name dist/index.js was invalid
+// and removed`. Empirically (npm 11.19.1, local pack/publish dry-run matrix):
+//   './dist/index.js' -> warns; '/dist/index.js' -> warns; 'dist/index.js' -> silent.
+// Bare relative is also the documented form (npm docs package-json.md: {"bin":
+// {"myapp": "bin/cli.js"}}). The warning was pure publish-time normalization noise —
+// npm pack keeps the raw form and installs normalize silently — but pinning the
+// canonical string here keeps every future publish warning-free.
+test("package.json bin uses the warning-free canonical form (bare relative, no './')", () => {
+  const pkg = JSON.parse(readFileSync(join(BORDER_ROOT, "package.json"), "utf8")) as {
+    bin: Record<string, string>;
+  };
+  assert.equal(pkg.bin.border, "dist/index.js");
+  assert.ok(!pkg.bin.border.startsWith("./"), "bin target must not carry a leading './' — npm publish auto-corrects it and warns");
+  assert.ok(!pkg.bin.border.startsWith("/"), "bin target must be relative — npm publish strips absolute roots too");
+});
+
 test("published artifact consumer smoke: border --help fires through the npm bin shim (opt-in: BORDER_PACK_TEST=1)", (t) => {
   if (process.env.BORDER_PACK_TEST !== "1") {
     t.skip("pack e2e is opt-in — offline suite stays green");
