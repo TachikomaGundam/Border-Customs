@@ -1,46 +1,61 @@
 // provenance: original clean-room implementation per .omo/plans/border-push-channels.md todo C2
 //
-// Golden-fingerprint suite for the channel-registry refactor. The goldens were
-// captured with /tmp/opencode/golden/capture-deterministic.mjs using the
-// fixture recipe below, and pinned as literals. Reproducibility requires two
-// things, both encoded here:
-//   (1) the fixture commit must be time-fixed (amended with pinned
-//       author/committer dates) — the check key embeds headSha, so a
-//       wall-clock commit would re-key every run;
-//   (2) the key's rulesHash embeds the absolute vendored-config path, which
-//       is checkout-location-dependent BY DESIGN (src/redact.ts hashes
-//       `file:` + path + digest lines) — so the goldens are valid for a
-//       checkout at this repo's location, and the pre/post-refactor
-//       comparison must run at one location, not across two trees.
+// Golden-fingerprint suite for the channel-registry refactor, NORMALIZED per
+// W3.2 (.omo/plans/border-inspect-roadmap.md). The single raw-key golden moved
+// with the checkout location — rulesHash hashes `kind:<absolute path>:<digest>`
+// lines (src/redact.ts), BY DESIGN per-checkout truth — so it was a dev-box
+// constant that could never go green on a runner (CI-RUNNER-REDSET-2026-09-09).
+// Instead of one opaque hash, the suite now pins every key component and the
+// composition separately, each in the strongest environment-portable form:
+//   headSha / porcelainDigest / refSet / effectiveTargets — pinned component
+//                      by component: the fixture commit is time-fixed (amended
+//                      with pinned author/committer dates/identity) and the
+//                      porcelain entries collapse to directory lines, so all
+//                      four values are checkout-location independent;
+//   exposureSet      — never was location-dependent, still pinned verbatim;
+//   normalizedRulesHash — rulesHash recomputed over the IDENTICAL line recipe
+//                      (config digest, per-file sha256s, engine versions) with
+//                      one canonicalization: absolute fingerprint-source paths
+//                      are replaced by repo-root-relative labels. Everything
+//                      the hash really certifies (rule/classifier bytes, prompt
+//                      template bytes, engine versions, effective config) rides
+//                      the pin; the checkout path string does not;
+//   key composition  — sha256(stableStringify({the six components})) recomputed
+//                      independently of computeCheckKey, with the env-local raw
+//                      rulesHash plugged in: any field-set/order/serialization
+//                      change fails even though the raw key value is env-bound;
+//   raw rulesHash    — re-derived via the product recipe so the composition
+//                      half cannot silently drift onto a different input.
 //
-// Equivalence evidence (captured pre-refactor from a pristine `git worktree
-// add --detach HEAD` checkout, same script):
-//   identical across trees: configDigest (expandInConfig/schema rewire),
-//   exposureSet (exposure rewire), DRY-RUN stdout + exit (publish core /
-//   argv rewire), porcelainDigest, headSha (amend makes it deterministic),
-//   engineVersions, vendored-config CONTENT (e163...e1 both). The only
-//   divergent key input was rulesHash, differing solely because the vendored
-//   config's absolute path string is hashed — a pre-existing
-//   location-dependence, not a refactor regression.
-//
-// Artifact digests are deliberately NOT pinned: sdist/wheel/tgz bytes embed
-// build timestamps, so identical builds yield different sha256s run-to-run
-// (empirically three different sets on three identical runs). Their FILENAMES
-// are pinned via the twine/npm DRY-RUN lines below.
+// DRY-RUN stdout + exit and exposureSet keep their verbatim goldens (location
+// independent). Artifact digests stay deliberately UNPINNED: sdist/wheel/tgz
+// bytes embed build timestamps (npm/pypi carry no normalization story here —
+// the filenames ride the DRY-RUN lines). The .gem goldens are normalized in
+// test/channels.rubygems.test.ts (W3.2 sibling).
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
 import { after, test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { buildPypiArtifacts } from "../src/artifacts/pypi.ts";
 import { computeEffectiveTargets } from "../src/check/context.ts";
-import { computeConfigDigest, stableStringify } from "../src/check/rulesHash.ts";
+import {
+  computeCheckRulesHash,
+  computeConfigDigest,
+  resolvePromptTemplatePath,
+  resolveReleaseFingerprintFiles,
+  resolveResidueFingerprintFiles,
+  stableStringify,
+} from "../src/check/rulesHash.ts";
 import { run } from "../src/cli.ts";
 import { EXIT_PASS, type BorderExit } from "../src/cli/exit.ts";
 import { handlers } from "../src/commands/index.ts";
 import { exposureSet, loadConfig } from "../src/config.ts";
+import { GITLEAKS_VENDORED_CONFIG } from "../src/engines/gitleaks.ts";
+import { probeEngines } from "../src/engines/policy.ts";
 import { computeFingerprint } from "../src/ledger.ts";
 import { appendRecord, type CheckRecord } from "../src/ledger/records.ts";
 import { gitAddCommit, gitInit, gitRevParseHead, makeFixtureDir, removeDir, writeRel } from "./helpers/fixtures.ts";
@@ -50,23 +65,24 @@ after(() => {
   for (const d of roots) removeDir(d);
 });
 
-// R4 re-pin (.omo/plans/border-residue-gate.md Wave-4 gate 4): computeCheckRulesHash
-// now digests the residue fingerprint sources (src/check/rulesHash.ts
-// RESIDUE_FINGERPRINT_SOURCES + residue config value via configDigest), so the
-// key MOVED BY DESIGN — a residue-table edit invalidating the key IS the
-// stale-PASS mechanism this pin guards. Old C2-era value:
-//   3f167079ac116aadea5fc36ba8bd90f4a24683940a2c6c308eaf8d52c19b6a15
-// exposureSet and DRY-RUN stdout goldens are UNTOUCHED — they still prove the
-// digest extension drifted nothing else. Re-captured from two identical
-// standalone runs at this location (deterministic; same fixture recipe).
-//
-// W4 re-pin (.omo/plans/border-inspect-roadmap.md W4.2): computeCheckRulesHash now ALSO
-// digests src/rules/releaseCoherence.ts (RELEASE_FINGERPRINT_SOURCES) and the `release`
-// config block rides computeConfigDigest — so the key MOVED BY DESIGN again; editing a
-// release-coherence matcher invalidating cached PASSes IS the stale-PASS mechanism.
-// Old R4-era value: d6b83c4c366a9077e1360247f5a93d8c5026d2ef735809239709578ca5707abc.
-// exposureSet / DRY-RUN stdout goldens stay UNTOUCHED — the rotation drifted nothing else.
-const GOLDEN_KEY = "98c9a1e509a5ffcb4933d432095664fd69413ca5a950fd21ae8f7bf38afa92ef";
+// W3.2 RE-PIN (.omo/plans/border-inspect-roadmap.md): the raw whole-key golden
+// is RETIRED — its value was checkout-location-bound (rulesHash hashes the
+// absolute path of every fingerprint source). The pinning below is the same
+// certificate decomposed into its environment-portable parts. Rotation
+// history of the old raw key (kept for provenance): C2-era
+// 3f167079…6a15 → R4 (residue sources folded in) → W4 (releaseCoherence.ts
+// folded in) d6b83c4c…7abc → 98c9a1e509a5ffcb4933d432095664fd69413ca5a950fd21ae8f7bf38afa92ef
+// (dev-box re-capture, runner never green) → decomposed here.
+// Every fingerprint source file, the prompt template, the engine versions and
+// the effective config ride GOLDEN_RULES_HASH_NORMALIZED (path canonicalized);
+// the fixture state rides the headSha/porcelain/refSet/targets pins; the key
+// FORMULA rides the composition recompute in the test body. A residue/release
+// table edit STILL invalidates the pin — the file digests moved.
+const GOLDEN_HEAD_SHA = "b838689d96b1a1cda8d2919ec3c716f23210a5f2";
+const GOLDEN_PORCELAIN_DIGEST = "5782837b399a70eb135d2f1c2ac96ba010ff6e13f1800e14e6b8b9416effd8e3";
+const GOLDEN_REFSET = ["refs/heads/main"];
+const GOLDEN_EFFECTIVE_TARGETS = ["git", "npm", "pypi"];
+const GOLDEN_RULES_HASH_NORMALIZED = "a2b167c44bc8371029647790cc6a836aaecebdd1f17ff9eca3dfa00f6709412d";
 const GOLDEN_EXPOSURE = ["https://example.com/origin.git", "npm:widgets@1.0.0", "pypi:pushdemo@0.1.0"];
 const GOLDEN_DRYRUN_STDOUT = [
   "border DRY-RUN: no --yes, so nothing runs — this is the plan (m-R5-a) contract",
@@ -90,7 +106,35 @@ function sha256File(path: string): string {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
-test("channels golden: check key, exposureSet and DRY-RUN stdout are byte-identical to the post-refactor capture at this location", async () => {
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+/**
+ * The src/redact.ts computeRulesHash line recipe with ONE canonicalization:
+ * the absolute fingerprint-source path becomes a repo-root-relative label, so
+ * the pin certifies config + file contents + engine versions and NOT the
+ * checkout location. A source path escaping the checkout fails loudly — the
+ * normalized golden is only defined over repo-relative labels.
+ */
+async function normalizedRulesHash(input: {
+  readonly bundledPaths: readonly string[];
+  readonly promptPaths: readonly string[];
+  readonly configDigest: string;
+  readonly engineVersions: Readonly<Record<string, string>>;
+}): Promise<string> {
+  const label = (p: string): string => {
+    const rel = relative(REPO_ROOT, resolve(p));
+    assert.ok(rel !== "" && !rel.startsWith("..") && !rel.startsWith("/"), `fingerprint source outside the checkout: ${p}`);
+    return rel;
+  };
+  const lines = [`config:${input.configDigest}`];
+  for (const p of input.bundledPaths) lines.push(`rule:${label(p)}:${sha256File(resolve(p))}`);
+  for (const p of input.promptPaths) lines.push(`prompt:${label(p)}:${sha256File(resolve(p))}`);
+  for (const name of Object.keys(input.engineVersions).sort()) lines.push(`engine:${name}:${input.engineVersions[name]}`);
+  lines.sort();
+  return createHash("sha256").update(lines.join("\n"), "utf8").digest("hex");
+}
+
+test("channels golden: check-key components, normalized rulesHash, exposureSet and DRY-RUN stdout match the W3.2 capture (location-independent)", async () => {
   // ---------------------------------------------------------------- fixture
   const repo = makeFixtureDir("golden-channels");
   roots.push(repo);
@@ -204,9 +248,52 @@ engines:
   } satisfies CheckRecord;
   appendRecord(repo, record);
 
-  // ---------------------------------------------------------------- golden assertions
-  assert.equal(fp.key, GOLDEN_KEY, "check key changed across the channel-registry refactor");
+  // ---------------------------------------------------------------- golden assertions (W3.2 decomposed)
   assert.deepEqual(exposure, GOLDEN_EXPOSURE, "exposureSet changed across the channel-registry refactor");
+  assert.equal(ctx.headSha, GOLDEN_HEAD_SHA, "fixture headSha changed — the time/identity-pinned commit recipe drifted");
+  assert.equal(ctx.porcelainDigest, GOLDEN_PORCELAIN_DIGEST, "fixture porcelain digest changed — the builds touched a new untracked path");
+  assert.deepEqual([...ctx.refSet], GOLDEN_REFSET, "fixture refSet changed");
+  assert.deepEqual([...effectiveTargets], GOLDEN_EFFECTIVE_TARGETS, "effectiveTargets changed");
+  // fp.rulesHash is checkout-location-bound BY DESIGN (redact.ts hashes the
+  // absolute source paths); pin the recipe live, then the environment-portable
+  // NORMALIZED form golden. Rule/classifier/prompt bytes, engines and config
+  // all ride the normalized hash — a stale-PASS rotation still moves it.
+  const probe = await probeEngines(loaded.config, { env: { ...process.env } });
+  assert.equal(probe.degraded, false, "engine probes must be healthy for the golden capture");
+  assert.equal(
+    fp.rulesHash,
+    await computeCheckRulesHash({ engineVersions: probe.engineVersions, configDigest, env: { ...process.env } }),
+    "fp.rulesHash is not the product recipe over the probed inputs",
+  );
+  const templatePath = resolvePromptTemplatePath({ ...process.env });
+  assert.equal(
+    await normalizedRulesHash({
+      bundledPaths: [
+        GITLEAKS_VENDORED_CONFIG,
+        ...resolveResidueFingerprintFiles({ ...process.env }),
+        ...resolveReleaseFingerprintFiles({ ...process.env }),
+      ],
+      promptPaths: existsSync(templatePath) ? [templatePath] : [],
+      configDigest,
+      engineVersions: probe.engineVersions,
+    }),
+    GOLDEN_RULES_HASH_NORMALIZED,
+    "normalized rulesHash changed (rule/classifier/prompt bytes, engine versions, or effective config)",
+  );
+  // Key FORMULA: independent sha256(stableStringify(six fields)) with the
+  // env-local raw rulesHash plugged in — field set/name/serialization drift
+  // fails even though the raw key value itself is checkout-bound.
+  const expectedKey = createHash("sha256").update(
+    stableStringify({
+      headSha: GOLDEN_HEAD_SHA,
+      porcelainDigest: GOLDEN_PORCELAIN_DIGEST,
+      rulesHash: fp.rulesHash,
+      exposureSet: GOLDEN_EXPOSURE,
+      refSet: GOLDEN_REFSET,
+      effectiveTargets: GOLDEN_EFFECTIVE_TARGETS,
+    }),
+  ).digest("hex");
+  assert.equal(fp.key, expectedKey, "check key composition changed across the channel-registry refactor");
 
   const out: string[] = [];
   const dryExit = await run(["push", "--config", "border.yaml"], (l) => out.push(l), () => {}, {
