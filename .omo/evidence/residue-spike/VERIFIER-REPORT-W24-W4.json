@@ -1,0 +1,242 @@
+{
+  "status": "done",
+  "task": "adversarial verification W2.4(a) pypi dep-closure calibration + W4 release-coherence",
+  "head": "260fbc2",
+  "probes": {
+    "A1_exact_vs_prefix": {
+      "verdict": "PASS \u2014 exact-record semantics for FILE rows; NO prefix demotion",
+      "evidence": [
+        "src/roundtrip/calibrate.ts:116-120 ownerOf(): exactOwners.get(path) for any kind; dirOwners fallback ONLY when kind===\"D\"",
+        "src/roundtrip/calibrate.ts:94-111 buildAttribution(): parents go to dirOwners (D-only lookup), paths themselves to exactOwners; two-owner path -> ambiguous set -> dropped from both tables",
+        "harness /tmp/verify-a/harness.ts on real CLAIM_SCANNER_PY against fixture venv: orphan F row /tmp/verify-a/venv/lib/python3.14/site-packages/fakepkg/NOTARECORD.py stayed HIGH/roundtrip-residue-file (not demoted); recorded sibling fakepkg/__init__.py demoted LOW/residue-roundtrip-dep-owned",
+        "D-row semantics (documented, not a hole): a directory row demotes if ANY recorded file lives under it (dirOwners); its file rows are still graded individually, so orphan-file evidence is never hidden"
+      ]
+    },
+    "A2_resolver_honesty": {
+      "verdict": "PASS",
+      "evidence": [
+        "orchestrate.ts resolvePipClosure: docker cp hostPath -> profile.artifactPath, `pip install --dry-run --report` on the SAME copied bytes (no name-only spec); measured container receives the same hostPath bytes; closure report MUST contain normalizePipName(spec.name) else EngineRunError (cross-attribution guard)",
+        "RECORD-gone synthetic (live python 3.14 in fixture venv): dep2/mod.py F-row stays HIGH \u2014 scanner except:pass claims only dist-info subtree; escaping RECORD rows (../) dropped; two owners of one path => ambiguous set => never demoted",
+        "LIVE jupyter-core@5.8.1 (attempt 3, warm PyPI): node dist/index.js roundtrip pypi:jupyter-core@5.8.1 --json --no-record => RT_RC=0, verdict PASS, counts {LOW:54,blocking:0,total:54}, ALL 54 rows rule=residue-roundtrip-dep-owned, owners 'platformdirs==4.11.8'/'traitlets==5.16.1', 0 rows outside those two site-packages dirs \u2014 CLAIM REPRODUCED EXACTLY (54 LOW / 0 blocking)",
+        "attempts 1-2 failed fail-closed with container-side transient PyPI errors (build-deps exit 2; 'traitlets from versions: none'); manual `docker run -v jc.tar.gz:/root/p.tar.gz python:3.12-slim pip install` => RC=0 proving same-bytes resolution; failure paths exit 2 'cannot verify (fail-closed)' \u2014 correct behavior under network loss"
+      ]
+    },
+    "A3_parse_hardening": {
+      "verdict": "PASS",
+      "evidence": [
+        "parsePipReport calibrate.ts:37-64: rejects non-JSON, schema version !=1, missing metadata.name/version, empty install list (all EngineRunError => roundtrip exit 2, never silent-clean); accepts BOTH string \"1\" and number 1 for report format version",
+        "degenerate claim text (garbage lines) -> attribution tables empty -> 0 demotions, all 11 fixture rows keep HIGH",
+        "cross-name report: closure lacking target name -> fail-closed EngineRunError (code) + membership probe PASS",
+        "normalizePipName PEP 503 both directions: Foo.bar==foo-bar, A__B__c==a-b-c; python scanner norm parity verified live (METADATA 'Fake.Pkg' matched closure 'fake-pkg')"
+      ]
+    },
+    "A4_vacuous_and_nullpath": {
+      "verdict": "PASS",
+      "evidence": [
+        "vacuous-pass guard + installDelta computation BYTE-IDENTICAL to 260fbc2 (git show comparison, orchestrate.ts:231-239); only call-signature gains closure/note params",
+        "closure=null path: runRoundtripCore gates resolvePipClosure on spec.ecosystem===\"pypi\"; runPipeline with null => attribution=null => classifyResidue legacy machine; harness proof: attribution=null keeps all 11 fixture rows HIGH",
+        "targeted offline suites: node --test test/roundtrip.calibrate.test.ts test/roundtrip.test.ts => 38 tests 38 pass 0 fail 0 skip",
+        "test/roundtrip.calibrate.test.ts contains exactly 15 tests (claim 15 \u2713); non-pypi-lanes-zero-closure-legs + measurement-m1-pristine + timeouts pinned there",
+        "docker wiring EXISTS (BORDER_ROUNDTRIP_DOCKER=1 opt-in, docker 29.1.3, node:24-slim+python:3.12-slim images local, pypi+npmjs reachable) \u2014 live legs after build",
+        "offline roundtrip suites green; harness legacy check: attribution=null \u21d2 byte-identical W2.1 grades"
+      ]
+    },
+    "B1_dynamic_version": {
+      "verdict": "PASS",
+      "evidence": [
+        "src/rules/releaseCoherence.ts probeDunderVersion L57-69: any non-literal RHS => dynamic; import-shape => dynamic",
+        "wheel METADATA 1.0 + __init__ `__version__ = importlib.metadata.version(...)` => exactly 1 MEDIUM release-coherence-unverifiable-source (analyze() L191-197: dynamic sources ALWAYS emit, never silent)",
+        "sdist pyproject 1.0.0 literal + dynamic __init__ => 1 MEDIUM (literal/dynamic coexist)",
+        "aihr replay fixture (filename 0.2.2, METADATA 0.2.2, __version__ 0.2.1) => exactly 1 CRITICAL drift path aihr-0.2.2-py3-none-any.whl!aihr/__init__.py"
+      ]
+    },
+    "B2_absent_second_source": {
+      "verdict": "PASS",
+      "evidence": [
+        "consistent wheel (METADATA/dir/filename all 2.0.0, no __init__ version) => 0 findings; pypiArtifactCoherenceFindings only compares sources present in tree; header boundary L13-20 documents absent-source != drift",
+        "npmPackCoherenceFindings returns [] when lockText null or packedVersion null; crates lockText null => []; gem metadataText null => []"
+      ]
+    },
+    "B3_three_way_drift": {
+      "verdict": "PASS",
+      "evidence": [
+        "three-way METADATA 1.2.3 / dir 1.2.4 / filename 1.2.5 => 2 CRITICAL drift rows (dir-vs-primary + filename-vs-primary); primary=first literal source (METADATA)",
+        "dist-info dir 1.2.4 vs METADATA+filename 1.2.3 => exactly 1 CRITICAL",
+        "egg-info PKG-INFO Version 9.9.9 vs setup.py version 1.0.0 (sdist) => exactly 1 CRITICAL",
+        "empty 'Version:' header => MEDIUM unverifiable, never silent"
+      ]
+    },
+    "B4_ruleshash": {
+      "verdict": "PASS",
+      "evidence": [
+        "dist/assets/release-src/releaseCoherence.ts present after npm run build AND byte-identical to src (cmp)",
+        "src/check/rulesHash.ts L69-91 RELEASE_FINGERPRINT_SOURCES + resolveReleaseFingerprintFiles folded into computeCheckRulesHash bundledRulePaths (L124-131); tools/copy-assets.mjs stages it",
+        "LIVE PROBE on /tmp seam dir: pristine copy H=22b32b27...; append one comment line to the fingerprint SOURCE copy => H=8983dfd5... (hash CHANGES => stale proofs invalidate); delete file => THROWS MissingRulesInputError (fail-closed exit-2 class)",
+        "note: computeRulesHash lines embed absolute paths (redact.ts:203 kind:path:digest) so cross-tree equality is not expected; equality-with-live holds because live resolution reads repo src which is byte-identical to staged dist asset"
+      ]
+    },
+    "B5_strict_zod": {
+      "verdict": "PASS (live dist/index.js)",
+      "evidence": [
+        "src/config.ts release block z.object({twin: array(object({pypi,npm}).strict()).default([])}).strict() (diff m00023)",
+        "PROBE /tmp/verify-a/b5 git repo + minimal border.yaml, `node border/dist/index.js check --json`:",
+        "  unknown sibling 'bogus: 1' under release: => exit=2 'border: config error: unknown config key 'bogus' in .../border.yaml'",
+        "  unknown field 'nope' inside a pair => exit=2 unknown config key 'nope'",
+        "  'release: on' scalar => exit=2 invalid config at 'release' expected object received string",
+        "  missing npm in pair => exit=2 invalid config at 'release.twin.0.npm'",
+        "  valid twin list => exit=0 (no 404-style fallout)"
+      ]
+    },
+    "B6_npm_twin_drift": {
+      "verdict": "PASS",
+      "evidence": [
+        "production twinCoherenceFindings over REAL staged bytes (tar -czf tgz with package.json v0.3.0; wheel aihr-0.2.2-py3-none-any.whl): exactly 1 CRITICAL release-coherence-twin-drift naming both versions; agree => 0; no-wheel => 1 MEDIUM",
+        "check.ts merge BEFORE registry probes confirmed in diff (twin block inserted immediately before runRegistryProbes call); repo suite RC-TWIN x2 + RC-E2E npm/pypi green within Lane-2 680"
+      ]
+    },
+    "lane2_full_suite": {
+      "verdict": "PASS \u2014 exact claim match",
+      "totals": {
+        "tests": 680,
+        "pass": 667,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 11,
+        "duration_ms": 156338
+      },
+      "not_ok_set_exact": [
+        "C5-1 subset discipline",
+        "C5-4 ordering"
+      ],
+      "skips_enumerated": [
+        "published artifact consumer smoke (BORDER_PACK_TEST=1)",
+        "E2E docker left-pad@1.3.0 / planted rc-append+PATH / six@1.17.0 / planted pypi sdist / rake@13.3.0 / planted gem / rust-hello@0.1.1 / planted crate (all BORDER_ROUNDTRIP_DOCKER=1)",
+        "E2E public npm registry (BORDER_SCAN_NETWORK_E2E=1)",
+        "E2E crates.io fetch (BORDER_SCAN_NETWORK_E2E=1)"
+      ],
+      "typecheck_rc": 0,
+      "build_rc": 0,
+      "log": "lane2: `npm test` = node --import ./tools/register-ts.mjs --test --test-reporter=tap test/*.test.ts => 680 tests 667 pass 2 fail 11 skipped, exactly the sanctioned set (>=680 \u2713); C5-1/C5-4 cause analysis pending below"
+    },
+    "lane3_hygiene": {
+      "verdict": "PASS (container-leak check pending at exit)",
+      "evidence": [
+        "HEAD moved during verification 260fbc2 -> 081be02 (commits 798974f, 081be02: root retraction bookkeeping, ledger.jsonl +7 lines ONLY, no src/test) \u2014 package diffs unaffected, still uncommitted",
+        ".omo/start-work/ledger.jsonl: `git diff HEAD` EMPTY now (root's retraction rows were committed in 798974f/081be02); tail-3 = root bookkeeping-integrity retraction/correction rows, zero worker rows",
+        ".omo/plans/ diff EMPTY; roadmap mtime 02:39 predates my session writes (none)",
+        "test/residue.npm.test.ts: not in git status => untouched",
+        "README.md +42/-5: 8 diff lines carry calibration/coherence wording in BOTH en and zh (### Release coherence (0.4.1) en + zh \u53d1\u5e03\u4e00\u81f4\u6027 section; W2.4 pypi calibration bullets en+zh) \u2014 fidelity bullets rewritten per claim",
+        "/home/lab/workspace/harness/hr/.coverage 2026-09-11 02:12:10 + coverage.xml 02:12:15 \u2014 worker W2.4/W4 edits postdate this (HEAD e1beafb-era work ran later; ledger retractions of 02:1x-era rows committed 15:02) => pre-existing, not attributable to these two packages",
+        "docker ps -a at launch: no rt-*/verdaccio leaks; recheck at exit before rm of own fixtures"
+      ]
+    },
+    "B4_note_harness_artifact": "first /tmp full-tree copy probe mismatched because path strings are inside the digest \u2014 harness artifact, not product bug; seam-based re-probe decisive",
+    "golden_repin": {
+      "verdict": "SANCTIONED \u2014 not drift concealment",
+      "evidence": [
+        "git diff HEAD test/channels.golden.test.ts: SINGLE hunk, only GOLDEN_KEY d6b83c4c... => 98c9a1e5...; GOLDEN_EXPOSURE + GOLDEN_DRYRUN_STDOUT untouched (still assert the rotation drifted nothing else)",
+        "cause: computeCheckRulesHash now digests src/rules/releaseCoherence.ts (rulesHash.ts:69-91,124-131) + release block rides configDigest \u2014 key MUST move; the rotation IS the stale-PASS invalidation mechanism",
+        "sanction: .omo/plans/border-inspect-roadmap.md:137 W4.2 mandates rulesHash inclusion; :117-121 W3.2 sanctions one-time golden re-capture verified stable across runs; test comment cites plan + preserves old value",
+        "third reproduction: Lane-2 full-suite run of channels.golden.test.ts passed against new value (worker did two standalone captures, this is the third)"
+      ]
+    },
+    "A1_file_exact_membership": {
+      "verdict": "PASS (files exact-record only; D-rows dir-prefix by design)",
+      "evidence": [
+        "calibrate.ts:116-120 ownerOf: exactOwners.get(path) for ANY kind; dirOwners fallback ONLY kind===\"D\"",
+        "live harness: /tmp/verify-a/venv fixture \u2014 site-packages/fakepkg/NOTARECORD.py (kind F, inside dep-owned dir, absent from RECORD) => ownerOf=undefined => stays HIGH blocking; fakepkg/__init__.py+data.bin (in RECORD) => LOW; dist-info METADATA/RECORD via always-claim subtree => LOW; dep2/* (no RECORD) => HIGH; notclosure/* (name not in closure) => HIGH; 34/34 harness asserts",
+        "NOTE D-rows: a dir row demotes via dirOwners if ANY claimed file lives under it (design semantic, documented in code comment; empty-dir residue of a dep is pip-innocent)"
+      ]
+    },
+    "A3_parse_hygiene": {
+      "verdict": "PASS",
+      "evidence": [
+        "parsePipReport: non-'1' version string die; install[] entries need non-empty metadata.name+version else EngineRunError; closure.size===0 => die \u2014 degenerate/empty report can NEVER mean zero-demotion-run-clean, it means exit 2",
+        "harness: report for wrong package => orchestrate containment die path (code-read) + unit test in roundtrip.calibrate.test.ts; garbage JSON => die; version as NUMBER 1 accepted via String(1)===\"1\" (matches live pip 25.0.1 string quirk)",
+        "normalizePipName: 'Foo.bar'\u2192'foo-bar', 'a__b'\u2192'a-b', scanner-side re.sub mirrors \u2014 both directions asserted in harness"
+      ]
+    },
+    "A4_no_npm_cargo_gem_impact": {
+      "verdict": "PASS",
+      "evidence": [
+        "git diff 260fbc2: vacuous-pass guard + installDelta block byte-identical (orchestrate.ts:231-239); closure=null for npm/cargo/gem (only spec.ecosystem===\"pypi\" resolves); classifyResidue(attribution=null) path identical to 130-line base",
+        "LIVE npm: roundtrip npm:left-pad@1.0.0 => RT_RC=0, 2 rows = residue-in-tree-hook CRITICAL (postinstall /var/tmp/leftpad-hook.txt) + bin-shim LOW, ZERO residue-roundtrip-dep-owned rows \u2014 left-pad UNCHANGED claim reproduced",
+        "LIVE planted npm e2e: BORDER_ROUNDTRIP_DOCKER=1 --test-name-pattern='planted rc-append' => ok 1 (findings.length===2 exact, test/roundtrip.e2e.test.ts:219), duration 11.4s \u2014 'exactly 2 blocking rows' claim reproduced",
+        "targeted unit suites 38/38 (roundtrip.calibrate 15 tests + roundtrip.test.ts)"
+      ]
+    },
+    "shadow_dist_info_blocker": {
+      "verdict": "BLOCKER (new attack surface, live-proven)",
+      "evidence": [
+        "REPRO /tmp/verify-a/shadow.ts: scratch site-packages root with residue files jc/__init__.py + payload/backdoor.py (both OUTSIDE any honest uninstall reach, i.e. would be blocking ADDED rows) and ONE surviving shadow dist-info copy 'jc-9.9.dist-info' (METADATA Name: jc, RECORD listing both paths); BORDER_CLOSURE=[\"jc\"] => CLAIM_SCANNER_PY exit 0, buildAttribution claims both files, ownerOf => 'jc==9.9' for payload/backdoor.py \u2014 a package's own leftover dist-info (dist-info subtree is residue the scanner itself demotes to LOW, so it is never flagged) self-certifies arbitrary residue as dep-owned \u21d2 roundtrip valve verdict laundering",
+        "mechanics: closure keys are NAMES ONLY (orchestrate [...closure.keys()]), target name always \u2208 closure, scanner never verifies the claiming dist-info was present at m1 or is pip-uninstall-reachable",
+        "benign calibration claims unaffected (jupyter 54/54 rows were genuinely platformdirs/traitlets-owned \u2014 verified 0 rows outside their dirs); this is fail-open against the adversary the 0.4.0 fact-proof valve exists to catch \u21d2 NEEDS-FIX for Package A",
+        "mitigation options: (1) require claiming dist-info to be absent from the m1\u2192m3 ADDED diff only when\u2026 insufficient; better (2) refuse attribution when a dist-info's own dir is an ADDED row not backed by the resolver report's download artifact, or (3) version-pin closure keys (normalizePipName+'=='+version from --report vs METADATA Version) so a 9.9 shadow \u2260 5.8.1 installed\u2026 shadow still wins if it copies the real version \u2014 most robust: demote only paths under site-packages/<canonical dep dirs> that the resolver report lists as separate installs (target dir never demoted), plus cap: dist-info dirs claiming paths must not themselves appear as ADDED residue rows for the TARGET name"
+      ]
+    },
+    "live_claims_matrix": {
+      "verdict": "ALL REPRODUCED",
+      "evidence": [
+        "jupyter-core@5.8.1: rc0 / 0 blocking / 54 LOW \u2713 (attempt 3)",
+        "left-pad unchanged \u2713",
+        "npm planted leg exactly 2 blocking rows \u2713",
+        "npm test totals: 680 tests / 667 pass / 2 fail / 11 skipped \u2014 not-ok EXACTLY {C5-1, C5-4}, skip-enumeration exact, typecheck+build RC0 \u2713 (Lane 2, previously checkpointed)",
+        "C5-1/C5-4 fail identically on pristine 260fbc2 worktree (/tmp/base: 6 pass 2 fail same names) => pre-existing, NOT cross-package interference \u2713"
+      ]
+    },
+    "B4_rulesHash_extra": {
+      "verdict": "PASS + caveat",
+      "evidence": [
+        "dist/assets/release-src/releaseCoherence.ts present post-build; source mutate->hash changes; delete->MissingRulesInputError (seam probe, previously checkpointed)",
+        "PATH-DEPENDENCE (pre-existing, NOT introduced by W4): computeRulesHash line redact.ts:190-202 embeds resolve()'d ABSOLUTE paths in `kind:path:digest`; proven: byte-clean copy of working tree /tmp/wt-copy => golden test fails; pristine 260fbc2 files in /tmp/base => 260fbc2-era golden test ALSO fails => machine-local golden is the test's own documented contract ('capture at this location')"
+      ]
+    }
+  },
+  "harness": {
+    "path": "/tmp/verify-a/harness.ts",
+    "result": "34/34 PASS rc=0"
+  },
+  "golden_repin_ruling": "SANCTIONED \u2014 single-hunk GOLDEN_KEY-only re-pin; cause is the mandated W4.2 rulesHash fold (plan border-inspect-roadmap.md:137) moving computeCheckRulesHash output; rotation IS the stale-PASS invalidation; third independent reproduction in Lane-2 suite; not drift concealment. Caveat: pinned key is checkout-path-dependent \u2014 pre-existing design, unrelated to W4.",
+  "verdicts": {
+    "package_A_W2.4a": {
+      "verdict": "NEEDS-FIX",
+      "confidence": 0.9,
+      "claims_reproduced": [
+        "jupyter-core@5.8.1 rc0/0 blocking/54 LOW (live, attempt 3; all 54 rows genuinely platformdirs/traitlets-owned, 0 outside)",
+        "left-pad unchanged (live CRITICAL hook+LOW shim, zero dep-owned rows)",
+        "npm planted leg exactly 2 blocking (live docker e2e ok, 11.4s)",
+        "15 tests / 187-line calibrate / 309->384 / 130->149 line claims",
+        "npm/cargo/gem closure=null byte-identical",
+        "15+23 targeted units green; vacuous-pass+installDelta untouched"
+      ],
+      "blockers": [
+        "SHADOW DIST-INFO SELF-CERTIFICATION \u2014 fail-open laundering of ALL install-time residue: surviving dist-info copy (any root-level dir ending .dist-info whose METADATA Name \u2208 closure, version ignored) claims its RECORD paths + own subtree; its own residue rows demote to LOW via always-claim, arbitrary payload rows via RECORD. Live repro /tmp/verify-a/shadow.ts (payload/backdoor.py -> owner 'jc==9.9'). calibrate.ts:126-187 scanner, orchestrate.ts closure-keys-only handoff. Benign calibration unaffected; but the 0.4.0 fact-proof valve's adversary model (hostile setup.py/lifecycle code) makes this in-scope. Suggested fixes: cross-check claiming dist-info against resolver report (Name==Version pin + require the dist-info itself be pip-uninstall-reachable / not an m3-ADDED row of the target), or restrict record-claims to paths inside the dep's own top-level dirs named by the resolver-installed RECORDs."
+      ],
+      "nits": [
+        "(LOW) parsePipReport accepts numeric 1 as well as string '1' (String() coercion) \u2014 broader than live quirk, harmless",
+        "(LOW) D-rows demote via dirOwners when ANY claimed file lives under them (empty-dir pip-innocent assumption documented; child dirs NOT claimed \u2014 verified sound)"
+      ]
+    },
+    "package_B_W4": {
+      "verdict": "CONVERGED",
+      "confidence": 0.93,
+      "claims_reproduced": [
+        "releaseCoherence.ts 423 raw; 3 rules w/ correct severities",
+        "B1 dynamic __version__ => MEDIUM unverifiable (real wheel bytes)",
+        "B2 no second source => no drift",
+        "B3 METADATA 1.2.3 vs dist-info 1.2.4 => CRITICAL + egg-info PKG-INFO variant",
+        "B4 staging+mutation+deletion fingerprint fold",
+        "B5 strict zod exit 2 (5 live CLI transcripts)",
+        "B6 exactly one twin-drift CRITICAL",
+        "19 coherence tests; all four artifact stage hooks; check.ts merge before registry probes; README en+zh ### Release coherence",
+        "Lane-2: npm test 680/667/2fail{C5-1,C5-4}/11skips exact; typecheck+build RC0; C5 fails proven pre-existing on pristine 260fbc2"
+      ]
+    },
+    "cross_package_interference": "EXCLUDED (pristine-worktree baseline reproduces identical C5-1/C5-4 failures)"
+  },
+  "residual_risks": [
+    "PyPI/transient container network makes pypi roundtrip legs intermittently exit-2 fail-closed (observed 2/3 attempts); correct posture, operator friction",
+    "54-LOW figure is version-sensitive (traitlets 5.16.1/platformdirs 4.11.8 as of 2026-09-11)",
+    "golden key machine-local (pre-existing) \u2014 fresh clones/CI off this path fail channels.golden until a path-normalizing capture lands"
+  ]
+}
