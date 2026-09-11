@@ -141,13 +141,20 @@ function verdaccioConfig(dir: string, port: number): string {
   return path;
 }
 
+// verdaccio colorizes its stdout via colorette, which turns ANSI on under CI
+// ("CI" in env && "GITHUB_ACTIONS" in env) even to a redirected file — so hosted
+// runners write "http \e[..m<--" (dev box: plain "http <--") and silently break the
+// substring counters below. Force the server off-color AND strip any residual escapes.
+const NO_COLOR_ENV: NodeJS.ProcessEnv = { ...process.env, NO_COLOR: "1" };
+const stripAnsi = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, "");
+
 async function startVerdaccio(): Promise<LiveVerdaccio> {
   const dir = scratch("i-server");
   const logPath = join(dir, "verdaccio.log");
   const port = await freePort();
   const cfgPath = verdaccioConfig(dir, port);
   const fd = openSync(logPath, "a");
-  const child = spawn(VERDACCIO_BIN, ["--config", cfgPath], { stdio: ["ignore", fd, fd] });
+  const child = spawn(VERDACCIO_BIN, ["--config", cfgPath], { stdio: ["ignore", fd, fd], env: NO_COLOR_ENV });
   const url = `http://127.0.0.1:${String(port)}`;
   let spawnErr: Error | null = null;
   child.on("error", (e) => {
@@ -166,7 +173,7 @@ async function startVerdaccio(): Promise<LiveVerdaccio> {
       await new Promise((r) => setTimeout(r, 50));
     }
   }
-  const logLines = (): string[] => readFileSync(logPath, "utf8").split("\n");
+  const logLines = (): string[] => stripAnsi(readFileSync(logPath, "utf8")).split("\n");
   let stopped = false;
   return {
     port,
