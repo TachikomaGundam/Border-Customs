@@ -24,6 +24,7 @@ import { BORDER_STATE_DIR, ensureStateDir } from "../check/lock.ts";
 import { extractArchive, removeSandbox } from "./extract.ts";
 import { residueFindings } from "./residue.ts";
 import { residueCratesHits } from "./residueRust.ts";
+import { cratesCoherenceFindings } from "../rules/releaseCoherence.ts";
 import { scanTree } from "../engines/gitleaks.ts";
 import { scanPaths, type SecretlintMode } from "../engines/secretlint.ts";
 import { EngineMissingError, EngineRunError, type EngineOptions } from "../engines/support.ts";
@@ -211,6 +212,18 @@ export async function runCargoArtifactStage(o: CrateStageOptions): Promise<Crate
       // + artifact-wide T4; inner rels keep the `<name>-<version>/` wrapper (crates convention).
       findings.push(...residueFindings(residueCratesHits(extractDir, relPaths), {
         root: "",
+        identity: crateName,
+        ...(o.sanitizer !== undefined ? { sanitizer: o.sanitizer } : {}),
+      }));
+      // W4.1 release coherence: Cargo.toml [package].version ↔ the packed Cargo.lock's
+      // [[package]] entry for this crate. cargo only ships Cargo.lock when packed —
+      // ABSENT-SOURCE BOUNDARY: unpacked lock is not drift, never a finding.
+      const lockRel = `${identity.name}-${identity.version}/Cargo.lock`;
+      findings.push(...cratesCoherenceFindings({
+        name: identity.name,
+        version: identity.version,
+        lockText: relPaths.includes(lockRel) ? readFileSync(join(extractDir, lockRel), "utf8") : null,
+        lockRelPath: lockRel,
         identity: crateName,
         ...(o.sanitizer !== undefined ? { sanitizer: o.sanitizer } : {}),
       }));

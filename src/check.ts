@@ -31,6 +31,7 @@ import { filterBorderStateFindings } from "./check/exclusions.ts";
 import { acquireLock, BORDER_STATE_DIR, releaseLock } from "./check/lock.ts";
 import { hasBlockingResidueCapability, proofFindings, RESIDUE_RULE_IDS } from "./check/proofValve.ts";
 import { computeCheckKey, computeCheckRulesHash } from "./check/rulesHash.ts";
+import { twinCoherenceFindings } from "./rules/releaseCoherence.ts";
 import { scanTagMessages, TAG_MESSAGE_RULE } from "./check/tagScan.ts";
 
 export const TRACKED_BORDER_RULE = "repo-tracks-border-state";
@@ -167,6 +168,23 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
     });
     findings.push(...stage.findings);
     ledgerArtifacts.push(...stage.artifacts);
+  }
+
+  // W4.1 release.twin (plan §127-138): the ONLY statically-enforceable cross-manager
+  // equality — a declared {pypi, npm} pair must ship identical versions. Runs on the
+  // STAGED artifact records (wheel filename ↔ packed npm package.json), merges BEFORE
+  // the allow-list like every native rule. A declared pair whose side was not staged
+  // this run is MEDIUM unverifiable, never silent-clean.
+  if ((o.cfg.release?.twin.length ?? 0) > 0) {
+    findings.push(
+      ...(await twinCoherenceFindings({
+        pairs: o.cfg.release?.twin ?? [],
+        artifacts: ledgerArtifacts,
+        repoDir,
+        ...envOpt,
+        sanitizer,
+      })),
+    );
   }
 
   findings.push(...(await runRegistryProbes({ repoDir, cfg: o.cfg, effectiveTargets: o.effectiveTargets, ...envOpt })));
