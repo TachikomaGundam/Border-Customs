@@ -66,6 +66,30 @@ export function resolveResidueFingerprintFiles(
   });
 }
 
+// W4.2 (plan gate): the release-coherence family folds into the SAME fingerprint
+// mechanism as the residue sources — editing the analyzers rotates rulesHash and
+// invalidates every cached PASS. Deliberately a PARALLEL list (not an extension of
+// RESIDUE_FINGERPRINT_SOURCES): the residue seam test pins every residue input to
+// rules/residueMatchers.ts + artifacts/*, and releaseCoherence.ts is a rules/ module.
+const RELEASE_FINGERPRINT_SOURCES: ReadonlyArray<{ readonly dir: "rules" | "artifacts"; readonly base: string }> = [
+  { dir: "rules", base: "releaseCoherence.ts" },
+];
+
+export const RELEASE_FINGERPRINT_BASENAMES: readonly string[] = RELEASE_FINGERPRINT_SOURCES.map((s) => s.base);
+
+export function resolveReleaseFingerprintFiles(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): readonly string[] {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const seam = env.BORDER_RELEASE_SRC_DIR;
+  return RELEASE_FINGERPRINT_SOURCES.map(({ dir, base }) => {
+    if (seam !== undefined) return join(seam, base);
+    const live = join(here, "..", dir, base);
+    if (existsSync(live)) return live;
+    return resolveAsset(import.meta.url, ["release-src", base]);
+  });
+}
+
 /**
  * The llm review template whose bytes are part of the rules fingerprint.
  * BORDER_PROMPT_TEMPLATE_PATH is the test/ops seam (same spirit as engine
@@ -100,7 +124,11 @@ export async function computeCheckRulesHash(input: {
 }): Promise<string> {
   const template = resolvePromptTemplatePath(input.env ?? process.env);
   return computeRulesHash({
-    bundledRulePaths: [GITLEAKS_VENDORED_CONFIG, ...resolveResidueFingerprintFiles(input.env ?? process.env)],
+    bundledRulePaths: [
+      GITLEAKS_VENDORED_CONFIG,
+      ...resolveResidueFingerprintFiles(input.env ?? process.env),
+      ...resolveReleaseFingerprintFiles(input.env ?? process.env),
+    ],
     configDigest: input.configDigest,
     engineVersions: input.engineVersions,
     promptTemplatePaths: existsSync(template) ? [template] : [],

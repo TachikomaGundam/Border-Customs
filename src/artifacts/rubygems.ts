@@ -32,6 +32,7 @@ import { BORDER_STATE_DIR, ensureStateDir } from "../check/lock.ts";
 import { extractArchive, removeSandbox } from "./extract.ts";
 import { type ResidueHit, residueFindings } from "./residue.ts";
 import { residueGemHits } from "./residueGem.ts";
+import { gemCoherenceFindings } from "../rules/releaseCoherence.ts";
 import { scanTree } from "../engines/gitleaks.ts";
 import { scanPaths, type SecretlintMode } from "../engines/secretlint.ts";
 import { EngineMissingError, EngineRunError, type EngineOptions } from "../engines/support.ts";
@@ -265,6 +266,17 @@ export async function runRubygemsArtifactStage(o: GemStageOptions): Promise<GemS
       })) {
         findings.push(f);
       }
+      // W4.1 release coherence: metadata.gz is the shipped bytes' own Gem::Specification —
+      // reconcile it against the built filename. NOT vacuous: gemspec.ts's GEMSPEC_VERSION
+      // regex takes the FIRST literal s.version= while Ruby assignment order makes the LAST
+      // win, so a twice-assigned literal drifts border's filename from the real spec.
+      findings.push(...gemCoherenceFindings({
+        specName: identity.name,
+        specVersion: identity.version,
+        metadataText: metadata,
+        identity: gemName,
+        ...(o.sanitizer !== undefined ? { sanitizer: o.sanitizer } : {}),
+      }));
     }
   } finally {
     removeSandbox(extractDir);
