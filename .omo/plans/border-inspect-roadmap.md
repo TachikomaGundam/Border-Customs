@@ -108,7 +108,11 @@ disk (established R-series protocol).
 
 ## Wave 3 — allowlist v2 retirement (push-channels scope)
 
-- [ ] W3.1 verdaccio PUT root-cause on runners: forensics commit re-adding -A22 dumps to
+- [x] W3.1 verdaccio PUT root-cause on runners — DONE 2026-09-11 (583c76c): colorette
+  CI-ANSI counter blindness (all 4 briefed hypotheses falsified via 2 dispatches);
+  NO_COLOR+stripAnsi at source; runner proof 34616009447 green; RESIDUAL: gem-stage
+  leg flaky-green on runner image -> W3.2 now also carries gate-flakiness closure.
+  Original brief: forensics commit re-adding -A22 dumps to
   a temp dispatch; hypothesis list to falsify in order: npm 11 vs 12 argv/provenance
   negotiation, loopback bind vs `localhost` IPv6 resolution, runner proxy env
   (HTTP_PROXY unset but npm globalconfig?), verdaccio sqlite/logs under /tmp cleanup race.
@@ -118,7 +122,10 @@ disk (established R-series protocol).
   `gem_version` fields; channels golden: strip env-fingerprint components from the check
   key (enumerate which hash inputs carry toolchain truth — audit first, then normalize);
   re-capture goldens ONCE, verify stable across local + runner (one CI round proves it).
-- [ ] W3.3 allowlist v2 → allowlist v0: with 6 env reds gone, revert gate to sanctioned-
+- [ ] W3.3 allowlist v2 → allowlist v0: PARTIAL 2026-09-11 (v2->v3, AC trio retired in
+  583c76c); remainder blocked on W3.2 (channels golden + gem duo incl flaky-green) +
+  border-push-channels C5 landing.
+  Original: with 6 env reds gone, revert gate to sanctioned-
   pair only; when border-push-channels lands C5-1/C5-4 green (separate plan, not here) →
   plain `npm test`. Update workflow comments + ledger retirement log. If the 2 C5s still
   red, gate keeps the exact pair + this plan's evidence that nothing else regressed.
