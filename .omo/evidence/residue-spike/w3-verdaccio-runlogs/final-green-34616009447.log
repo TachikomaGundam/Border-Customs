@@ -1,0 +1,586 @@
+﻿2026-09-11T15:25:20.3803051Z Current runner version: '2.337.0'
+2026-09-11T15:25:20.3839309Z ##[group]Runner Image Provisioner
+2026-09-11T15:25:20.3840010Z Hosted Compute Agent
+2026-09-11T15:25:20.3840660Z Version: 20260828.587
+2026-09-11T15:25:20.3841151Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-09-11T15:25:20.3841661Z Build Date: 2026-08-28T16:44:25Z
+2026-09-11T15:25:20.3842097Z Worker ID: {41616886-9c5c-40e3-a229-b60fbf9d3d1a}
+2026-09-11T15:25:20.3842602Z Azure Region: centralus
+2026-09-11T15:25:20.3842995Z ##[endgroup]
+2026-09-11T15:25:20.3843879Z ##[group]Operating System
+2026-09-11T15:25:20.3844301Z Ubuntu
+2026-09-11T15:25:20.3844662Z 24.04.5
+2026-09-11T15:25:20.3845016Z LTS
+2026-09-11T15:25:20.3845351Z ##[endgroup]
+2026-09-11T15:25:20.3845742Z ##[group]Runner Image
+2026-09-11T15:25:20.3846209Z Image: ubuntu-24.04
+2026-09-11T15:25:20.3846592Z Version: 20260907.300.1
+2026-09-11T15:25:20.3847825Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260907.300/images/ubuntu/Ubuntu2404-Readme.md
+2026-09-11T15:25:20.3848939Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260907.300
+2026-09-11T15:25:20.3849680Z ##[endgroup]
+2026-09-11T15:25:20.3850537Z ##[group]GITHUB_TOKEN Permissions
+2026-09-11T15:25:20.3852384Z Contents: read
+2026-09-11T15:25:20.3852772Z Metadata: read
+2026-09-11T15:25:20.3853170Z ##[endgroup]
+2026-09-11T15:25:20.3854650Z Secret source: Actions
+2026-09-11T15:25:20.3855299Z Cache mode: write
+2026-09-11T15:25:20.3855933Z Prepare workflow directory
+2026-09-11T15:25:20.4197762Z Prepare all required actions
+2026-09-11T15:25:20.4233766Z Getting action download info
+2026-09-11T15:25:20.6731450Z Download action repository 'actions/checkout@v6' (SHA:d23441a48e516b6c34aea4fa41551a30e30af803)
+2026-09-11T15:25:21.1537156Z Download action repository 'actions/setup-node@v6' (SHA:249970729cb0ef3589644e2896645e5dc5ba9c38)
+2026-09-11T15:25:21.5678088Z Complete job name: publish
+2026-09-11T15:25:21.6287788Z ##[group]Run actions/checkout@v6
+2026-09-11T15:25:21.6288816Z with:
+2026-09-11T15:25:21.6289582Z   repository: TachikomaGundam/Border-Customs
+2026-09-11T15:25:21.6295491Z   token: ***
+2026-09-11T15:25:21.6296176Z   ssh-strict: true
+2026-09-11T15:25:21.6296915Z   ssh-user: git
+2026-09-11T15:25:21.6297628Z   persist-credentials: true
+2026-09-11T15:25:21.6298390Z   clean: true
+2026-09-11T15:25:21.6299100Z   sparse-checkout-cone-mode: true
+2026-09-11T15:25:21.6299921Z   fetch-depth: 1
+2026-09-11T15:25:21.6300718Z   fetch-tags: false
+2026-09-11T15:25:21.6301538Z   show-progress: true
+2026-09-11T15:25:21.6302241Z   lfs: false
+2026-09-11T15:25:21.6303051Z   submodules: false
+2026-09-11T15:25:21.6303768Z   set-safe-directory: true
+2026-09-11T15:25:21.6304572Z   allow-unsafe-pr-checkout: false
+2026-09-11T15:25:21.6305595Z env:
+2026-09-11T15:25:21.6306281Z   REF_NAME: forensics/w3-verdaccio
+2026-09-11T15:25:21.6307138Z   EVENT_NAME: workflow_dispatch
+2026-09-11T15:25:21.6308043Z ##[endgroup]
+2026-09-11T15:25:21.7061943Z Syncing repository: TachikomaGundam/Border-Customs
+2026-09-11T15:25:21.7064327Z ##[group]Getting Git version info
+2026-09-11T15:25:21.7065659Z Working directory is '/home/runner/work/Border-Customs/Border-Customs'
+2026-09-11T15:25:21.7067329Z [command]/usr/bin/git version
+2026-09-11T15:25:21.8457541Z git version 2.55.0
+2026-09-11T15:25:21.8474621Z ##[endgroup]
+2026-09-11T15:25:21.8487557Z Temporarily overriding HOME='/home/runner/work/_temp/647f0c54-dcb9-4c4d-8bf4-6ea4a1942711' before making global git config changes
+2026-09-11T15:25:21.8490633Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-11T15:25:21.8493319Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Border-Customs/Border-Customs
+2026-09-11T15:25:21.8533156Z Deleting the contents of '/home/runner/work/Border-Customs/Border-Customs'
+2026-09-11T15:25:21.8536895Z ##[group]Determining repository object format
+2026-09-11T15:25:21.8539436Z ##[endgroup]
+2026-09-11T15:25:21.8541257Z ##[group]Initializing the repository
+2026-09-11T15:25:21.8543367Z [command]/usr/bin/git init /home/runner/work/Border-Customs/Border-Customs
+2026-09-11T15:25:22.1081435Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-09-11T15:25:22.1083438Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-09-11T15:25:22.1085195Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-09-11T15:25:22.1086649Z hint: call:
+2026-09-11T15:25:22.1087439Z hint:
+2026-09-11T15:25:22.1088450Z hint: 	git config --global init.defaultBranch <name>
+2026-09-11T15:25:22.1089584Z hint:
+2026-09-11T15:25:22.1090824Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-09-11T15:25:22.1092553Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-09-11T15:25:22.1093985Z hint:
+2026-09-11T15:25:22.1094775Z hint: 	git branch -m <name>
+2026-09-11T15:25:22.1095966Z hint:
+2026-09-11T15:25:22.1096951Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-09-11T15:25:22.1098480Z Initialized empty Git repository in /home/runner/work/Border-Customs/Border-Customs/.git/
+2026-09-11T15:25:22.1101473Z [command]/usr/bin/git remote add origin https://github.com/TachikomaGundam/Border-Customs
+2026-09-11T15:25:22.1132130Z ##[endgroup]
+2026-09-11T15:25:22.1133717Z ##[group]Disabling automatic garbage collection
+2026-09-11T15:25:22.1135079Z [command]/usr/bin/git config --local gc.auto 0
+2026-09-11T15:25:22.1157973Z ##[endgroup]
+2026-09-11T15:25:22.1159594Z ##[group]Setting up auth
+2026-09-11T15:25:22.1160875Z Removing SSH command configuration
+2026-09-11T15:25:22.1163408Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-11T15:25:22.1188016Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-11T15:25:22.3736576Z Removing HTTP extra header
+2026-09-11T15:25:22.3742602Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-11T15:25:22.3767337Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-11T15:25:22.3906511Z Removing includeIf entries pointing to credentials config files
+2026-09-11T15:25:22.3911921Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-11T15:25:22.3935298Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-11T15:25:22.4078971Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-c956371d-a72d-4ab2-9dc9-5876273dbd55.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-09-11T15:25:22.4107967Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/Border-Customs/Border-Customs/.git.path /home/runner/work/_temp/git-credentials-c956371d-a72d-4ab2-9dc9-5876273dbd55.config
+2026-09-11T15:25:22.4132835Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/Border-Customs/Border-Customs/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-c956371d-a72d-4ab2-9dc9-5876273dbd55.config
+2026-09-11T15:25:22.4193705Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-c956371d-a72d-4ab2-9dc9-5876273dbd55.config
+2026-09-11T15:25:22.5236469Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-c956371d-a72d-4ab2-9dc9-5876273dbd55.config
+2026-09-11T15:25:22.5254808Z ##[endgroup]
+2026-09-11T15:25:22.5255250Z ##[group]Fetching the repository
+2026-09-11T15:25:22.5260792Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +35ed24456751fddb401044a354a2c0fe75b41f3b:refs/remotes/origin/forensics/w3-verdaccio
+2026-09-11T15:25:23.9025445Z From https://github.com/TachikomaGundam/Border-Customs
+2026-09-11T15:25:23.9026329Z  * [new ref]         35ed24456751fddb401044a354a2c0fe75b41f3b -> origin/forensics/w3-verdaccio
+2026-09-11T15:25:23.9035792Z [command]/usr/bin/git branch --list --remote origin/forensics/w3-verdaccio
+2026-09-11T15:25:23.9057164Z   origin/forensics/w3-verdaccio
+2026-09-11T15:25:23.9064059Z [command]/usr/bin/git rev-parse refs/remotes/origin/forensics/w3-verdaccio
+2026-09-11T15:25:23.9082088Z 35ed24456751fddb401044a354a2c0fe75b41f3b
+2026-09-11T15:25:23.9083946Z ##[endgroup]
+2026-09-11T15:25:23.9084534Z ##[group]Determining the checkout info
+2026-09-11T15:25:23.9085159Z ##[endgroup]
+2026-09-11T15:25:23.9090960Z [command]/usr/bin/git sparse-checkout disable
+2026-09-11T15:25:23.9185975Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-09-11T15:25:23.9204691Z ##[group]Checking out the ref
+2026-09-11T15:25:23.9207899Z [command]/usr/bin/git checkout --progress --force -B forensics/w3-verdaccio refs/remotes/origin/forensics/w3-verdaccio
+2026-09-11T15:25:23.9860049Z Switched to a new branch 'forensics/w3-verdaccio'
+2026-09-11T15:25:23.9864174Z branch 'forensics/w3-verdaccio' set up to track 'origin/forensics/w3-verdaccio'.
+2026-09-11T15:25:23.9867812Z ##[endgroup]
+2026-09-11T15:25:23.9904148Z [command]/usr/bin/git log -1 --format=%H
+2026-09-11T15:25:23.9922161Z 35ed24456751fddb401044a354a2c0fe75b41f3b
+2026-09-11T15:25:24.0111680Z ##[group]Run actions/setup-node@v6
+2026-09-11T15:25:24.0111955Z with:
+2026-09-11T15:25:24.0112183Z   node-version: 24
+2026-09-11T15:25:24.0112430Z   package-manager-cache: false
+2026-09-11T15:25:24.0112681Z   check-latest: false
+2026-09-11T15:25:24.0114313Z   token: ***
+2026-09-11T15:25:24.0114519Z env:
+2026-09-11T15:25:24.0114763Z   REF_NAME: forensics/w3-verdaccio
+2026-09-11T15:25:24.0115033Z   EVENT_NAME: workflow_dispatch
+2026-09-11T15:25:24.0115272Z ##[endgroup]
+2026-09-11T15:25:24.2416137Z Found in cache @ /opt/hostedtoolcache/node/24.20.0/x64
+2026-09-11T15:25:24.2419281Z ##[group]Environment details
+2026-09-11T15:25:27.7173726Z node: v24.20.0
+2026-09-11T15:25:27.7174180Z npm: 11.19.0
+2026-09-11T15:25:27.7174454Z yarn: 1.22.22
+2026-09-11T15:25:27.7175234Z ##[endgroup]
+2026-09-11T15:25:27.7270060Z ##[group]Run npm ci
+2026-09-11T15:25:27.7270730Z [36;1mnpm ci[0m
+2026-09-11T15:25:27.7427574Z shell: /usr/bin/bash -e {0}
+2026-09-11T15:25:27.7427876Z env:
+2026-09-11T15:25:27.7428104Z   REF_NAME: forensics/w3-verdaccio
+2026-09-11T15:25:27.7428391Z   EVENT_NAME: workflow_dispatch
+2026-09-11T15:25:27.7428654Z ##[endgroup]
+2026-09-11T15:25:37.8063439Z 
+2026-09-11T15:25:37.8072801Z added 419 packages, and audited 420 packages in 10s
+2026-09-11T15:25:37.8073696Z 
+2026-09-11T15:25:37.8074223Z 98 packages are looking for funding
+2026-09-11T15:25:37.8074845Z   run `npm fund` for details
+2026-09-11T15:25:37.8134530Z 
+2026-09-11T15:25:37.8135271Z 6 moderate severity vulnerabilities
+2026-09-11T15:25:37.8135591Z 
+2026-09-11T15:25:37.8135849Z To address issues that do not require attention, run:
+2026-09-11T15:25:37.8136155Z   npm audit fix
+2026-09-11T15:25:37.8136300Z 
+2026-09-11T15:25:37.8136485Z To address all issues (including breaking changes), run:
+2026-09-11T15:25:37.8136938Z   npm audit fix --force
+2026-09-11T15:25:37.8137062Z 
+2026-09-11T15:25:37.8137197Z Run `npm audit` for details.
+2026-09-11T15:25:37.8141238Z npm warn install-scripts 1 package has install scripts not yet covered by allowScripts:
+2026-09-11T15:25:37.8141781Z npm warn install-scripts   esbuild@0.25.12 (postinstall: node install.js)
+2026-09-11T15:25:37.8142151Z npm warn install-scripts
+2026-09-11T15:25:37.8142604Z npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+2026-09-11T15:25:37.8625381Z ##[group]Run set -eu
+2026-09-11T15:25:37.8625741Z [36;1mset -eu[0m
+2026-09-11T15:25:37.8626050Z [36;1mPKG_VERSION="$(node -p 'require("./package.json").version')"[0m
+2026-09-11T15:25:37.8626533Z [36;1mecho "package.json version: ${PKG_VERSION}"[0m
+2026-09-11T15:25:37.8626829Z [36;1mif [ "${EVENT_NAME}" = "push" ]; then[0m
+2026-09-11T15:25:37.8627128Z [36;1m  if [ "${REF_NAME}" != "v${PKG_VERSION}" ]; then[0m
+2026-09-11T15:25:37.8627512Z [36;1m    echo "::error::git tag '${REF_NAME}' does not match package.json version 'v${PKG_VERSION}'"[0m
+2026-09-11T15:25:37.8627853Z [36;1m    exit 1[0m
+2026-09-11T15:25:37.8628086Z [36;1m  fi[0m
+2026-09-11T15:25:37.8628378Z [36;1m  echo "tag ${REF_NAME} matches v${PKG_VERSION}"[0m
+2026-09-11T15:25:37.8628659Z [36;1melse[0m
+2026-09-11T15:25:37.8628962Z [36;1m  echo "workflow_dispatch: skipping tag compare (untagged ${PKG_VERSION} cut)"[0m
+2026-09-11T15:25:37.8629283Z [36;1mfi[0m
+2026-09-11T15:25:37.8649405Z shell: /usr/bin/bash -e {0}
+2026-09-11T15:25:37.8649673Z env:
+2026-09-11T15:25:37.8649903Z   REF_NAME: forensics/w3-verdaccio
+2026-09-11T15:25:37.8650173Z   EVENT_NAME: workflow_dispatch
+2026-09-11T15:25:37.8650552Z ##[endgroup]
+2026-09-11T15:25:37.9959041Z package.json version: 0.4.1
+2026-09-11T15:25:37.9959952Z workflow_dispatch: skipping tag compare (untagged 0.4.1 cut)
+2026-09-11T15:25:38.0018623Z ##[group]Run npm run build
+2026-09-11T15:25:38.0018876Z [36;1mnpm run build[0m
+2026-09-11T15:25:38.0039239Z shell: /usr/bin/bash -e {0}
+2026-09-11T15:25:38.0039472Z env:
+2026-09-11T15:25:38.0039741Z   REF_NAME: forensics/w3-verdaccio
+2026-09-11T15:25:38.0039983Z   EVENT_NAME: workflow_dispatch
+2026-09-11T15:25:38.0040207Z ##[endgroup]
+2026-09-11T15:25:38.1169072Z 
+2026-09-11T15:25:38.1169903Z > border-customs@0.4.1 build
+2026-09-11T15:25:38.1171628Z > esbuild src/index.ts --bundle --format=esm --platform=node --banner:js='import{createRequire as __borderRequire}from"node:module";const require=__borderRequire(import.meta.url);' --outfile=dist/index.js && node tools/copy-assets.mjs
+2026-09-11T15:25:38.1172802Z 
+2026-09-11T15:25:38.1921367Z 
+2026-09-11T15:25:38.1931908Z   dist/index.js  1.6mb ⚠️
+2026-09-11T15:25:38.1932279Z 
+2026-09-11T15:25:38.1932637Z ⚡ Done in 69ms
+2026-09-11T15:25:38.2661177Z assets staged into dist/assets/
+2026-09-11T15:25:38.2763305Z ##[group]Run set -eu
+2026-09-11T15:25:38.2763615Z [36;1mset -eu[0m
+2026-09-11T15:25:38.2763992Z [36;1m# NOTE: the CLI intentionally has no --version flag (src/cli.ts exits 2[0m
+2026-09-11T15:25:38.2764409Z [36;1m# on unknown commands), so the version is proven from package.json here[0m
+2026-09-11T15:25:38.2764829Z [36;1m# and the built entry is exercised via --help. Deliberate deviation from[0m
+2026-09-11T15:25:38.2765310Z [36;1m# the original brief — do not add --version to the CLI just for CI.[0m
+2026-09-11T15:25:38.2765701Z [36;1mnode -p 'require("./package.json").version'[0m
+2026-09-11T15:25:38.2765988Z [36;1mnode dist/index.js --help > /dev/null[0m
+2026-09-11T15:25:38.2766362Z [36;1mecho "smoke ok: dist/index.js built, --help exits 0"[0m
+2026-09-11T15:25:38.2787855Z shell: /usr/bin/bash -e {0}
+2026-09-11T15:25:38.2788106Z env:
+2026-09-11T15:25:38.2788330Z   REF_NAME: forensics/w3-verdaccio
+2026-09-11T15:25:38.2788624Z   EVENT_NAME: workflow_dispatch
+2026-09-11T15:25:38.2788958Z ##[endgroup]
+2026-09-11T15:25:38.3071284Z 0.4.1
+2026-09-11T15:25:38.3791658Z smoke ok: dist/index.js built, --help exits 0
+2026-09-11T15:25:38.4030619Z ##[group]Run set -euo pipefail
+2026-09-11T15:25:38.4030922Z [36;1mset -euo pipefail[0m
+2026-09-11T15:25:38.4031207Z [36;1mmkdir -p "$HOME/.local/bin"[0m
+2026-09-11T15:25:38.4031468Z [36;1mcd "$(mktemp -d)"[0m
+2026-09-11T15:25:38.4031902Z [36;1mcurl -fsSLO https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz[0m
+2026-09-11T15:25:38.4032482Z [36;1mcurl -fsSLO https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt[0m
+2026-09-11T15:25:38.4032990Z [36;1mgrep ' gitleaks_8.30.1_linux_x64.tar.gz$' gitleaks_8.30.1_checksums.txt | sha256sum -c -[0m
+2026-09-11T15:25:38.4033368Z [36;1mtar -xzf gitleaks_8.30.1_linux_x64.tar.gz gitleaks[0m
+2026-09-11T15:25:38.4033719Z [36;1minstall -m 0755 gitleaks "$HOME/.local/bin/gitleaks"[0m
+2026-09-11T15:25:38.4034214Z [36;1m"$HOME/.local/bin/gitleaks" --version[0m
+2026-09-11T15:25:38.4034550Z [36;1mpython3 -m pip install --user --break-system-packages \[0m
+2026-09-11T15:25:38.4034998Z [36;1m  build==1.6.0 twine==7.0.0 wheel==0.46.3 setuptools==78.1.1 httpx==0.28.1[0m
+2026-09-11T15:25:38.4035335Z [36;1mpython3 -m build --version[0m
+2026-09-11T15:25:38.4035601Z [36;1mpython3 -m twine --version[0m
+2026-09-11T15:25:38.4036097Z [36;1mpython3 -c 'import setuptools; print("setuptools", setuptools.__version__)'[0m
+2026-09-11T15:25:38.4036545Z [36;1mpython3 -c 'import httpx; print("httpx", httpx.__version__)'[0m
+2026-09-11T15:25:38.4053980Z shell: /usr/bin/bash -e {0}
+2026-09-11T15:25:38.4054308Z env:
+2026-09-11T15:25:38.4054538Z   REF_NAME: forensics/w3-verdaccio
+2026-09-11T15:25:38.4054804Z   EVENT_NAME: workflow_dispatch
+2026-09-11T15:25:38.4055051Z ##[endgroup]
+2026-09-11T15:25:38.9437483Z gitleaks_8.30.1_linux_x64.tar.gz: OK
+2026-09-11T15:25:39.3011479Z gitleaks version 8.30.1
+2026-09-11T15:25:45.3101029Z Collecting build==1.6.0
+2026-09-11T15:25:45.3695989Z   Downloading build-1.6.0-py3-none-any.whl.metadata (5.6 kB)
+2026-09-11T15:25:45.4379194Z Collecting twine==7.0.0
+2026-09-11T15:25:45.4507022Z   Downloading twine-7.0.0-py3-none-any.whl.metadata (3.5 kB)
+2026-09-11T15:25:45.5114581Z Collecting wheel==0.46.3
+2026-09-11T15:25:45.5240408Z   Downloading wheel-0.46.3-py3-none-any.whl.metadata (2.4 kB)
+2026-09-11T15:25:45.9273730Z Collecting setuptools==78.1.1
+2026-09-11T15:25:45.9415714Z   Downloading setuptools-78.1.1-py3-none-any.whl.metadata (6.5 kB)
+2026-09-11T15:25:46.3789651Z Collecting httpx==0.28.1
+2026-09-11T15:25:46.3919202Z   Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+2026-09-11T15:25:46.5538443Z Requirement already satisfied: packaging>=24.0 in /usr/lib/python3/dist-packages (from build==1.6.0) (24.0)
+2026-09-11T15:25:46.6341617Z Collecting pyproject_hooks (from build==1.6.0)
+2026-09-11T15:25:46.6467315Z   Downloading pyproject_hooks-1.2.0-py3-none-any.whl.metadata (1.3 kB)
+2026-09-11T15:25:46.7912839Z Collecting readme-renderer>=35.0 (from twine==7.0.0)
+2026-09-11T15:25:46.8039499Z   Downloading readme_renderer-46.0-py3-none-any.whl.metadata (3.0 kB)
+2026-09-11T15:25:46.8080996Z Requirement already satisfied: requests>=2.20 in /usr/lib/python3/dist-packages (from twine==7.0.0) (2.31.0)
+2026-09-11T15:25:46.8992548Z Collecting requests-toolbelt!=0.9.0,>=0.8.0 (from twine==7.0.0)
+2026-09-11T15:25:46.9120412Z   Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl.metadata (14 kB)
+2026-09-11T15:25:47.0162127Z Requirement already satisfied: urllib3>=1.26.0 in /usr/lib/python3/dist-packages (from twine==7.0.0) (2.0.7)
+2026-09-11T15:25:47.0578721Z Collecting keyring>=21.2.0 (from twine==7.0.0)
+2026-09-11T15:25:47.0706103Z   Downloading keyring-25.7.0-py3-none-any.whl.metadata (21 kB)
+2026-09-11T15:25:47.1142340Z Collecting rfc3986>=1.4.0 (from twine==7.0.0)
+2026-09-11T15:25:47.1267129Z   Downloading rfc3986-2.0.0-py2.py3-none-any.whl.metadata (6.6 kB)
+2026-09-11T15:25:47.2004285Z Collecting rich>=14.3.3 (from twine==7.0.0)
+2026-09-11T15:25:47.2133563Z   Downloading rich-15.0.0-py3-none-any.whl.metadata (18 kB)
+2026-09-11T15:25:47.3691947Z Collecting packaging>=24.0 (from build==1.6.0)
+2026-09-11T15:25:47.3819041Z   Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+2026-09-11T15:25:47.4078103Z Collecting id (from twine==7.0.0)
+2026-09-11T15:25:47.4203205Z   Downloading id-1.6.1-py3-none-any.whl.metadata (5.1 kB)
+2026-09-11T15:25:47.5056382Z Collecting anyio (from httpx==0.28.1)
+2026-09-11T15:25:47.5182990Z   Downloading anyio-4.15.1-py3-none-any.whl.metadata (4.7 kB)
+2026-09-11T15:25:47.5222601Z Requirement already satisfied: certifi in /usr/lib/python3/dist-packages (from httpx==0.28.1) (2023.11.17)
+2026-09-11T15:25:47.6047123Z Collecting httpcore==1.* (from httpx==0.28.1)
+2026-09-11T15:25:47.6175175Z   Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+2026-09-11T15:25:47.6230544Z Requirement already satisfied: idna in /usr/lib/python3/dist-packages (from httpx==0.28.1) (3.6)
+2026-09-11T15:25:47.6475960Z Collecting h11>=0.16 (from httpcore==1.*->httpx==0.28.1)
+2026-09-11T15:25:47.6601387Z   Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+2026-09-11T15:25:47.7391597Z Collecting SecretStorage>=3.2 (from keyring>=21.2.0->twine==7.0.0)
+2026-09-11T15:25:47.7526408Z   Downloading secretstorage-3.5.0-py3-none-any.whl.metadata (4.0 kB)
+2026-09-11T15:25:47.7781320Z Collecting jeepney>=0.4.2 (from keyring>=21.2.0->twine==7.0.0)
+2026-09-11T15:25:47.7907094Z   Downloading jeepney-0.9.0-py3-none-any.whl.metadata (1.2 kB)
+2026-09-11T15:25:47.8384061Z Collecting jaraco.classes (from keyring>=21.2.0->twine==7.0.0)
+2026-09-11T15:25:47.8508996Z   Downloading jaraco.classes-3.4.0-py3-none-any.whl.metadata (2.6 kB)
+2026-09-11T15:25:47.8929749Z Collecting jaraco.functools (from keyring>=21.2.0->twine==7.0.0)
+2026-09-11T15:25:47.9055696Z   Downloading jaraco_functools-4.6.0-py3-none-any.whl.metadata (2.9 kB)
+2026-09-11T15:25:47.9371805Z Collecting jaraco.context (from keyring>=21.2.0->twine==7.0.0)
+2026-09-11T15:25:47.9497876Z   Downloading jaraco_context-6.1.2-py3-none-any.whl.metadata (4.2 kB)
+2026-09-11T15:25:47.9980922Z Collecting nh3>=0.2.14 (from readme-renderer>=35.0->twine==7.0.0)
+2026-09-11T15:25:48.0106886Z   Downloading nh3-0.3.7-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (2.0 kB)
+2026-09-11T15:25:48.0636612Z Collecting docutils>=0.21.2 (from readme-renderer>=35.0->twine==7.0.0)
+2026-09-11T15:25:48.0764768Z   Downloading docutils-0.23-py3-none-any.whl.metadata (15 kB)
+2026-09-11T15:25:48.0815544Z Requirement already satisfied: Pygments>=2.5.1 in /usr/lib/python3/dist-packages (from readme-renderer>=35.0->twine==7.0.0) (2.17.2)
+2026-09-11T15:25:48.0911847Z Requirement already satisfied: markdown-it-py>=2.2.0 in /usr/lib/python3/dist-packages (from rich>=14.3.3->twine==7.0.0) (3.0.0)
+2026-09-11T15:25:48.1423167Z Collecting typing_extensions>=4.16.0 (from anyio->httpx==0.28.1)
+2026-09-11T15:25:48.1548961Z   Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+2026-09-11T15:25:48.1952639Z Requirement already satisfied: mdurl~=0.1 in /usr/lib/python3/dist-packages (from markdown-it-py>=2.2.0->rich>=14.3.3->twine==7.0.0) (0.1.2)
+2026-09-11T15:25:48.2021604Z Requirement already satisfied: cryptography>=2.0 in /usr/lib/python3/dist-packages (from SecretStorage>=3.2->keyring>=21.2.0->twine==7.0.0) (41.0.7)
+2026-09-11T15:25:48.2383805Z Collecting more-itertools (from jaraco.classes->keyring>=21.2.0->twine==7.0.0)
+2026-09-11T15:25:48.2509042Z   Downloading more_itertools-11.1.0-py3-none-any.whl.metadata (41 kB)
+2026-09-11T15:25:48.2581727Z      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 41.4/41.4 kB 5.9 MB/s eta 0:00:00
+2026-09-11T15:25:48.2995034Z Downloading build-1.6.0-py3-none-any.whl (31 kB)
+2026-09-11T15:25:48.3269924Z Downloading twine-7.0.0-py3-none-any.whl (43 kB)
+2026-09-11T15:25:48.3800068Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 43.2/43.2 kB 640.5 kB/s eta 0:00:00
+2026-09-11T15:25:48.3931610Z Downloading wheel-0.46.3-py3-none-any.whl (30 kB)
+2026-09-11T15:25:48.4558408Z Downloading setuptools-78.1.1-py3-none-any.whl (1.3 MB)
+2026-09-11T15:25:48.5682016Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 11.2 MB/s eta 0:00:00
+2026-09-11T15:25:48.5807083Z Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+2026-09-11T15:25:48.5892190Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 8.8 MB/s eta 0:00:00
+2026-09-11T15:25:48.6017527Z Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+2026-09-11T15:25:48.6050976Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 32.2 MB/s eta 0:00:00
+2026-09-11T15:25:48.6175685Z Downloading keyring-25.7.0-py3-none-any.whl (39 kB)
+2026-09-11T15:25:48.6367399Z Downloading packaging-26.3-py3-none-any.whl (129 kB)
+2026-09-11T15:25:48.6405440Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 130.0/130.0 kB 47.7 MB/s eta 0:00:00
+2026-09-11T15:25:48.6534014Z Downloading readme_renderer-46.0-py3-none-any.whl (14 kB)
+2026-09-11T15:25:48.6688184Z Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl (54 kB)
+2026-09-11T15:25:48.6724505Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 54.5/54.5 kB 18.1 MB/s eta 0:00:00
+2026-09-11T15:25:48.6860659Z Downloading rfc3986-2.0.0-py2.py3-none-any.whl (31 kB)
+2026-09-11T15:25:48.7012144Z Downloading rich-15.0.0-py3-none-any.whl (310 kB)
+2026-09-11T15:25:48.7062496Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.7/310.7 kB 78.9 MB/s eta 0:00:00
+2026-09-11T15:25:48.7186928Z Downloading anyio-4.15.1-py3-none-any.whl (132 kB)
+2026-09-11T15:25:48.7224257Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 132.1/132.1 kB 48.3 MB/s eta 0:00:00
+2026-09-11T15:25:48.7348190Z Downloading id-1.6.1-py3-none-any.whl (14 kB)
+2026-09-11T15:25:48.7494760Z Downloading pyproject_hooks-1.2.0-py3-none-any.whl (10 kB)
+2026-09-11T15:25:48.8048762Z Downloading docutils-0.23-py3-none-any.whl (634 kB)
+2026-09-11T15:25:48.8124530Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 634.7/634.7 kB 99.1 MB/s eta 0:00:00
+2026-09-11T15:25:48.8249479Z Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+2026-09-11T15:25:48.9211813Z Downloading jeepney-0.9.0-py3-none-any.whl (49 kB)
+2026-09-11T15:25:48.9255464Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 49.0/49.0 kB 12.9 MB/s eta 0:00:00
+2026-09-11T15:25:48.9380496Z Downloading nh3-0.3.7-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (832 kB)
+2026-09-11T15:25:49.0112230Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 832.2/832.2 kB 11.4 MB/s eta 0:00:00
+2026-09-11T15:25:49.0238093Z Downloading secretstorage-3.5.0-py3-none-any.whl (15 kB)
+2026-09-11T15:25:49.0386727Z Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+2026-09-11T15:25:49.0464932Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 45.6/45.6 kB 5.5 MB/s eta 0:00:00
+2026-09-11T15:25:49.0588732Z Downloading jaraco.classes-3.4.0-py3-none-any.whl (6.8 kB)
+2026-09-11T15:25:49.0822506Z Downloading jaraco_context-6.1.2-py3-none-any.whl (7.9 kB)
+2026-09-11T15:25:49.1020959Z Downloading jaraco_functools-4.6.0-py3-none-any.whl (11 kB)
+2026-09-11T15:25:49.1172132Z Downloading more_itertools-11.1.0-py3-none-any.whl (72 kB)
+2026-09-11T15:25:49.1361770Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 72.2/72.2 kB 3.5 MB/s eta 0:00:00
+2026-09-11T15:25:49.5304490Z Installing collected packages: typing_extensions, setuptools, rfc3986, requests-toolbelt, pyproject_hooks, packaging, nh3, more-itertools, jeepney, jaraco.context, id, h11, docutils, wheel, SecretStorage, rich, readme-renderer, jaraco.functools, jaraco.classes, httpcore, build, anyio, keyring, httpx, twine
+2026-09-11T15:25:51.7294626Z Successfully installed SecretStorage-3.5.0 anyio-4.15.1 build-1.6.0 docutils-0.23 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 id-1.6.1 jaraco.classes-3.4.0 jaraco.context-6.1.2 jaraco.functools-4.6.0 jeepney-0.9.0 keyring-25.7.0 more-itertools-11.1.0 nh3-0.3.7 packaging-26.3 pyproject_hooks-1.2.0 readme-renderer-46.0 requests-toolbelt-1.0.0 rfc3986-2.0.0 rich-15.0.0 setuptools-78.1.1 twine-7.0.0 typing_extensions-4.16.0 wheel-0.46.3
+2026-09-11T15:25:51.8859846Z build 1.6.0 (/home/runner/.local/lib/python3.12/site-packages/build)
+2026-09-11T15:25:52.0149861Z twine version 7.0.0 (readme-renderer: 46.0, requests: 2.31.0, requests-
+2026-09-11T15:25:52.0151288Z toolbelt: 1.0.0, urllib3: 2.0.7, keyring: 25.7.0, rfc3986: 2.0.0, rich:
+2026-09-11T15:25:52.0151998Z 15.0.0, packaging: 26.3, id: 1.6.1)
+2026-09-11T15:25:52.2326098Z setuptools 78.1.1
+2026-09-11T15:25:52.5963866Z httpx 0.28.1
+2026-09-11T15:25:52.6194672Z ##[group]Run # errexit OFF: the runner's default `bash -e` kills this script at the
+2026-09-11T15:25:52.6195270Z [36;1m# errexit OFF: the runner's default `bash -e` kills this script at the[0m
+2026-09-11T15:25:52.6195661Z [36;1m# intentional red `npm test` before TEST_EXIT=$? is captured; every[0m
+2026-09-11T15:25:52.6196165Z [36;1m# failure path below already echoes ::error:: and exits 1 explicitly.[0m
+2026-09-11T15:25:52.6196519Z [36;1mset +e; set -u[0m
+2026-09-11T15:25:52.6196788Z [36;1mTEST_LOG="$(mktemp)"; trap 'rm -f "$TEST_LOG"' EXIT[0m
+2026-09-11T15:25:52.6197157Z [36;1mBORDER_PACK_TEST=1 npm test > "$TEST_LOG" 2>&1[0m
+2026-09-11T15:25:52.6197432Z [36;1mTEST_EXIT=$?[0m
+2026-09-11T15:25:52.6197679Z [36;1mtail -n 20 "$TEST_LOG"[0m
+2026-09-11T15:25:52.6197923Z [36;1m[0m
+2026-09-11T15:25:52.6198213Z [36;1mSUM_TESTS="$(sed -n 's/^# tests \([0-9][0-9]*\)$/\1/p' "$TEST_LOG" | tail -n 1)"[0m
+2026-09-11T15:25:52.6198700Z [36;1mSUM_PASS="$(sed -n 's/^# pass \([0-9][0-9]*\)$/\1/p' "$TEST_LOG" | tail -n 1)"[0m
+2026-09-11T15:25:52.6199111Z [36;1mSUM_FAIL="$(sed -n 's/^# fail \([0-9][0-9]*\)$/\1/p' "$TEST_LOG" | tail -n 1)"[0m
+2026-09-11T15:25:52.6199554Z [36;1m# node TAP's "# tests" total INCLUDES skipped tests but "# pass"/"# fail"[0m
+2026-09-11T15:25:52.6199950Z [36;1m# exclude them, so the "# skipped N" count joins the balance equation[0m
+2026-09-11T15:25:52.6200548Z [36;1m# below (line verified present in the tap reporter; absent ⇒ 0, never a[0m
+2026-09-11T15:25:52.6200964Z [36;1m# parse failure — skips must not fake an unparsable-summary exit).[0m
+2026-09-11T15:25:52.6201391Z [36;1mSUM_SKIPPED="$(sed -n 's/^# skipped \([0-9][0-9]*\)$/\1/p' "$TEST_LOG" | tail -n 1)"[0m
+2026-09-11T15:25:52.6201784Z [36;1m[ -z "$SUM_SKIPPED" ] && SUM_SKIPPED=0[0m
+2026-09-11T15:25:52.6202108Z [36;1mif [ -z "$SUM_TESTS" ] || [ -z "$SUM_PASS" ] || [ -z "$SUM_FAIL" ]; then[0m
+2026-09-11T15:25:52.6202528Z [36;1m  echo "::error::could not parse TAP summary counts (# tests/# pass/# fail) — failing closed"[0m
+2026-09-11T15:25:52.6202886Z [36;1m  exit 1[0m
+2026-09-11T15:25:52.6203108Z [36;1mfi[0m
+2026-09-11T15:25:52.6203318Z [36;1m[0m
+2026-09-11T15:25:52.6203602Z [36;1m# sanctioned-failure allowlist — the ONE obvious constant (exact TAP[0m
+2026-09-11T15:25:52.6203963Z [36;1m# titles, compared set-wise against every '^not ok ' line)[0m
+2026-09-11T15:25:52.6204390Z [36;1m# ALLOWLIST v3 (W3.1, 2026-09-11): the three loopback-verdaccio reds (I1/AC1/AC3)[0m
+2026-09-11T15:25:52.6204833Z [36;1m# are RETIRED at source — root cause was NOT a network/auth regression: verdaccio's[0m
+2026-09-11T15:25:52.6205297Z [36;1m# prettify logger (colorette) force-enables ANSI under CI ("CI" && "GITHUB_ACTIONS"),[0m
+2026-09-11T15:25:52.6205737Z [36;1m# even to a redirected file, so the runners wrote "http \e[..m<--" and the harness's[0m
+2026-09-11T15:25:52.6206171Z [36;1m# substring counters silently matched zero while the PUT in fact succeeded (exit 0,[0m
+2026-09-11T15:25:52.6206710Z [36;1m# verdaccio 201). test/push.{registries,integration}.test.ts now spawn verdaccio with[0m
+2026-09-11T15:25:52.6207196Z [36;1m# NO_COLOR=1 and strip residual escapes, so those legs are green on the runner AND the[0m
+2026-09-11T15:25:52.6207644Z [36;1m# dev box (verified: CI=1 GITHUB_ACTIONS=1 locally). The exact-set rule stays FULLY[0m
+2026-09-11T15:25:52.6208077Z [36;1m# fail-closed — every remaining entry is a NAMED red with a category and a retirement[0m
+2026-09-11T15:25:52.6208492Z [36;1m# condition below. ANY other failure, ANY entry newly passing, or a counts mismatch[0m
+2026-09-11T15:25:52.6208980Z [36;1m# still exits 1.[0m
+2026-09-11T15:25:52.6209262Z [36;1mcat > /tmp/sanctioned.txt <<'SANCTIONED'[0m
+2026-09-11T15:25:52.6209699Z [36;1m# dev-box golden: check key embeds toolchain fingerprints byte-stable only on the capturing machine[0m
+2026-09-11T15:25:52.6210544Z [36;1mchannels golden: check key, exposureSet and DRY-RUN stdout are byte-identical to the post-refactor capture at this location[0m
+2026-09-11T15:25:52.6211060Z [36;1m# PLANNED WIP red (border-push-channels C5) - retire when that scope lands[0m
+2026-09-11T15:25:52.6211698Z [36;1mC5-1 subset discipline: a git-only PASS authorizes NO publish leg; a full PASS authorizes no crates-only push (fingerprint effectiveTargets scope binding)[0m
+2026-09-11T15:25:52.6212265Z [36;1m# PLANNED WIP red (border-push-channels C5) - retire when that scope lands[0m
+2026-09-11T15:25:52.6212954Z [36;1mC5-4 ordering: publish legs execute in descriptor order git→npm→pypi→crates→rubygems (exact spawn sequence), all five push-records under ONE key[0m
+2026-09-11T15:25:52.6213664Z [36;1m# dev-box golden: recorded .gem sha encodes this image's ruby toolchain; byte-determinism holds per-environment, the constant does not[0m
+2026-09-11T15:25:52.6214289Z [36;1mstage: real gem build lands .border/dist/<name>-<version>.gem, deterministic sha256, tmp cleaned, scans are artifact-root-relative[0m
+2026-09-11T15:25:52.6214958Z [36;1m# dev-box golden: recorded .gem sha encodes this image's ruby toolchain; byte-determinism holds per-environment, the constant does not[0m
+2026-09-11T15:25:52.6215577Z [36;1mfreshness: rubygems repacks via the shared REPACKERS lookup; ambiguous tree or s.date => null (fail-closed, never a skip)[0m
+2026-09-11T15:25:52.6216022Z [36;1mSANCTIONED[0m
+2026-09-11T15:25:52.6216288Z [36;1msed -i -e 's/^[[:space:]]*//' -e '/^#/d' /tmp/sanctioned.txt[0m
+2026-09-11T15:25:52.6216568Z [36;1m[0m
+2026-09-11T15:25:52.6216910Z [36;1mgrep '^not ok ' "$TEST_LOG" | sed -E 's/^not ok [0-9]+ - //' | sort > /tmp/actual-failures.txt[0m
+2026-09-11T15:25:52.6217369Z [36;1msort /tmp/sanctioned.txt > /tmp/sanctioned.sorted.txt[0m
+2026-09-11T15:25:52.6217659Z [36;1m[0m
+2026-09-11T15:25:52.6217957Z [36;1mif ! diff -u /tmp/sanctioned.sorted.txt /tmp/actual-failures.txt; then[0m
+2026-09-11T15:25:52.6218486Z [36;1m  echo "::error::failing-test set is NOT exactly the sanctioned allowlist (diff above: - expected / + actual) — failing closed"[0m
+2026-09-11T15:25:52.6218995Z [36;1m  exit 1[0m
+2026-09-11T15:25:52.6219202Z [36;1mfi[0m
+2026-09-11T15:25:52.6219398Z [36;1m[0m
+2026-09-11T15:25:52.6219656Z [36;1mACTUAL_N="$(grep -c . /tmp/actual-failures.txt || true)"[0m
+2026-09-11T15:25:52.6220099Z [36;1mif [ "$SUM_FAIL" != "$ACTUAL_N" ] || [ "$((SUM_PASS + SUM_FAIL + SUM_SKIPPED))" != "$SUM_TESTS" ] || [ "$SUM_FAIL" -eq 0 ]; then[0m
+2026-09-11T15:25:52.6220851Z [36;1m  echo "::error::TAP counts inconsistent (tests=${SUM_TESTS} pass=${SUM_PASS} fail=${SUM_FAIL} not-ok-lines=${ACTUAL_N}) — failing closed"[0m
+2026-09-11T15:25:52.6221321Z [36;1m  exit 1[0m
+2026-09-11T15:25:52.6221526Z [36;1mfi[0m
+2026-09-11T15:25:52.6221864Z [36;1m# with a non-empty allowlist enforced above, a suite carrying exactly the[0m
+2026-09-11T15:25:52.6222287Z [36;1m# sanctioned reds must exit 1; exit 0 would mean TAP and the runner disagree.[0m
+2026-09-11T15:25:52.6222657Z [36;1mif [ "$TEST_EXIT" -ne 1 ]; then[0m
+2026-09-11T15:25:52.6223077Z [36;1m  echo "::error::expected 'npm test' to exit 1 (sanctioned reds present); got ${TEST_EXIT} — failing closed"[0m
+2026-09-11T15:25:52.6223444Z [36;1m  exit 1[0m
+2026-09-11T15:25:52.6223653Z [36;1mfi[0m
+2026-09-11T15:25:52.6223955Z [36;1mrm -f /tmp/sanctioned.txt /tmp/actual-failures.txt /tmp/sanctioned.sorted.txt[0m
+2026-09-11T15:25:52.6224499Z [36;1mecho "release gate green: ${SUM_TESTS} tests / ${SUM_PASS} pass / exactly ${SUM_FAIL} sanctioned failure(s) matching the allowlist"[0m
+2026-09-11T15:25:52.6245399Z shell: /usr/bin/bash -e {0}
+2026-09-11T15:25:52.6245678Z env:
+2026-09-11T15:25:52.6245940Z   REF_NAME: forensics/w3-verdaccio
+2026-09-11T15:25:52.6246328Z   EVENT_NAME: workflow_dispatch
+2026-09-11T15:25:52.6246563Z ##[endgroup]
+2026-09-11T15:28:37.3990909Z ok 704 - F3: two named remotes both pushed => both rows pushed (no substring sloppiness)
+2026-09-11T15:28:37.3991469Z   ---
+2026-09-11T15:28:37.3992317Z   duration_ms: 76.447464
+2026-09-11T15:28:37.3992756Z   type: 'test'
+2026-09-11T15:28:37.3993269Z   ...
+2026-09-11T15:28:37.3993750Z # Subtest: F3: one of two remotes pushed => per-remote pushed + pending split
+2026-09-11T15:28:37.3994345Z ok 705 - F3: one of two remotes pushed => per-remote pushed + pending split
+2026-09-11T15:28:37.3994979Z   ---
+2026-09-11T15:28:37.3995219Z   duration_ms: 25.489029
+2026-09-11T15:28:37.3995466Z   type: 'test'
+2026-09-11T15:28:37.3995755Z   ...
+2026-09-11T15:28:37.3996011Z 1..705
+2026-09-11T15:28:37.3996281Z # tests 705
+2026-09-11T15:28:37.3996619Z # suites 0
+2026-09-11T15:28:37.3996918Z # pass 690
+2026-09-11T15:28:37.3997272Z # fail 5
+2026-09-11T15:28:37.3997562Z # cancelled 0
+2026-09-11T15:28:37.3997898Z # skipped 10
+2026-09-11T15:28:37.3998207Z # todo 0
+2026-09-11T15:28:37.3998554Z # duration_ms 164631.150326
+2026-09-11T15:28:37.4427766Z release gate green: 705 tests / 690 pass / exactly 5 sanctioned failure(s) matching the allowlist
+2026-09-11T15:28:37.4458947Z ##[group]Run set -eu
+2026-09-11T15:28:37.4459311Z [36;1mset -eu[0m
+2026-09-11T15:28:37.4459592Z [36;1mPKG_VERSION="$(node -p 'require("./package.json").version')"[0m
+2026-09-11T15:28:37.4459951Z [36;1m# dry-run first: surfaces the file list + counts in the job log[0m
+2026-09-11T15:28:37.4460652Z [36;1mnpm pack --dry-run[0m
+2026-09-11T15:28:37.4460898Z [36;1mTMP="$(mktemp -d)"[0m
+2026-09-11T15:28:37.4461154Z [36;1mnpm pack --pack-destination "$TMP"[0m
+2026-09-11T15:28:37.4461495Z [36;1mTARBALL="$TMP/border-customs-${PKG_VERSION}.tgz"[0m
+2026-09-11T15:28:37.4461773Z [36;1mif [ ! -f "$TARBALL" ]; then[0m
+2026-09-11T15:28:37.4462138Z [36;1m  echo "::error::npm pack did not produce ${TARBALL} (name/version mismatch?)"[0m
+2026-09-11T15:28:37.4462476Z [36;1m  exit 1[0m
+2026-09-11T15:28:37.4462680Z [36;1mfi[0m
+2026-09-11T15:28:37.4462903Z [36;1mecho "tarball contents:"[0m
+2026-09-11T15:28:37.4463149Z [36;1mtar -tzf "$TARBALL"[0m
+2026-09-11T15:28:37.4463606Z [36;1mecho "file count (excluding package/ dir entry): $(tar -tzf "$TARBALL" | grep -vc '^package/$')"[0m
+2026-09-11T15:28:37.4463984Z [36;1mrm -rf "$TMP"[0m
+2026-09-11T15:28:37.4481503Z shell: /usr/bin/bash -e {0}
+2026-09-11T15:28:37.4481858Z env:
+2026-09-11T15:28:37.4482085Z   REF_NAME: forensics/w3-verdaccio
+2026-09-11T15:28:37.4482327Z   EVENT_NAME: workflow_dispatch
+2026-09-11T15:28:37.4482578Z ##[endgroup]
+2026-09-11T15:28:37.8009242Z npm notice
+2026-09-11T15:28:37.8012756Z npm notice 📦  border-customs@0.4.1
+2026-09-11T15:28:37.8013335Z npm notice Tarball Contents
+2026-09-11T15:28:37.8016409Z npm notice 1.1kB LICENSE
+2026-09-11T15:28:37.8017049Z npm notice 58.3kB README.md
+2026-09-11T15:28:37.8017571Z npm notice 97.7kB dist/assets/gitleaks-defaults-v8.30.1.toml
+2026-09-11T15:28:37.8018121Z npm notice 200.5kB dist/assets/package-lock.json
+2026-09-11T15:28:37.8018711Z npm notice 3.7kB dist/assets/prompts/llm-review.md
+2026-09-11T15:28:37.8019242Z npm notice 22.9kB dist/assets/release-src/releaseCoherence.ts
+2026-09-11T15:28:37.8019794Z npm notice 10.8kB dist/assets/residue-src/crates.ts
+2026-09-11T15:28:37.8020477Z npm notice 13.5kB dist/assets/residue-src/npm.ts
+2026-09-11T15:28:37.8020965Z npm notice 18.7kB dist/assets/residue-src/pypi.ts
+2026-09-11T15:28:37.8021459Z npm notice 15.5kB dist/assets/residue-src/residue.ts
+2026-09-11T15:28:37.8021959Z npm notice 18.2kB dist/assets/residue-src/residueGem.ts
+2026-09-11T15:28:37.8022485Z npm notice 33.3kB dist/assets/residue-src/residueMatchers.ts
+2026-09-11T15:28:37.8023017Z npm notice 1.6kB dist/assets/residue-src/residuePy.ts
+2026-09-11T15:28:37.8024029Z npm notice 12.0kB dist/assets/residue-src/residueRust.ts
+2026-09-11T15:28:37.8024518Z npm notice 13.1kB dist/assets/residue-src/rubygems.ts
+2026-09-11T15:28:37.8025220Z npm notice 1.7MB dist/index.js
+2026-09-11T15:28:37.8025594Z npm notice 1.8kB package.json
+2026-09-11T15:28:37.8025947Z npm notice Tarball Details
+2026-09-11T15:28:37.8026511Z npm notice name: border-customs
+2026-09-11T15:28:37.8026876Z npm notice version: 0.4.1
+2026-09-11T15:28:37.8027336Z npm notice filename: border-customs-0.4.1.tgz
+2026-09-11T15:28:37.8027834Z npm notice package size: 469.0 kB
+2026-09-11T15:28:37.8028186Z npm notice unpacked size: 2.2 MB
+2026-09-11T15:28:37.8028621Z npm notice shasum: 370fffe7144d19a52c4547003c00b3a529919c43
+2026-09-11T15:28:37.8029098Z npm notice integrity: sha512-V/2vN44AWr2tQ[...]nV6Q+14mV6TTw==
+2026-09-11T15:28:37.8029575Z npm notice total files: 17
+2026-09-11T15:28:37.8029922Z npm notice
+2026-09-11T15:28:37.8030462Z border-customs-0.4.1.tgz
+2026-09-11T15:28:38.1420660Z npm notice
+2026-09-11T15:28:38.1423841Z npm notice 📦  border-customs@0.4.1
+2026-09-11T15:28:38.1424296Z npm notice Tarball Contents
+2026-09-11T15:28:38.1427463Z npm notice 1.1kB LICENSE
+2026-09-11T15:28:38.1428019Z npm notice 58.3kB README.md
+2026-09-11T15:28:38.1428553Z npm notice 97.7kB dist/assets/gitleaks-defaults-v8.30.1.toml
+2026-09-11T15:28:38.1429092Z npm notice 200.5kB dist/assets/package-lock.json
+2026-09-11T15:28:38.1429810Z npm notice 3.7kB dist/assets/prompts/llm-review.md
+2026-09-11T15:28:38.1430594Z npm notice 22.9kB dist/assets/release-src/releaseCoherence.ts
+2026-09-11T15:28:38.1431209Z npm notice 10.8kB dist/assets/residue-src/crates.ts
+2026-09-11T15:28:38.1431711Z npm notice 13.5kB dist/assets/residue-src/npm.ts
+2026-09-11T15:28:38.1432126Z npm notice 18.7kB dist/assets/residue-src/pypi.ts
+2026-09-11T15:28:38.1432584Z npm notice 15.5kB dist/assets/residue-src/residue.ts
+2026-09-11T15:28:38.1433125Z npm notice 18.2kB dist/assets/residue-src/residueGem.ts
+2026-09-11T15:28:38.1433653Z npm notice 33.3kB dist/assets/residue-src/residueMatchers.ts
+2026-09-11T15:28:38.1434183Z npm notice 1.6kB dist/assets/residue-src/residuePy.ts
+2026-09-11T15:28:38.1434682Z npm notice 12.0kB dist/assets/residue-src/residueRust.ts
+2026-09-11T15:28:38.1435180Z npm notice 13.1kB dist/assets/residue-src/rubygems.ts
+2026-09-11T15:28:38.1435688Z npm notice 1.7MB dist/index.js
+2026-09-11T15:28:38.1436033Z npm notice 1.8kB package.json
+2026-09-11T15:28:38.1436429Z npm notice Tarball Details
+2026-09-11T15:28:38.1436825Z npm notice name: border-customs
+2026-09-11T15:28:38.1437155Z npm notice version: 0.4.1
+2026-09-11T15:28:38.1437551Z npm notice filename: border-customs-0.4.1.tgz
+2026-09-11T15:28:38.1437854Z npm notice package size: 469.0 kB
+2026-09-11T15:28:38.1438227Z npm notice unpacked size: 2.2 MB
+2026-09-11T15:28:38.1438547Z npm notice shasum: 370fffe7144d19a52c4547003c00b3a529919c43
+2026-09-11T15:28:38.1438905Z npm notice integrity: sha512-V/2vN44AWr2tQ[...]nV6Q+14mV6TTw==
+2026-09-11T15:28:38.1439250Z npm notice total files: 17
+2026-09-11T15:28:38.1439479Z npm notice
+2026-09-11T15:28:38.1439795Z border-customs-0.4.1.tgz
+2026-09-11T15:28:38.1498999Z tarball contents:
+2026-09-11T15:28:38.1517523Z package/LICENSE
+2026-09-11T15:28:38.1517953Z package/dist/index.js
+2026-09-11T15:28:38.1586487Z package/dist/assets/package-lock.json
+2026-09-11T15:28:38.1594047Z package/package.json
+2026-09-11T15:28:38.1594418Z package/dist/assets/prompts/llm-review.md
+2026-09-11T15:28:38.1595744Z package/README.md
+2026-09-11T15:28:38.1597569Z package/dist/assets/gitleaks-defaults-v8.30.1.toml
+2026-09-11T15:28:38.1601864Z package/dist/assets/residue-src/crates.ts
+2026-09-11T15:28:38.1603466Z package/dist/assets/residue-src/npm.ts
+2026-09-11T15:28:38.1603812Z package/dist/assets/residue-src/pypi.ts
+2026-09-11T15:28:38.1605241Z package/dist/assets/release-src/releaseCoherence.ts
+2026-09-11T15:28:38.1605592Z package/dist/assets/residue-src/residue.ts
+2026-09-11T15:28:38.1606951Z package/dist/assets/residue-src/residueGem.ts
+2026-09-11T15:28:38.1607349Z package/dist/assets/residue-src/residueMatchers.ts
+2026-09-11T15:28:38.1610141Z package/dist/assets/residue-src/residuePy.ts
+2026-09-11T15:28:38.1610648Z package/dist/assets/residue-src/residueRust.ts
+2026-09-11T15:28:38.1611383Z package/dist/assets/residue-src/rubygems.ts
+2026-09-11T15:28:38.1727364Z file count (excluding package/ dir entry): 17
+2026-09-11T15:28:38.1770747Z ##[group]Run echo 'dry-run: publish only on v* tag push'
+2026-09-11T15:28:38.1771173Z [36;1mecho 'dry-run: publish only on v* tag push'[0m
+2026-09-11T15:28:38.1793254Z shell: /usr/bin/bash -e {0}
+2026-09-11T15:28:38.1793578Z env:
+2026-09-11T15:28:38.1793831Z   REF_NAME: forensics/w3-verdaccio
+2026-09-11T15:28:38.1794122Z   EVENT_NAME: workflow_dispatch
+2026-09-11T15:28:38.1794470Z ##[endgroup]
+2026-09-11T15:28:38.1828597Z dry-run: publish only on v* tag push
+2026-09-11T15:28:38.1902651Z Post job cleanup.
+2026-09-11T15:28:38.2887009Z Post job cleanup.
+2026-09-11T15:28:38.3547053Z [command]/usr/bin/git version
+2026-09-11T15:28:38.3579521Z git version 2.55.0
+2026-09-11T15:28:38.3611746Z Temporarily overriding HOME='/home/runner/work/_temp/52ef8cdb-896d-41da-90df-7eaa62f30fd8' before making global git config changes
+2026-09-11T15:28:38.3612618Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-11T15:28:38.3616312Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Border-Customs/Border-Customs
+2026-09-11T15:28:38.3639242Z Removing SSH command configuration
+2026-09-11T15:28:38.3644830Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-11T15:28:38.3669204Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-11T15:28:38.3823350Z Removing HTTP extra header
+2026-09-11T15:28:38.3827844Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-11T15:28:38.3851392Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-11T15:28:38.4004644Z Removing includeIf entries pointing to credentials config files
+2026-09-11T15:28:38.4009941Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-11T15:28:38.4023986Z includeif.gitdir:/home/runner/work/Border-Customs/Border-Customs/.git.path
+2026-09-11T15:28:38.4024813Z includeif.gitdir:/home/runner/work/Border-Customs/Border-Customs/.git/worktrees/*.path
+2026-09-11T15:28:38.4025578Z includeif.gitdir:/github/workspace/.git.path
+2026-09-11T15:28:38.4026126Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-09-11T15:28:38.4032354Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/Border-Customs/Border-Customs/.git.path
+2026-09-11T15:28:38.4047609Z /home/runner/work/_temp/git-credentials-c956371d-a72d-4ab2-9dc9-5876273dbd55.config
+2026-09-11T15:28:38.4056134Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/Border-Customs/Border-Customs/.git.path /home/runner/work/_temp/git-credentials-c956371d-a72d-4ab2-9dc9-5876273dbd55.config
+2026-09-11T15:28:38.4082174Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/Border-Customs/Border-Customs/.git/worktrees/*.path
+2026-09-11T15:28:38.4097152Z /home/runner/work/_temp/git-credentials-c956371d-a72d-4ab2-9dc9-5876273dbd55.config
+2026-09-11T15:28:38.4105317Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/Border-Customs/Border-Customs/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-c956371d-a72d-4ab2-9dc9-5876273dbd55.config
+2026-09-11T15:28:38.4131249Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-09-11T15:28:38.4151569Z /github/runner_temp/git-credentials-c956371d-a72d-4ab2-9dc9-5876273dbd55.config
+2026-09-11T15:28:38.4154962Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-c956371d-a72d-4ab2-9dc9-5876273dbd55.config
+2026-09-11T15:28:38.4254638Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-09-11T15:28:38.4277448Z /github/runner_temp/git-credentials-c956371d-a72d-4ab2-9dc9-5876273dbd55.config
+2026-09-11T15:28:38.4291421Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-c956371d-a72d-4ab2-9dc9-5876273dbd55.config
+2026-09-11T15:28:38.4320216Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-11T15:28:38.4462898Z Removing credentials config '/home/runner/work/_temp/git-credentials-c956371d-a72d-4ab2-9dc9-5876273dbd55.config'
+2026-09-11T15:28:38.4570639Z Cleaning up orphan processes
