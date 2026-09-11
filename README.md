@@ -675,6 +675,20 @@ same one that wrote the commit) how to run the five subcommands, how to produce 
 
 ## Changelog
 
+### 0.4.2 (2026-09-12)
+- Fix: `npm publish` no longer prints the misleading "bin[border] script name
+  dist/index.js was invalid and removed" warning — package.json now carries the
+  canonical bare-relative bin form npm normalizes to anyway (mechanism traced to
+  @npmcli/package-json publish-side; artifacts were never broken; an always-on
+  test locks the form).
+- Change: RubyGems freshness (skip-ledger) parity compares a normalized CONTENT
+  digest instead of raw file bytes — `gem build` stamps the building toolchain
+  (RubyGems <3.6 embeds the build second in gzip headers), so raw-sha repack
+  parity could never be honored on those machines. The ledger digest and the
+  publish-time same-bytes re-hash stay RAW: what gets uploaded is still exactly
+  the certified bytes, and any unparseable artifact fails closed to a full
+  re-check.
+
 ### 0.4.1 (2026-09-11)
 - Add: release-coherence rule family — every version source inside a published artifact
   must agree (pyproject vs MODULE vs filename, gemspec vs gem metadata, Cargo.toml vs
