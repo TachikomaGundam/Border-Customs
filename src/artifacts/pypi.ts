@@ -40,6 +40,7 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { extractArchive, removeSandbox } from "./extract.ts";
 import { residueFindings } from "./residue.ts";
 import { residuePypiHits } from "./residuePy.ts";
+import { pypiArtifactCoherenceFindings } from "../rules/releaseCoherence.ts";
 import type { Finding } from "../findings.ts";
 import { globToRegExp } from "../rules/artifactMatchers.ts";
 import { scanTree } from "../engines/gitleaks.ts";
@@ -313,6 +314,25 @@ export async function scanPyPiArtifacts(o: PypiInput): Promise<PypiScanResult> {
         for (const f of residueFindings(residuePypiHits(scanRoot, rest), {
           root: basename(artifact.path),
           sep: "!",
+          identity: basename(artifact.path),
+          ...(o.sanitizer !== undefined ? { sanitizer: o.sanitizer } : {}),
+        })) absorb(f, f.path ?? "");
+        // W4.1 release coherence: every version source inside THIS artifact — wheel:
+        // filename ↔ dist-info dir ↔ METADATA Version ↔ __version__ literals (the aihr
+        // replay is caught from the wheel bytes alone); sdist: pyproject/setup.* ↔
+        // PKG-INFO ↔ __version__. Regex-text probes only, nothing executed; a source
+        // absent from the tree is NOT drift (releaseCoherence.ts header boundary).
+        for (const f of pypiArtifactCoherenceFindings({
+          kind: artifact.kind,
+          archiveName: basename(artifact.path),
+          files: rest,
+          read: (rel: string) => {
+            try {
+              return readFileSync(join(scanRoot, rel), "utf8");
+            } catch {
+              return null;
+            }
+          },
           identity: basename(artifact.path),
           ...(o.sanitizer !== undefined ? { sanitizer: o.sanitizer } : {}),
         })) absorb(f, f.path ?? "");

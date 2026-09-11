@@ -28,6 +28,7 @@ import { EngineRunError, type EngineOptions } from "../engines/support.ts";
 import { LIFECYCLE_SCRIPT_KEYS, parseNpmManifest, unexpectedEntries } from "./manifestDiff.ts";
 import { residueFindings, scanNpmLifecycleHook, sweepResidueNpmArtifact } from "./residue.ts";
 import { RESIDUE_T1_RULE } from "../rules/residueMatchers.ts";
+import { npmPackCoherenceFindings } from "../rules/releaseCoherence.ts";
 import {
   NPM_LIFECYCLE_RULE,
   NPM_PUBLINT_RULE,
@@ -196,6 +197,19 @@ export async function runNpmArtifactStage(o: NpmStageOptions): Promise<NpmStageR
     // lifecycle gate reads the PUBLISHED manifest (the bytes consumers install),
     // not the working tree — npm may rewrite package.json inside the tarball.
     const packedManifest = parseNpmManifest(readFileSync(join(extractDir, packedManifestRel), "utf8"));
+
+    // W4.1 release coherence: packed package.json ↔ a packed package-lock.json (root +
+    // packages[""]). ABSENT-SOURCE BOUNDARY (load-bearing): locks are usually NOT in the
+    // tarball (files whitelist) — an unpacked lock is not drift and never a finding;
+    // false-positive gates just train users to pass --force. See rules/releaseCoherence.ts.
+    const lockRel = `${root}/package-lock.json`;
+    findings.push(...npmPackCoherenceFindings({
+      packedVersion: packedManifest.version,
+      lockText: relPaths.includes(lockRel) ? readFileSync(join(extractDir, lockRel), "utf8") : null,
+      lockRelPath: lockRel,
+      identity,
+      ...(o.sanitizer !== undefined ? { sanitizer: o.sanitizer } : {}),
+    }));
 
     // RESIDUE-CONTRACT §1.6/§3 (R2): a hook is downgraded to MEDIUM ONLY when the
     // classifier matches closed signature #1 in full; every other outcome — unknown

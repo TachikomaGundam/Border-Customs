@@ -34,4 +34,10 @@ for (const [dir, base] of [
 ]) {
   copyFileSync(join(root, "src", dir, base), join(residueSrc, base));
 }
+// W4.2: release-coherence fingerprint inputs — keep byte-identical to
+// RELEASE_FINGERPRINT_SOURCES in src/check/rulesHash.ts; a missing entry fails
+// CLOSED at check time (MissingRulesInputError ⇒ exit 2), never a silent pass.
+const releaseSrc = join(dest, "release-src");
+mkdirSync(releaseSrc, { recursive: true });
+copyFileSync(join(root, "src", "rules", "releaseCoherence.ts"), join(releaseSrc, "releaseCoherence.ts"));
 console.log("assets staged into dist/assets/");

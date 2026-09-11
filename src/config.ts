@@ -155,6 +155,28 @@ function buildBorderConfigSchema() {
         })
         .strict()
         .optional(),
+      // W4.1 release-coherence twin obligations (plan border-inspect-roadmap §127-138):
+      // the ONLY cross-manager declaration border can statically enforce — when a project
+      // ships a PyPI/npm twin pair under one release train, their versions must be equal.
+      // The per-artifact internal coherence rules (release-coherence-*) are ALWAYS on and
+      // need no opt-in; this list is opt-in and strict — unknown keys fail typed exit 2.
+      // The pair list rides the whole-object configDigest, so editing it rotates the check
+      // rulesHash exactly like the residue block above.
+      release: z
+        .object({
+          twin: z
+            .array(
+              z
+                .object({
+                  pypi: z.string().min(1),
+                  npm: z.string().min(1),
+                })
+                .strict(),
+            )
+            .default([]),
+        })
+        .strict()
+        .optional(),
     })
     .strict();
 }
