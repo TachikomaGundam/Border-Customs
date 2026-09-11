@@ -98,10 +98,9 @@ disk (established R-series protocol).
   Doc W2.3-REGISTRAR-REVERSIBILITY.md (19,757B) + w23-transcripts/ (14 files). Honest
   limits carried by the new W2.4 follow-up + README fidelity envelope.
 - [ ] W2.4 calibration follow-ups from W2.3 (0.4.1 candidates, in priority order):
-  (a) G-CALIB pypi lane — target-only diff: resolve pip's dependency closure at plan
-  time, demote dep-storm orphans to an informational class so genuine orphans
-  (e.g. /usr/local/share/aihr dir residue) stand alone; npm sibling case = transitive
-  trees already manager-owned, verify no regression.
+  (a) [x] G-CALIB pypi lane — DONE 2026-09-11 (46b5fdf): dep-closure calibration +
+  shadow-dist-info legitimacy stack; verifier CONVERGED-equivalent after fix round;
+  live jupyter-core 54 LOW/0 blocking, benign parity byte-proofed.
   (b) G-LOCAL — `border roundtrip` accept local artifact path/tarball (wheel install
   from file) so unpublished/hardened artifacts can be proven.
   (c) G-RUN/G-WRITER/G-RELEASE are HR-repo-side items (registrar BEGIN/END wiring,
@@ -126,7 +125,9 @@ disk (established R-series protocol).
 
 ## Wave 4 — release-coherence rule (0.4.x)
 
-- [ ] W4.1 static cross-check at publish stage (new rule family residue-adjacent, own
+- [x] W4.1 static cross-check at publish stage (DONE 2026-09-11 9969836: artifact-internal
+  self-consistency + config-gated twin; 'vs git tag' half enforced by publish workflow —
+  see tag-consistency grep row in ledger; verifier CONVERGED 0.93) (new rule family residue-adjacent, own
   rule ids release-coherence-*): every version source in the artifact must agree —
   package.json vs git tag; pyproject [project].version vs __init__.__version__ vs
   *.egg-info/PKG-INFO; Cargo.toml vs tag; gemspec vs tag. CRITICAL on drift (aihr 0.2.1-
