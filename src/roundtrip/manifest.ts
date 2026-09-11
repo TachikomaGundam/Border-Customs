@@ -13,6 +13,7 @@
 import { createHash } from "node:crypto";
 
 import type { Finding } from "../findings.ts";
+import { RT_DEP_RULE, ownerOf, type DepAttribution } from "./calibrate.ts";
 
 export const RT_ENGINE = "roundtrip";
 export const RT_RESIDUE_RULE = "roundtrip-residue-file";
@@ -94,10 +95,28 @@ export function isPersistenceSurface(path: string): boolean {
 
 const digestOf = (what: string): string => createHash("sha256").update(what).digest("hex");
 
-/** Turn an m1→m3 diff into scan-shaped Findings (engine='roundtrip'). */
-export function classifyResidue(label: string, diff: ManifestDiff): Finding[] {
+/** Turn an m1→m3 diff into scan-shaped Findings (engine='roundtrip').
+ *  W2.4(a): pypi lanes pass the m3 dep-attribution table; an ADDED row a
+ *  still-installed closure dep still accounts for demotes to LOW
+ *  residue-roundtrip-dep-owned (non-blocking). attribution null/omitted ⇒
+ *  byte-for-byte the W2.1 machine (npm/cargo/gem, and pypi before calibration). */
+export function classifyResidue(label: string, diff: ManifestDiff, attribution: DepAttribution | null = null): Finding[] {
   const findings: Finding[] = [];
   for (const e of diff.added) {
+    const owner = attribution !== null ? ownerOf(e, attribution) : undefined;
+    if (owner !== undefined) {
+      findings.push({
+        rule: RT_DEP_RULE,
+        severity: "LOW",
+        target: label,
+        path: e.path,
+        engine: RT_ENGINE,
+        message: `ADDED path survives uninstall but is claimed by still-installed dependency '${owner}' (pip-accountable) — demoted, non-blocking`,
+        valueDigest: digestOf(`ADDED:${e.path}:${e.value}`),
+        snippet: `dep-owned: ${e.path}`,
+      });
+      continue;
+    }
     // Fail closed on every surviving row, directories included: the spike's
     // ADDED acceptance bar counted them (ADDED(7) = 5 files + 2 dirs).
     findings.push({
