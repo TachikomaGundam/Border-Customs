@@ -35,6 +35,7 @@ export function usage(): string {
     "  llm-ingest     record provenance captured by the harness",
     "  scan           inspect a third-party package ([ecosystem:]name@version) for residue",
     "  roundtrip      install+uninstall a package (registry spec or local artifact file) in a throwaway container, report uninstall residue",
+    "  opencode       install|status|uninstall the official opencode plugin adapter (files under $XDG_CONFIG_HOME/opencode)",
     "",
     "flags:",
     "  --config <path>             config file (default: ./border.yaml, then git-remote fallback)",
@@ -49,7 +50,7 @@ export function usage(): string {
     "",
     "exit codes: 0 pass (MEDIUM/INFO/LOW allowed) | 1 gate-blocked (CRITICAL/HIGH) or partial push | 2 config/tool error",
     "",
-    "subcommands: check, push, status, llm-request, llm-ingest, scan, roundtrip",
+    "subcommands: check, push, status, llm-request, llm-ingest, scan, roundtrip, opencode",
   ].join("\n");
 }
 
