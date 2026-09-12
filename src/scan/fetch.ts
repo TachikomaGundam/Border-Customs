@@ -23,7 +23,7 @@ export const SCAN_MAX_ARTIFACT_BYTES = 200 * 1024 * 1024;
 /** Per-request bound; the plan forbids retries, this is the only wait. */
 export const SCAN_REQUEST_TIMEOUT_MS = 60_000;
 /** Descriptive UA: crates.io rejects the Node default with 403; everyone tolerates this one. */
-export const SCAN_USER_AGENT = "border-customs/0.4.2 (+https://github.com/sumteclab/border; border scan)";
+export const SCAN_USER_AGENT = "border-customs/0.5.0 (+https://github.com/sumteclab/border; border scan)";
 
 const CRATES_DOWNLOAD_HOST = "https://static.crates.io";
 

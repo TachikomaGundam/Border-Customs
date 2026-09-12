@@ -15,6 +15,12 @@ the `--llm` layer is executed by YOU, the operator's agent, through two file
 handoffs (`llm-request` / `llm-ingest`). Install: this repo's `npm link` or
 `node src/index.ts` from a checkout; every command runs inside the target repo.
 
+On machines with the border OpenCode plugin loaded (0.5.0+), a session may drive border
+through its `border` tool or the `/border` slash command instead of bash. Every standing
+rule in this file still applies verbatim through that door: never pass `--yes` without a
+visible human go-ahead — the tool refuses it mechanically anyway — and never push over an
+exit-2 gate. A bare `border push` from the tool is still the CLI's own dry run.
+
 ## The five subcommands
 
 ```

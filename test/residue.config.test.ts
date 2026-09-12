@@ -358,5 +358,5 @@ test("R4-DOC: README names all seven residue rule ids with severities matching t
   assert.ok(readme.includes("0.4.0"), "roundtrip valve pointer = 0.4.0");
   assert.ok(readme.includes("### 0.3.0"), "Changelog 0.3.0 entry present");
   const pkg = JSON.parse(readFileSync(join(BORDER_ROOT, "package.json"), "utf8")) as { version: string };
-  assert.equal(pkg.version, "0.4.2", "v0.4.2 wave supersedes the 0.4.1 pin: canonical bin form + normalized .gem freshness parity (package.json remains the single version source)");
+  assert.equal(pkg.version, "0.5.0", "v0.5.0 wave supersedes the 0.4.2 pin: opencode plugin adapter + install-free loading (package.json remains the single version source)");
 });

@@ -1,14 +1,20 @@
 {
   "name": "border-customs",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "//": "publint is a runtime dep (exact pin): the npm-stage engine is invoked via bin resolution against the installed layout, so consumers get the publint-fail leg out of the box; the dev suite resolves the same node_modules/.bin/publint — no devDependencies entry is needed for it to stay green.",
   "description": "Fail-closed git push gate: secret scanning + supply-chain checks before any remote leaves the machine",
   "type": "module",
   "bin": {
     "border": "dist/index.js"
   },
+  "exports": {
+    ".": "./dist/index.js",
+    "./server": "./plugin/border.ts",
+    "./package.json": "./package.json"
+  },
   "files": [
-    "dist"
+    "dist",
+    "plugin"
   ],
   "engines": {
     "node": ">=22.0.0"
@@ -26,6 +32,7 @@
     "test": "node --import ./tools/register-ts.mjs --test --test-reporter=tap test/*.test.ts"
   },
   "dependencies": {
+    "@opencode-ai/plugin": "^1.17.4",
     "@secretlint/core": "13.0.5",
     "@secretlint/secretlint-rule-no-dotenv": "13.0.5",
     "@secretlint/secretlint-rule-no-homedir": "13.0.5",
