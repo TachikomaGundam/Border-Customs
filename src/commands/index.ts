@@ -9,6 +9,7 @@ import type { CommandHandler, Subcommand } from "../cli/types.ts";
 import { runCheck } from "./check.ts";
 import { runLlmIngest } from "./llmIngest.ts";
 import { runLlmRequest } from "./llmRequest.ts";
+import { runOpencode } from "./opencode.ts";
 import { runPush } from "./push.ts";
 import { runRoundtrip } from "./roundtrip.ts";
 import { runScan } from "./scan.ts";
@@ -22,6 +23,7 @@ export const handlers: Record<Subcommand, CommandHandler> = {
   "llm-ingest": runLlmIngest,
   scan: runScan,
   roundtrip: runRoundtrip,
+  opencode: runOpencode,
 };
 
 /** Test seam: replace one handler, get a restore closure back. */
