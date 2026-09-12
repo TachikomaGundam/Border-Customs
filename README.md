@@ -413,6 +413,7 @@ border <command> [options]
 | `llm-request` | emit the masked review bundle for LLM-authored commits |
 | `llm-ingest <findings.json>` | validate agent findings and record the combined verdict |
 | `scan <[ecosystem:]name@version>` | inspect a third-party published artifact for residue before installing it |
+| `opencode <install\|status\|uninstall>` | install/status/uninstall the official OpenCode plugin adapter |
 
 Every subcommand accepts the same global flags (verified against `border <cmd> --help`):
 
@@ -629,6 +630,45 @@ same one that wrote the commit) how to run the five subcommands, how to produce 
 `llm-ingest` findings file, and the two standing rules for agents driving pushes: never pass
 `--yes` without a visible human go-ahead, and never push over an exit-2 gate.
 
+**OpenCode plugin (install-free).** Since 0.5.0 the package ships an adapter for the official
+OpenCode plugin system, loadable two ways with zero manual setup. The primary route is
+config-declared: one line in `opencode.jsonc`, and opencode downloads the package itself (the
+plugin entry ships as `exports["./server"]`):
+
+```jsonc
+{
+  // pin the exact version — an @latest channel hits the registry on every cold start
+  "plugin": ["border-customs@0.5.0"]
+}
+```
+
+No global install and no PATH entry are required for it: the plugin resolves its CLI from the
+package's own `dist/index.js` sitting next to the plugin module, with `BORDER_BIN` as an
+explicit override that wins first and `border` on `PATH` as the file-drop route's fallback.
+The alternative is the file-drop installer, `border opencode install|status|uninstall`, which
+writes `plugins/border.ts` and `commands/border.md` into `$XDG_CONFIG_HOME/opencode` (with an
+`HOME/.config` fallback) under marker identity: a foreign file at either path is refused with
+exit 2 and never overwritten, uninstall removes only marker-bearing files, and identical bytes
+report `up to date`. Either route, restart opencode afterwards — tools and commands are
+scanned at startup.
+
+What loads is one agent tool `border` plus a `/border` slash command. The tool spawns the CLI
+argv-only (no shell; 300 s cap, 64 KiB per stream) restricted to the closed command list
+`check`, `push`, `status`, `llm-request`, `llm-ingest`, `scan`, `roundtrip`, `--help`, and
+renders the exit-code contract unchanged: 0 pass, 1 gate-blocked or partial push, 2 the gate
+could not answer. The tool REFUSES `--yes` — a real push is the human gate, terminal-only, and
+a bare `border push` from the session is DRY-RUN by the CLI's own contract anyway. `/border`
+self-registers via the plugin `config` hook with `??=`, so a user file command of the same
+name — including a Route-A `commands/border.md` — stays authoritative.
+
+**Boundary honesty.** The command allowlist is fool-proofing (UX), not a security boundary: an
+opencode plugin runs with the opencode process's rights, and the gate's teeth are the CLI and
+its ledger, never the adapter. Loading is verified by the opt-in sandboxed-HOME probe
+(`BORDER_OPENCODE_PROBE=1`): a temp HOME/XDG, `opencode serve` on a control config, and two
+HTTP assertions — the `border` tool id present, `/border` present exactly once (a duplicate
+fails); plugin load failures are silent, so judge by the HTTP responses, never by the exit
+code.
+
 ## What this is not
 
 - **Not a vault or secret manager.** It detects credentials on their way out; it does not
@@ -674,6 +714,15 @@ same one that wrote the commit) how to run the five subcommands, how to produce 
   lock makes concurrent runs exit 2 instead of racing.
 
 ## Changelog
+
+### 0.5.0 (2026-09-12)
+- Add: OpenCode plugin adapter (`exports["./server"]` + `/border` + `border` tool) loadable
+  two ways with zero manual install — config-declared `"plugin": ["border-customs@0.5.0"]`
+  (opencode downloads the package; the plugin spawns its own packaged CLI via a
+  package-relative `dist/index.js` resolution, `BORDER_BIN` override, PATH fallback) or
+  `border opencode install` (marker-identified idempotent file drop, foreign files refused,
+  never overwritten). Trigger: an agent session drives the gate without a shell-out or an
+  install ritual; `push --yes` stays terminal-only by design — the tool refuses it.
 
 ### 0.4.2 (2026-09-12)
 - Fix: `npm publish` no longer prints the misleading "bin[border] script name
@@ -805,3 +854,5 @@ border 是一个 fail-closed(失败即拦截)的推送前门禁 CLI:`npm install
 机器上"的事实证明,不是安全担保。可选 LLM 层 border 自身从不调用模型 API:`llm-request` 导出掩码审阅包,`llm-ingest` 严格校验 agent 结论并重算裁决。退出码即合同:0 通过、1 拦截、2 门禁无法作答,任何"工具不健康"都不可能被误读为干净。MIT 许可,无遥测,除你配置的注册表预检外不联网。
 
 发布一致性(0.4.1):起因是 aihr 事故——PyPI 上标为 0.2.2 的 wheel 里 `__init__.__version__` 却写着 0.2.1,构件名、元数据与实际模块行为三者不一致,所有 `==0.2.2` 的用户静默装上了旧行为;同类漂移在本仓库也出现过两次(npm tarball 的 User-Agent 停在 0.3.0 而 package.json 是 0.3.1;package-lock.json 根版本两个 release 一直躺在 0.1.0)。发布阶段扫描器因此在构件内部逐源交叉核对版本号:`release-coherence-version-drift` 为 CRITICAL(package.json 与被强制打包的 package-lock、wheel 文件名对 dist-info 目录对 METADATA `Version:` 对 `__init__` 字面量、sdist 的 pyproject 对 PKG-INFO/setup 系字面量、Cargo.toml 对已打包的 Cargo.lock、.gemspec 对 metadata.gz、dist 文件名对 sdist 内 PKG-INFO);版本源存在但无法静态解析(动态 `__version__`、`attr:`、`dynamic = ["version"]`、坏 lockfile)判 MEDIUM `release-coherence-unverifiable-source`——不可核查绝不静默算干净;第二版本源根本没被打包时不发现在内,缺源不是漂移,这条边界是承重的,误报的门禁会把用户训练成 `--force`。唯一可静态强制的跨包管理器声明是 opt-in `release.twin`(`{pypi, npm}` 严格 zod 对列表,未知键 exit 2):同一 run 的 dist 里孪生版本不等 ⇒ CRITICAL `release-coherence-twin-drift`,消息点名两个构件。规则源文件与 residue 指纹表一样并入 rulesHash,改一个匹配器即令全部缓存 PASS 失效。
+
+OpenCode 插件适配层(0.5.0):零手工装载两条路线——主路是在 `opencode.jsonc` 声明 `"plugin": ["border-customs@0.5.0"]`(建议钉具体版本,@latest 每次冷启动都打注册表),opencode 自行下载构件,插件入口走 `exports["./server"]`;插件自带 CLI 解析,顺序为 `BORDER_BIN` 覆盖 > 包内同侧 `dist/index.js` > PATH 上的 `border`,免全局安装、免 PATH 配置。备路是 `border opencode install|status|uninstall` 文件投递,落盘 `$XDG_CONFIG_HOME/opencode` 下的 `plugins/border.ts` 与 `commands/border.md`(无 XDG 回退 HOME/.config):受管文件凭 marker 行识别身份,同名外人文件 exit 2 拒绝、绝不覆盖,卸载只删自己带 marker 的文件,字节相同即 `up to date`。装载面只有一个 `border` 工具(argv-only 生成、无 shell、300 秒与每流 64 KiB 上限,命令闭集 check/push/status/llm-request/llm-ingest/scan/roundtrip/--help)与一条 `/border` 斜杠命令(config 钩子以 `??=` 自注册,用户同名文件命令保持权威)。边界如实说:allowlist 是 UX/防呆而非安全边界——插件进程与 opencode 进程同权,门禁的牙齿在 CLI 与账本,不在适配层;`push --yes` 按设计留在终端人审,工具端机械拒绝,会话内裸 push 本就是 CLI 合同的 DRY-RUN。装载验证走 opt-in 探针 `BORDER_OPENCODE_PROBE=1`(临时 HOME/XDG 起 `opencode serve` 对照组,断言 `border` 工具 id 与恰好一条 border 命令,重复即 FAIL;插件加载失败是静默的,只认 HTTP 响应不认退出码)。两条路线装载后都需重启 opencode:工具与命令在启动时扫描。
