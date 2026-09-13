@@ -52,6 +52,13 @@ allow:
   # scanners by construction. Pinned to the signature file, whose sha256 is
   # part of rulesHash — any edit changes the fingerprint and re-runs the scan.
   - { rule: "*", match: "*", file: "assets/gitleaks-defaults-v8.30.1.toml" }
+  # (b-ext) the build-time copy of that exact pinned file: npm run build
+  # replicates assets/gitleaks-defaults-v8.30.1.toml verbatim into dist/assets/
+  # (tools/copy-assets.mjs; dist/ is untracked build output, CI never scans it).
+  # Byte-identity verified at pinning time (sha256 e163e53b…329caf on both), so
+  # the rulesHash-rot protection of the source pin rides transitively: hostile
+  # bytes must enter via the source to survive a rebuild.
+  - { rule: "*", match: "*", file: "dist/assets/gitleaks-defaults-*.toml" }
   # (b-ext) the synthetic R1-spike documentation literal (AKIA… masked here
   # per this file's own convention — quoting it raw would self-trigger border):
   # a fabricated fake recorded in CHANNEL-CONTRACTS.md to pin fixture traps,
@@ -61,6 +68,14 @@ allow:
   # only, not wildcard) and the file is pinned; unscoped secret rules still
   # fire everywhere else.
   - { rule: "aws-access-token", match: "*", file: "src/channels/CHANNEL-CONTRACTS.md" }
+  # (b-ext, twin) secretlint's view of the SAME sanctioned literal above. The
+  # engine pair scans each file independently and secretlint reports the fixture
+  # reuse-literal under its own id namespace (@secretlint/secretlint-rule-aws/
+  # AWSAccessKeyID) — same file, same bytes, second name; no new suppression
+  # scope. Guard-pinned by the DOC-LIT suite in test/residue.config.test.ts:
+  # a NEW AWS-shaped key added to these docs fails the suite even where the
+  # scanner is allowlisted here.
+  - { rule: "@secretlint/secretlint-rule-aws/*", match: "*", file: "src/channels/CHANNEL-CONTRACTS.md" }
   # (b-ext) backslash/home path literals inside the tool's own pattern-aware
   # sources: src/** (regex handling, ADAPTER-CONTRACT.md docs), tools/**
   # (spike scripts) and the prompt template's example paths. Scoped to the
@@ -82,6 +97,16 @@ allow:
   # (repo-self-ignores-findings) still guards this file independently.
   - { rule: "@secretlint/secretlint-rule-no-homedir/*", match: "*", file: "border.yaml" }
   - { rule: "path-pattern:*", match: "*", file: "border.yaml" }
+  # (c, twin) secretlint's no-homedir view of the workspace-path detector the
+  # (c) block already sanctions for "docs, planning evidence, engine reports".
+  # The two contract docs quote REAL execution evidence verbatim (readlink
+  # output, rc-file excerpts, engine binary paths, sample dirs) — recording
+  # where files land on the machine IS their evidentiary job. no-homedir is a
+  # path-PRIVACY rule, not a secret rule; every secret-shaped rule (aws twin
+  # above excepted per its own comment, generic-api-key, engine defaults)
+  # still fires on both files at full strength.
+  - { rule: "@secretlint/secretlint-rule-no-homedir/*", match: "*", file: "src/artifacts/RESIDUE-CONTRACT.md" }
+  - { rule: "@secretlint/secretlint-rule-no-homedir/*", match: "*", file: "src/channels/CHANNEL-CONTRACTS.md" }
 
 engines:
   require:
