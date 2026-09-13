@@ -360,3 +360,25 @@ test("R4-DOC: README names all seven residue rule ids with severities matching t
   const pkg = JSON.parse(readFileSync(join(BORDER_ROOT, "package.json"), "utf8")) as { version: string };
   assert.equal(pkg.version, "0.5.0", "v0.5.0 wave supersedes the 0.4.2 pin: opencode plugin adapter + install-free loading (package.json remains the single version source)");
 });
+
+// ---------------------------------------------------------------- 7. contract-doc secret-literal guard
+
+test("DOC-LIT: the two AWS/no-homedir-suppressed contract docs carry EXACTLY the sanctioned synthetic fixture literal", () => {
+  // The suppression twins in border.yaml (aws + no-homedir families) scope by
+  // file × rule family, so the scanner cannot see a NEW key added to these two
+  // docs. This test is the guard the allowlist leans on: the sanctioned literal
+  // set is pinned; anything else AWS-shaped fails loudly here. The literal is
+  // written raw ON PURPOSE — test/** is the fully-sanctioned synthetic corpus
+  // (border.yaml (b)) and this value must be byte-comparable to the doc copy.
+  const docs = ["src/artifacts/RESIDUE-CONTRACT.md", "src/channels/CHANNEL-CONTRACTS.md"];
+  const found = new Set<string>();
+  for (const doc of docs) {
+    const text = readFileSync(join(BORDER_ROOT, doc), "utf8");
+    for (const m of text.matchAll(/AKIA[A-Z0-9]{16}/g)) found.add(m[0]);
+  }
+  assert.deepEqual(
+    [...found].sort(),
+    ["AKIAI4Q3EXAMPL3K7X2Q"],
+    "AWS-shaped literals in suppressed-scope docs must equal the sanctioned R1-spike reuse-literal (same value the test/** corpus plants)",
+  );
+});
