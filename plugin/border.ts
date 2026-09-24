@@ -1,4 +1,4 @@
-// border-opencode-plugin v0.5.0
+// border-opencode-plugin v0.5.1
 // Official opencode plugin adapter for the border fail-closed push gate.
 // Registers ONE agent tool, `border`, that drives the border CLI — argv-only
 // (node:child_process execFile, never a shell), top-level commands restricted
@@ -22,6 +22,17 @@
 //     On this route the CLI is spawned FROM THE PACKAGE ITSELF (../dist/index.js
 //     lives inside the same tarball), so no global install or PATH entry is
 //     needed — that is what makes Route B genuinely install-free.
+//
+// NEVER spawn the host: this module runs inside the opencode process, whose
+// process.execPath is the opencode (bun-compiled) binary, not node. The 0.5.0
+// packaged-sibling route used process.execPath + dist/index.js as argv — on
+// Route B that spawned opencode with the dist path as a subcommand: the gate
+// was silently replaced by the host (impersonation incident, 2026-09-22; the
+// node --test seam was blind because there execPath really is node). Since
+// 0.5.1 the packaged dist is exec'd DIRECTLY (shebang) or under PATH `node`,
+// and every candidate must pass an identity handshake (`--help` answering as
+// border) before any user argv is ever spawned. Unverifiable ⇒ exit 2
+// cannot-answer, never a fallback to some other binary.
 
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -30,6 +41,8 @@ import { tool, type Config } from "@opencode-ai/plugin";
 
 /** Spawn cap: a CLI call that outlives this is killed and reported, never awaited forever. */
 const TIMEOUT_MS = 300_000;
+/** Identity-handshake cap: a `--help` needing longer than this is not a border CLI. */
+const PROBE_TIMEOUT_MS = 20_000;
 /** Per-stream output cap fed back into the session; keeps one tool call from flooding context. */
 const MAX_OUTPUT_BYTES = 64 * 1024;
 
@@ -47,24 +60,36 @@ const ALLOWED_COMMANDS: readonly string[] = [
   "--help",
 ];
 
-/** How to reach the CLI: a binary name/absolute path, optionally under node itself. */
+/** How to reach the CLI: a binary name/absolute path, optionally a script prefix. */
 interface BinResolution {
   readonly bin: string;
-  /** argv to prepend before the CLI's own argv (the dist entry when hosted by node). */
+  /** argv to prepend before the CLI's own argv (the dist entry when hosted by PATH node). */
   readonly prefix: readonly string[];
+  /** Human-readable candidate identity, named in the cannot-answer note. */
+  readonly label: string;
 }
 
 /**
- * Resolution order: BORDER_BIN (non-empty) wins on every route; else the dist
- * bundle sitting next to this module in the package/repo layout (Route B and
- * dev checkout, spawned under node); else the `border` bin from PATH (Route A).
+ * Candidate order: BORDER_BIN (non-empty) wins alone on every route — a broken
+ * explicit override is a loud error, never a silent fallback; else the dist
+ * bundle sitting next to this module, exec'd directly through its shebang and,
+ * if that is not runnable, under PATH `node` (Route B + dev checkout); else the
+ * `border` bin from PATH (Route A). process.execPath is deliberately absent:
+ * inside a plugin host it is the HOST binary, not a JS runtime.
  */
-function resolveBin(): BinResolution {
+function candidateList(): readonly BinResolution[] {
   const configured = process.env["BORDER_BIN"];
-  if (configured !== undefined && configured.length > 0) return { bin: configured, prefix: [] };
+  if (configured !== undefined && configured.length > 0) {
+    return [{ bin: configured, prefix: [], label: `BORDER_BIN=${configured}` }];
+  }
   const distEntry = fileURLToPath(new URL("../dist/index.js", import.meta.url));
-  if (existsSync(distEntry)) return { bin: process.execPath, prefix: [distEntry] };
-  return { bin: "border", prefix: [] };
+  const candidates: BinResolution[] = [];
+  if (existsSync(distEntry)) {
+    candidates.push({ bin: distEntry, prefix: [], label: "packaged dist/index.js (shebang exec)" });
+    candidates.push({ bin: "node", prefix: [distEntry], label: "packaged dist/index.js under PATH node" });
+  }
+  candidates.push({ bin: "border", prefix: [], label: "border on PATH" });
+  return candidates;
 }
 
 interface CliResult {
@@ -72,6 +97,8 @@ interface CliResult {
   readonly stdout: string;
   readonly stderr: string;
   readonly note: string;
+  /** The child could not be spawned at all (ENOENT/EACCES/ENOEXEC) — never a gate verdict. */
+  readonly spawnFailed: boolean;
 }
 
 /** The subset of the execFile error shape this adapter reads (node sets `code` on failures). */
@@ -82,29 +109,27 @@ interface SpawnError extends Error {
 }
 
 /** Never rejects: every spawn failure becomes a structured result the agent can read. */
-function runCli(bin: string, prefix: readonly string[], argv: readonly string[]): Promise<CliResult> {
+function runCli(resolution: BinResolution, argv: readonly string[], timeoutMs: number): Promise<CliResult> {
   return new Promise((resolve) => {
     execFile(
-      bin,
-      [...prefix, ...argv],
-      { timeout: TIMEOUT_MS, maxBuffer: MAX_OUTPUT_BYTES, shell: false },
+      resolution.bin,
+      [...resolution.prefix, ...argv],
+      { timeout: timeoutMs, maxBuffer: MAX_OUTPUT_BYTES, shell: false },
       (error, stdout, stderr) => {
         const out = stdout.slice(0, MAX_OUTPUT_BYTES);
         const errOut = stderr.slice(0, MAX_OUTPUT_BYTES);
         if (error === null) {
-          resolve({ status: 0, stdout: out, stderr: errOut, note: "" });
+          resolve({ status: 0, stdout: out, stderr: errOut, note: "", spawnFailed: false });
           return;
         }
         const failure = error as SpawnError;
-        if (failure.code === "ENOENT") {
+        if (failure.code === "ENOENT" || failure.code === "EACCES" || failure.code === "ENOEXEC") {
           resolve({
-            status: 127,
+            status: 2,
             stdout: out,
             stderr: errOut,
-            note:
-              "the border CLI could not be spawned. Three remedies: set BORDER_BIN to a " +
-              "real border binary, or run 'border opencode install' (route A), or " +
-              "npm i -g border-customs (route A, PATH entry).",
+            spawnFailed: true,
+            note: `cannot-answer: the border CLI could not be spawned (${String(failure.code)}).`,
           });
           return;
         }
@@ -114,6 +139,7 @@ function runCli(bin: string, prefix: readonly string[], argv: readonly string[])
             stdout: out,
             stderr: errOut,
             note: `output exceeded ${MAX_OUTPUT_BYTES} bytes per stream and was truncated.`,
+            spawnFailed: false,
           });
           return;
         }
@@ -123,9 +149,10 @@ function runCli(bin: string, prefix: readonly string[], argv: readonly string[])
             stdout: out,
             stderr: errOut,
             note:
-              `killed after ${TIMEOUT_MS / 1000}s timeout (signal ${failure.signal ?? "SIGTERM"}). ` +
+              `killed after ${timeoutMs / 1000}s timeout (signal ${failure.signal ?? "SIGTERM"}). ` +
               "border check and roundtrip can be long — if you need a long roundtrip, " +
               "prefer running it in a terminal.",
+            spawnFailed: false,
           });
           return;
         }
@@ -135,10 +162,54 @@ function runCli(bin: string, prefix: readonly string[], argv: readonly string[])
           stderr: errOut,
           note:
             typeof failure.code === "number" ? "" : `spawn failed: ${failure.message}`,
+          spawnFailed: false,
         });
       },
     );
   });
+}
+
+/**
+ * border's --help contract (src/cli.ts): exit 0, banner line starts with
+ * `border`, usage line names `usage: border`. An impostor answering the spawn
+ * slot (the 2026-09-22 incident: the opencode host banner) fails this test, so
+ * user argv is never handed to a binary that cannot prove it is the gate.
+ * Honest boundary: this catches mistaken identity, not a forged banner.
+ */
+function isBorderHelp(result: CliResult): boolean {
+  if (result.status !== 0) return false;
+  const firstLine = (result.stdout.match(/^\s*(.*)/) ?? ["", ""])[1] ?? "";
+  return firstLine.startsWith("border") && result.stdout.includes("usage: border");
+}
+
+type Resolution =
+  | { readonly ok: true; readonly resolution: BinResolution }
+  | { readonly ok: false; readonly reasons: readonly string[] };
+
+/** Positive handshakes are cached per BORDER_BIN key for the host process's
+ * life; failures are never cached, so a mid-session install recovers on the
+ * next call. */
+let verified: { readonly key: string; readonly resolution: BinResolution } | null = null;
+
+async function resolveVerified(): Promise<Resolution> {
+  const key = process.env["BORDER_BIN"] ?? "";
+  if (verified !== null && verified.key === key) {
+    return { ok: true, resolution: verified.resolution };
+  }
+  const reasons: string[] = [];
+  for (const candidate of candidateList()) {
+    const probe = await runCli(candidate, ["--help"], PROBE_TIMEOUT_MS);
+    if (isBorderHelp(probe)) {
+      verified = { key, resolution: candidate };
+      return { ok: true, resolution: candidate };
+    }
+    reasons.push(
+      probe.status === 0
+        ? `${candidate.label}: spawned but --help did not answer as border (impostor?)`
+        : `${candidate.label}: probe exit ${String(probe.status)}${probe.note === "" ? "" : ` — ${probe.note}`}`,
+    );
+  }
+  return { ok: false, reasons };
 }
 
 /**
@@ -186,7 +257,10 @@ export default {
           "llm-request, llm-ingest, scan, roundtrip, --help) and every remaining argv " +
           "token in `extra`. The call is spawned argv-only (no shell) with a 300s " +
           "timeout; the result always ends with the CLI exit code: 0 pass, 1 " +
-          "gate-blocked or partial push, 2 gate could not answer. Honest privilege " +
+          "gate-blocked or partial push, 2 gate could not answer. Before running your " +
+          "argv the tool handshakes its binary candidate with `--help` and refuses " +
+          "everything (exit 2, cannot-answer) unless the responder provably is the " +
+          "border CLI — it never falls back to another binary. Honest privilege " +
           "note: this tool runs the border CLI, and the CLI IS the gate that decides " +
           "what leaves this machine — it carries the same power as the binary, so an " +
           "agent may only *ask* the gate, never bypass it. `push --yes` is " +
@@ -222,8 +296,19 @@ export default {
           }
           const argv: readonly string[] = [command, ...extra];
           context.metadata({ title: `border ${argv.join(" ")}` });
-          const resolution = resolveBin();
-          const result = await runCli(resolution.bin, resolution.prefix, argv);
+          const resolution = await resolveVerified();
+          if (!resolution.ok) {
+            return [
+              `$ border ${argv.join(" ")}`,
+              "exit: 2",
+              `note: cannot-answer — no border CLI passed the identity handshake, so nothing was run. Tried: ${resolution.reasons.join("; ")}. ` +
+                "Remedies: point BORDER_BIN at a real border CLI, run 'border opencode install' (route A), or npm i -g border-customs (PATH entry).",
+              "--- stdout ---\n(empty)",
+              "--- stderr ---\n(empty)",
+            ].join("\n");
+          }
+          const result = await runCli(resolution.resolution, argv, TIMEOUT_MS);
+          if (result.spawnFailed) verified = null;
           const sections = [
             `$ border ${argv.join(" ")}`,
             `exit: ${String(result.status)}`,
