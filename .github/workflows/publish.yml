@@ -278,3 +278,21 @@ jobs:
           echo "published border-customs@${PKG_VERSION} — verify at:"
           echo "  https://www.npmjs.com/package/border-customs/v/${PKG_VERSION}"
           echo "  provenance: npm audit signatures --package border-customs@${PKG_VERSION}"
+
+      # CONSUMER-REFRESH RITUAL (2026-09-24, impersonation-wave lesson): publishing is
+      # not delivery. opencode caches dist-tag specs by STRING and never re-resolves on
+      # cold start — an @latest consumer silently keeps the version it first fetched
+      # (border-customs@latest sat on 0.5.0 for 11 days across the 0.5.1 security fix).
+      # The release author must refresh every consumer machine at publish time; this
+      # step is the mechanism that asks, right where the green checkmark is read.
+      - name: Consumer-refresh ritual
+        if: github.event_name == 'push'
+        run: |
+          PKG_VERSION="$(node -p 'require("./package.json").version')"
+          echo "::notice title=@latest consumers must refresh::On every machine whose opencode config keeps border-customs@latest, run: node tools/plugin-drift-watch.mjs border-customs --purge (machines with the cron watchdog self-heal by next morning). Exact-pinned machines: bump the pin to ${PKG_VERSION}."
+          {
+            echo "## Release ritual for border-customs@${PKG_VERSION}"
+            echo "- [ ] every @latest consumer machine: \`node tools/plugin-drift-watch.mjs border-customs --purge\` (or confirm the drift-watch cron is installed)"
+            echo "- [ ] every exact-pinned consumer: bump the pin to \`${PKG_VERSION}\`"
+            echo "- [ ] after refresh, re-verify the tool channel in a live session: \`border --help\` must answer the border banner, not the host's"
+          } >> "$GITHUB_STEP_SUMMARY"
