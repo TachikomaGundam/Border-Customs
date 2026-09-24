@@ -29,11 +29,12 @@ function report(fields) {
     process.stdout.write(`${JSON.stringify(fields)}\n`);
     return;
   }
+  const dirs = fields.cacheDirs ?? [];
   const lines = [
-    `plugin-drift: ${pkg}`,
-    `  config spec: ${fields.spec}`,
+    `plugin-drift: ${fields.pkg ?? pkg}`,
+    `  config spec: ${fields.spec ?? "?"}`,
     `  registry version: ${String(fields.registryVersion ?? "?")}`,
-    `  cache: ${fields.cacheDirs.map((c) => `${c.dir} -> ${c.version ?? "unreadable"}`).join(", ") || "(none)"}`,
+    `  cache: ${dirs.map((c) => `${c.dir} -> ${c.version ?? "unreadable"}`).join(", ") || "(none)"}`,
     `  verdict: ${fields.verdict}${fields.detail ? ` — ${fields.detail}` : ""}`,
   ];
   if (fields.purged !== undefined) lines.push(`  purged: ${fields.purged.join(", ") || "(nothing)"}`);

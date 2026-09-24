@@ -90,3 +90,7 @@ purge 后本包缓存清零，待冷启动重建 @latest→0.5.1。
 ## Closure stamp (2026-09-24, post-restart)
 
 Restart + cold start rebuilt cache as single `border-customs@latest → 0.5.1` (marker `// border-opencode-plugin v0.5.1`). In-channel final proof: tool `border --help` → border banner + full command table, exit 0; tool `border status --config …/border.yaml` → real verdict PASS key 4eb5fab0, exit 0. INTENT-LEDGER orders 2+3 CLOSED. Wiki 926/927 published stamps landed. Append defect instance #2 recorded: heading-only write, short (~900-char) body also dropped → deterministic for section-append on these pages; full-RMW page_update is the repair path.
+
+## Sentinel dogfood defect (found by its own first failure, same day)
+
+plugin-drift-watch.mjs error path crashed (TypeError, exit 1) when registry fetch failed: report() assumed fields the catch branch never passes. Fixed to null-safe rendering + verified: unreachable registry → `CANNOT-ANSWER — fetch failed` exit 2; undeclared package → exit 2 naming the config. Cron guard derived from this: only exit 1 (DRIFT) may trigger `--purge`; exit 2 must never mutate the cache (a purge while the registry is unreachable would leave cold starts unable to re-fetch). Registry reachability from this machine is intermittent (FRESH at 11:38 UTC, fetch-failed at 11:47) — the watchdog's cannot-answer class is expected routine here, not alarm.
