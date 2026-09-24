@@ -63,8 +63,8 @@ unknown-command usage error exit 1（yargs 对多余位置参数+全局 --help �
 
 ## Open（人工闸门项，非本会话可关）
 
-1. commit + `git tag v0.5.1` + border push（终端，`GIT_CONFIG_GLOBAL` 绕 gh-proxy insteadOf，见 HANDOFF 末节）→ tag 触发 OIDC trusted-publish。
-2. 本机 opencode 插件缓存仍是 0.5.0（`~/.cache/opencode/packages/border-customs@*`）；发布后重启会话取 0.5.1，或经批准临时以修复件覆盖缓存以提前恢复 `border` 工具通道。当前会话边检仍走 node 直调。
-3. wiki 内容页 `opencode/border-opencode-adapter`（en/zh）的“设计决策 1”已被证伪再修复，待确认后追加 status update（reading-loop 台账义务）。
+1. ~~commit + tag~~ **DONE 2026-09-24（本会话，经用户批准"1同意"）**：commit `90baf50`（11 files, +327/−48）+ annotated tag `v0.5.1` 已落本地 main；随后 `border check` 对新指纹 PASS（ledger key `766070ea`）。**剩余人类步骤**：`cd /home/lab/workspace/harness/border && git push origin main v0.5.1`（origin 为 SSH URL `git@github.com:TachikomaGundam/Border-Customs.git`，不受 https gh-proxy insteadOf 影响，无需 GIT_CONFIG_GLOBAL——已核实本仓 border.yaml `remotes: []` 为刻意的 repo-local 范围，border push 于此仓本就是 NO-OP，v0.5.0 波同样由此 SSH 推送）→ tag 触发 publish.yml OIDC trusted-publish。HANDOFF 里的 `GIT_CONFIG_GLOBAL=/home/lab/.gitconfig-noghproxy` 配方服务于 **Abathur sync 线**（`/home/lab/abathur-operator/sync-v025`，https gh-proxy remote），本会话已备好该替代 gitconfig 文件。
+2. **正规渠道更新即 debug（用户裁定 2026-09-24）**：发布后 `npm view border-customs version` == 0.5.1 → 重启 opencode 会话（@latest 冷启动取新缓存）→ 新会话内 `border {command:"--help"}` 必须应答 `border — fail-closed gate…` banner + `exit: 0`（而非 opencode banner）、`{command:"status"}` 应答门禁台账——以事故原复现步骤做关闭验证。建议（所有者决定）：opencode.jsonc 从 `border-customs@latest` 改钉 `border-customs@0.5.1`（蓝图 §7 反 @latest）。
+3. ~~wiki 内容页追加待确认~~ **DONE 2026-09-24**：用户令"让史官记录"。en 页 926 / zh 页 927 各落"Status update 2026-09-24 — v0.5.1"全量记录；设计决策 1/3 就地加 SUPERSEDED 指针。过程教训：`historian_page_append` 双侧都**只落了标题、正文丢失**（孪生节尤甚）——修复走 page_update 全量 RMW；追加长正文后必须回读校验，此坑值得进 historian 插件的 bug 账。
 
 —— Abathur（border 维护会话）
