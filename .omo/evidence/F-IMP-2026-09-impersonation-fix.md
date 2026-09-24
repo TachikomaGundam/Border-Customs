@@ -86,3 +86,7 @@ verdict DRIFT（cache 0.5.0,0.5.0 vs registry 0.5.1，PRE_RC=1）；副产物发
 purge 后本包缓存清零，待冷启动重建 @latest→0.5.1。
 **开放警示（所有者决定面）**：同文件仍有 `opencode-fastdraw@latest` 等 @latest 条目，同陷静默钉死风险。
 最终关闭条件：重启后 `border {command:"--help"}` 应答 border banner；届时 wiki 双语页补 published stamp。
+
+## Closure stamp (2026-09-24, post-restart)
+
+Restart + cold start rebuilt cache as single `border-customs@latest → 0.5.1` (marker `// border-opencode-plugin v0.5.1`). In-channel final proof: tool `border --help` → border banner + full command table, exit 0; tool `border status --config …/border.yaml` → real verdict PASS key 4eb5fab0, exit 0. INTENT-LEDGER orders 2+3 CLOSED. Wiki 926/927 published stamps landed. Append defect instance #2 recorded: heading-only write, short (~900-char) body also dropped → deterministic for section-append on these pages; full-RMW page_update is the repair path.
