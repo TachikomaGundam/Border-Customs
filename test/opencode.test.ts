@@ -20,11 +20,13 @@ const PLUGIN_PATH = join(BORDER_ROOT, "plugin", "border.ts");
 const MD_PATH = join(BORDER_ROOT, "plugin", "border-command.md");
 const DIST_INDEX = join(BORDER_ROOT, "dist", "index.js");
 const FIXTURE = join(BORDER_ROOT, "test", "fixtures", "opencode", "echo-argv.mjs");
+const IMPOSTOR = join(BORDER_ROOT, "test", "fixtures", "opencode", "opencode-impostor.mjs");
 
 test.before(() => {
-  // fake-CLI fixture is spawned via shebang: needs the exec bit (mode bits are
+  // fake-CLI fixtures are spawned via shebang: need the exec bit (mode bits are
   // not preserved when the file is created by machine, no git commit here)
   chmodSync(FIXTURE, 0o755);
+  chmodSync(IMPOSTOR, 0o755);
 });
 
 interface PkgShape {
@@ -93,6 +95,15 @@ test("hygiene: packaged assets carry the pinned markers and the plugin template 
     markerLine,
     `// border-opencode-plugin v${version}`,
     "plugin marker version must equal the package.json version",
+  );
+
+  // impersonation regression lock (2026-09-22): inside the opencode host
+  // process.execPath is the HOST binary — the adapter must never spawn it.
+  // Comment-stripped so the incident docs may name the identifier.
+  const pluginCode = pluginSource.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  assert.ok(
+    !pluginCode.includes("process.execPath"),
+    "plugin/border.ts must not reference process.execPath in code: in a plugin host that is the host binary, not a JS runtime",
   );
 
   const mdSource = readFileSync(MD_PATH, "utf8");
@@ -194,7 +205,7 @@ test("plugin: the CLI exit code becomes the reported exit code", async (t) => {
   assert.ok(res.includes("exit: 2"), `FAKE_EXIT=2 must surface as exit: 2:\n${res}`);
 });
 
-test("plugin: ENOENT maps to 127 with a note naming the remedies", async (t) => {
+test("plugin: an unspawnable BORDER_BIN is cannot-answer exit 2, never a silent fallback", async (t) => {
   const hooks = await borderPlugin.server();
   const execute = hooks.tool["border"].execute;
   const ctx = makeToolContext();
@@ -206,9 +217,34 @@ test("plugin: ENOENT maps to 127 with a note naming the remedies", async (t) => 
   });
 
   const res = resultText(await execute({ command: "status" }, ctx));
-  assert.ok(res.includes("exit: 127"), `ENOENT must map to 127:\n${res}`);
-  assert.ok(res.includes("BORDER_BIN"), "ENOENT note must name the BORDER_BIN remedy");
-  assert.ok(res.includes("opencode install"), "ENOENT note must name the opencode install remedy");
+  assert.ok(res.includes("exit: 2"), `unspawnable override must map to cannot-answer 2:\n${res}`);
+  assert.ok(res.includes("cannot-answer"), "note must name the cannot-answer class");
+  assert.ok(res.includes("BORDER_BIN"), "note must name the failing BORDER_BIN candidate");
+  assert.ok(res.includes("opencode install"), "note must name the opencode install remedy");
+  // the explicit override failing must NOT quietly run the packaged dist instead:
+  assert.ok(!res.includes("usage: border"), "packaged dist must not have been spawned behind the broken override");
+});
+
+test("plugin: an impostor answering --help is refused before any user argv reaches it", async (t) => {
+  const hooks = await borderPlugin.server();
+  const execute = hooks.tool["border"].execute;
+  const ctx = makeToolContext();
+
+  const log = join(BORDER_ROOT, "test", "tmp", "impostor-calls.log");
+  rmSync(log, { force: true });
+  process.env["BORDER_BIN"] = IMPOSTOR;
+  process.env["IMPOSTOR_LOG"] = log;
+  t.after(() => {
+    delete process.env["BORDER_BIN"];
+    delete process.env["IMPOSTOR_LOG"];
+  });
+
+  const res = resultText(await execute({ command: "status" }, ctx));
+  assert.ok(res.includes("exit: 2"), `impostor must produce cannot-answer 2:\n${res}`);
+  assert.ok(res.includes("cannot-answer"), "note must name the cannot-answer class");
+  assert.ok(res.includes("impostor?"), "note must flag the identity mismatch:\n" + res);
+  const calls = readFileSync(log, "utf8").split("\n").filter((l) => l.length > 0);
+  assert.deepEqual(calls, ["--help"], "only the handshake probe may reach the impostor — never user argv");
 });
 
 test("plugin: --help with the packaged dist resolves via the dist self-spawn", async (t) => {
@@ -230,6 +266,30 @@ test("plugin: --help with the packaged dist resolves via the dist self-spawn", a
   const res = resultText(await execute({ command: "--help" }, ctx));
   assert.ok(res.includes("usage: border"), `dist --help must print the border usage:\n${res}`);
   assert.ok(res.includes("exit: 0"), `dist --help must exit 0:\n${res}`);
+  // parity: the real CLI's help names the whole allowlist the tool exposes
+  for (const word of ["check", "push", "status", "llm-request", "llm-ingest", "scan", "roundtrip"]) {
+    assert.ok(res.includes(word), `dist --help must document the allowlisted command '${word}'`);
+  }
+});
+
+test("plugin: the packaged dist passes the handshake as a BORDER_BIN too", async (t) => {
+  const hooks = await borderPlugin.server();
+  const execute = hooks.tool["border"].execute;
+  const ctx = makeToolContext();
+
+  if (!existsSync(DIST_INDEX)) {
+    t.skip(`dist/index.js is not built on this checkout (gitignored); build it (npm run build) and rerun`);
+    return;
+  }
+
+  process.env["BORDER_BIN"] = DIST_INDEX;
+  t.after(() => {
+    delete process.env["BORDER_BIN"];
+  });
+
+  const res = resultText(await execute({ command: "--help" }, ctx));
+  assert.ok(res.includes("exit: 0"), `real border CLI must pass the handshake:\n${res}`);
+  assert.ok(!res.includes("impostor"), "the real CLI must not be flagged as an impostor");
 });
 
 test("installer: fresh install copies both packaged assets byte-for-byte", async (t) => {
