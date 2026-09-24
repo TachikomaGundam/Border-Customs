@@ -68,3 +68,17 @@ unknown-command usage error exit 1（yargs 对多余位置参数+全局 --help �
 3. ~~wiki 内容页追加待确认~~ **DONE 2026-09-24**：用户令"让史官记录"。en 页 926 / zh 页 927 各落"Status update 2026-09-24 — v0.5.1"全量记录；设计决策 1/3 就地加 SUPERSEDED 指针。过程教训：`historian_page_append` 双侧都**只落了标题、正文丢失**（孪生节尤甚）——修复走 page_update 全量 RMW；追加长正文后必须回读校验，此坑值得进 historian 插件的 bug 账。
 
 —— Abathur（border 维护会话）
+
+## 交付面第二缺陷（2026-09-24 追加）：@latest 缓存永不重取，安全修复静默不传播
+
+重启后复测仍答宿主 banner → 排查装载面事实：`~/.cache/opencode/packages/border-customs@latest/`
+建于 09-13 23:04(+0800)、内容恒为 0.5.0；0.5.1 发布于 09-24 18:00(+0800)，其后冷启动
+**从未重解析 @latest**（opencode 1.18.32）。结论：dist-tag spec 按字符串缓存、无重解析/TTL，
+`@latest` 静默钉死首次解析的版本——插件类**安全修复经 @latest 渠道不会传播**。全局配置注释里
+"冷启动恒取最新发布"的假设就此证伪；蓝图 §7 "钉 exact 版本、绝不用 @latest" 首次获得实证理由。
+
+处置（正规渠道，经用户"发布后本机用正规渠道更新"订单授权）：`~/.config/opencode/opencode.jsonc`
+border 行 `@latest` → **`@0.5.1`**（exact pin = 新缓存键 → arborist 冷启动从 registry 全新拉取；
+同文件 historian 插件本就是 exact-pin 家风），改动含理由注释两行。
+**开放警示（所有者决定面）**：同文件仍有 `opencode-fastdraw@latest` 等 @latest 条目，同陷静默钉死风险。
+最终关闭条件：重启后 `border {command:"--help"}` 应答 border banner；届时 wiki 双语页补 published stamp。
