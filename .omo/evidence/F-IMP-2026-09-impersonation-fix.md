@@ -77,8 +77,12 @@ unknown-command usage error exit 1（yargs 对多余位置参数+全局 --help �
 `@latest` 静默钉死首次解析的版本——插件类**安全修复经 @latest 渠道不会传播**。全局配置注释里
 "冷启动恒取最新发布"的假设就此证伪；蓝图 §7 "钉 exact 版本、绝不用 @latest" 首次获得实证理由。
 
-处置（正规渠道，经用户"发布后本机用正规渠道更新"订单授权）：`~/.config/opencode/opencode.jsonc`
-border 行 `@latest` → **`@0.5.1`**（exact pin = 新缓存键 → arborist 冷启动从 registry 全新拉取；
-同文件 historian 插件本就是 exact-pin 家风），改动含理由注释两行。
+所有者裁定 **option B**（保留 @latest + 发布礼仪）：①配置行回归 `border-customs@latest`，注释写明"dist-tag
+不重解析实证 + purge 礼仪 + 蓝图 §7 仍荐 exact pin、此系知情豁免"；②交付漂移哨
+`tools/plugin-drift-watch.mjs`（读配置 spec → 比对 registry 与缓存版本，DRIFT exit 1 / 干净 exit 0 /
+不可答 exit 2；`--purge` 删该包全部缓存目录，下次冷启动全新拉取）。实测记录：purge 前
+verdict DRIFT（cache 0.5.0,0.5.0 vs registry 0.5.1，PRE_RC=1）；副产物发现——exact-pin 试验期间
+18:32 冷启动确实按新 spec 字符串拉取过 @0.5.1（证实"新 key 必取，旧 key 永不重解析"机制）；
+purge 后本包缓存清零，待冷启动重建 @latest→0.5.1。
 **开放警示（所有者决定面）**：同文件仍有 `opencode-fastdraw@latest` 等 @latest 条目，同陷静默钉死风险。
 最终关闭条件：重启后 `border {command:"--help"}` 应答 border banner；届时 wiki 双语页补 published stamp。
