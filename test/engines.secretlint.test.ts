@@ -100,15 +100,15 @@ test("AC3: rules.hosts generates an internal-host pattern finding (corp.internal
 test("AC4: rules.ips literal-matches with dotted-decimal escape safety", async () => {
   const { findings } = await scanFixtureFiles(
     "ip",
-    { "infra.yaml": "bastion: 10.0.5.22\n" },
-    { ips: ["10.0.5.22"] },
+    { "infra.yaml": "bastion: 10.200.5.22\n" },
+    { ips: ["10.200.5.22"] },
   );
   assertFindingsWellFormed(findings);
-  const hit = findings.find((f) => f.rule === "internal-ip:10.0.5.22");
-  assert.ok(hit, "expected internal-ip:10.0.5.22");
-  assert.equal(hit.valueDigest, digest("10.0.5.22"));
-  // the unescaped regex 10.0.5.22 would also match "100052" — the escaped one must not:
-  assert.equal(findings.some((f) => f.rule === "internal-ip:10.0.5.22" && f.valueDigest === digest("10x0y5z2")), false);
+  const hit = findings.find((f) => f.rule === "internal-ip:10.200.5.22");
+  assert.ok(hit, "expected internal-ip:10.200.5.22");
+  assert.equal(hit.valueDigest, digest("10.200.5.22"));
+  // the unescaped regex 10.200.5.22 would also match "10x200y5z22" — the escaped one must not:
+  assert.equal(findings.some((f) => f.rule === "internal-ip:10.200.5.22" && f.valueDigest === digest("10x200y5z22")), false);
 });
 
 test("AC5: regex metachars in rules.hosts ('a(b') match literally and never crash", async () => {
@@ -162,7 +162,7 @@ test("AC9: git-tracked scan covers tracked files only and hard-excludes .border/
     // randAwsPair OK: digest(pair.key) via secretlint — no gitleaks allowlist involved
     const pair = randAwsPair();
     writeRel(repo, "app/secrets.txt", pair.text);
-    writeRel(repo, ".border/stale-scan.yaml", "echo /home/lab/secret/dir 192.168.9.9\n");
+    writeRel(repo, ".border/stale-scan.yaml", "echo /home/lab/secret/dir 10.200.9.9\n");
     gitInit(repo);
     gitAddCommit(repo, "tracked files");
     writeRel(repo, "untracked-leak.txt", "host db.corp.internal here\n");
@@ -170,12 +170,12 @@ test("AC9: git-tracked scan covers tracked files only and hard-excludes .border/
     const findings = await scanGitTrackedFiles({
       repoDir: repo,
       target: "git",
-      rules: { hosts: ["db.corp.internal"], ips: ["192.168.9.9"] },
+      rules: { hosts: ["db.corp.internal"], ips: ["10.200.9.9"] },
     });
     assertFindingsWellFormed(findings);
     assert.ok(findings.some((f) => f.valueDigest === digest(pair.key)), "tracked AWS key must be found");
     assert.equal(findings.some((f) => (f.path ?? "").startsWith(".border/")), false, ".border/ must be hard-excluded");
-    assert.equal(findings.some((f) => (f.path ?? "").includes("192.168.9.9") || f.valueDigest === digest("192.168.9.9")), false);
+    assert.equal(findings.some((f) => (f.path ?? "").includes("10.200.9.9") || f.valueDigest === digest("10.200.9.9")), false);
     assert.equal(findings.some((f) => f.path === "untracked-leak.txt"), false, "untracked files are not git-tracked");
   } finally {
     removeDir(repo);

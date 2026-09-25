@@ -75,6 +75,15 @@ export const EXFIL_TABLE_SEVERITY: Readonly<Record<ExfilRuleId, ExfilSeverity>> 
 
 /** HIGH family: the two identity-carrying location rules; tree face belongs to the twins. */
 export const EXFIL_HIGH_FAMILY: readonly ExfilRuleId[] = ["exfil-rfc1918", "exfil-ssh-target"];
+/**
+ * Identifier class (F4): the matched text is a secret-shaped VALUE (an
+ * internal IP, a user@internal-host) — the check legs register these with the
+ * run's TextSanitizer so the literal cannot resurface in rendered output.
+ * The MEDIUM location class must NEVER register: there the matched text is a
+ * path whose literal printing IS the finding, and registering it turns every
+ * later render of that path into a [REDACTED storm (dogfood, round 2).
+ */
+export const EXFIL_SECRET_VALUE_RULES: readonly ExfilRuleId[] = EXFIL_HIGH_FAMILY;
 /** MEDIUM family: privacy-shape rules; native carries them on both scanned facets. */
 export const EXFIL_MEDIUM_FAMILY: readonly ExfilRuleId[] = ["exfil-home-path", "exfil-cred-location", "exfil-host-profile"];
 

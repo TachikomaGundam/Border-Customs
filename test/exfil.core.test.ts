@@ -24,7 +24,7 @@ import {
   exfilFindingId,
   observedSeverity,
 } from "../src/exfil/severity.ts";
-import { matchCredLocation, matchHomePath, matchHostProfile, matchRfc1918, matchSshTarget } from "../src/exfil/rules.ts";
+import { DEFAULT_EXEMPT_BANDS, matchCredLocation, matchHomePath, matchHostProfile, matchRfc1918, matchSshTarget } from "../src/exfil/rules.ts";
 import { EXFIL_ENGINE, maskValue, scanMessageText, scanTreeText } from "../src/exfil/scan.ts";
 import { redact } from "../src/redact.ts";
 import {
@@ -32,10 +32,11 @@ import {
   computeCheckRulesHash,
   resolveExfilFingerprintFiles,
 } from "../src/check/rulesHash.ts";
-import { BORDER_ROOT } from "./helpers/fixtures.ts";
+import { BORDER_ROOT, assembleOctet } from "./helpers/fixtures.ts";
 
 const TREE = { facet: "tree" } as const;
 const MSG = { facet: "message" } as const;
+const NOBANDS_TREE = { facet: "tree", exemptBands: [] } as const;
 const SYNTH_SHA = "a".repeat(40);
 const seamDirs: string[] = [];
 after(() => {
@@ -113,14 +114,14 @@ test("exfilFindingId: :message id family attribution; blob-face ids stay bare (b
 
 // ---------------------------------------------------------------- 2. exfil-rfc1918
 
-test("rfc1918 RED on synthetic hits", () => {
+test("rfc1918 RED on synthetic hits (band@message; other arms assembled per F3)", () => {
   const msgHits = matchRfc1918("runner reached out to 10.200.30.40 for the mirror", MSG);
   assert.equal(msgHits.length, 1, "fixture-band address still red on the message facet (public surface has no fixture excuse)");
   assert.equal(msgHits[0]?.rule, "exfil-rfc1918");
   assert.equal(msgHits[0]?.line, 1);
-  assert.equal(matchRfc1918("no internal here\nsecond line\npeer 10.31.4.5 joined", TREE).length, 1, "10/8 branch, line 3");
-  assert.equal(matchRfc1918("build node 172.20.30.40 cache", TREE).length, 1, "172.16/12 branch");
-  assert.equal(matchRfc1918("wifi ap 192.168.13.37 rebooted", TREE).length, 1, "192.168/16 branch");
+  assert.equal(matchRfc1918(`no internal here\nsecond line\npeer ${assembleOctet("10.31.4", "5")} joined`, NOBANDS_TREE).length, 1, "10/8 branch, line 3");
+  assert.equal(matchRfc1918(`build node ${assembleOctet("172.20.30", "40")} cache`, NOBANDS_TREE).length, 1, "172.16/12 branch");
+  assert.equal(matchRfc1918(`wifi ap ${assembleOctet("192.168.13", "37")} rebooted`, NOBANDS_TREE).length, 1, "192.168/16 branch");
 });
 
 test("rfc1918 GREEN on every closed exemption", () => {
@@ -135,7 +136,7 @@ test("rfc1918 GREEN on every closed exemption", () => {
     "172.32.0.1 is outside 172.16/12",
     "172.15.9.9 is outside 172.16/12",
     "192.169.1.1 is outside 192.168/16",
-    "version string 1.10.20.30.40 must not split-match",
+    `version string ${assembleOctet("1.10.20.30", "40")} must not split-match`,
   ];
   for (const line of green) {
     assert.deepEqual(matchRfc1918(line, MSG), [], `green on message facet: ${line}`);
@@ -143,17 +144,20 @@ test("rfc1918 GREEN on every closed exemption", () => {
   }
 });
 
-test("rfc1918 fixture band 10.200/16: exempt on tree facet, red on message facet (facet contract, evidence ruling 2)", () => {
-  assert.deepEqual(matchRfc1918("fixture marker 10.200.7.8 in golden corpus", TREE), [], "10.200.0.0/16 = synthetic fixture band, tree-green");
-  assert.equal(matchRfc1918("fixture marker 10.200.7.8 in golden corpus", MSG).length, 1, "message facet fires");
+test("rfc1918 exemption bands (F2/F3): tree exempts DEFAULT_EXEMPT_BANDS, message fires everything, exemptBands override forces band red", () => {
+  const BAND_LINE = "fixture marker 10.200.7.8 in golden corpus";
+  assert.deepEqual(matchRfc1918(BAND_LINE, TREE), [], "10.200/16 synthetic fixture band: tree-green (twin parity)");
+  assert.equal(matchRfc1918(BAND_LINE, MSG).length, 1, "message facet fires");
+  assert.equal(matchRfc1918(BAND_LINE, NOBANDS_TREE).length, 1, "options.exemptBands=[] re-arms the band (unit override)");
+  assert.deepEqual(DEFAULT_EXEMPT_BANDS, ["127", "192.0.2", "198.51.100", "203.0.113", "10.200"], "closed production band set (twins mirror this list — parity corpus pins behaviour)");
 });
 
 // ---------------------------------------------------------------- 3. exfil-ssh-target
 
 test("ssh-target RED: RFC1918 literal, closed suffix set, configured hosts", () => {
   const reds = [
-    "synthuser@10.200.30.40", // T6 golden anchor: fixture band is NOT exempt for ssh targets
-    "synthuser@172.20.30.40",
+    "synthuser@10.200.30.40", // T6 golden anchor rides the MESSAGE facet (band fires there; tree exempts per F2 parity)
+    assembleOctet("synthuser@172.20.30", "40"),
     "deploy@synth-one.internal",
     "deploy@synth-two.lan",
     "deploy@synth-three.local",
@@ -164,6 +168,9 @@ test("ssh-target RED: RFC1918 literal, closed suffix set, configured hosts", () 
     assert.equal(matchSshTarget(line, MSG).length, 1, `red: ${line}`);
     assert.equal(matchSshTarget(line, MSG)[0]?.rule, "exfil-ssh-target");
   }
+  // non-band IP hosts fire on the tree predicate too; the band does not (twin parity):
+  assert.equal(matchSshTarget(assembleOctet("synthuser@172.20.30", "40"), TREE).length, 1, "172.20/12 host is no exempt band — tree predicate red");
+  assert.deepEqual(matchSshTarget("synthuser@10.200.30.40", TREE), [], "F2 parity: fixture-band ssh host exempt on the tree facet (twins behave identically)");
   assert.equal(matchSshTarget("ssh SYNTHUSER@SYNTHDB.INTERNAL -v", MSG).length, 1, "case-insensitive host fold");
   const opts = { facet: "tree", hosts: ["synth-node-7", "synthgit.example"] } as const;
   assert.equal(matchSshTarget("rsync synthuser@synth-node-7:backup", opts).length, 1, "bare configured host (no dot) via rules.hosts");

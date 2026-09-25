@@ -55,7 +55,8 @@ allow:
   # (b-ext) the build-time copy of that exact pinned file: npm run build
   # replicates assets/gitleaks-defaults-v8.30.1.toml verbatim into dist/assets/
   # (tools/copy-assets.mjs; dist/ is untracked build output, CI never scans it).
-  # Byte-identity verified at pinning time (sha256 e163e53b…329caf on both), so
+  # Byte-identity verified at pinning time (sha256 ea71b30e…4355 on both —
+  # re-pinned when the border-vendored exfil rules were appended, T2), so
   # the rulesHash-rot protection of the source pin rides transitively: hostile
   # bytes must enter via the source to survive a rebuild.
   - { rule: "*", match: "*", file: "dist/assets/gitleaks-defaults-*.toml" }
@@ -107,6 +108,41 @@ allow:
   # still fires on both files at full strength.
   - { rule: "@secretlint/secretlint-rule-no-homedir/*", match: "*", file: "src/artifacts/RESIDUE-CONTRACT.md" }
   - { rule: "@secretlint/secretlint-rule-no-homedir/*", match: "*", file: "src/channels/CHANNEL-CONTRACTS.md" }
+  # (exfil, T5 ruling a) the native exfil lens's home-path view of the SAME
+  # already-sanctioned evidence/tooling classes: border@main self-calibration
+  # (.omo/evidence/F-EXFIL-T5-2026-09-25.md) found 32 outside-allow
+  # exfil-home-path hits over exactly 7 files — the two contract docs plus
+  # border.yaml itself already sanctioned above against secretlint's no-homedir
+  # twin, and the same evidence-class in ADAPTER-CONTRACT.md, the prompt
+  # template, the secretlint spike and secretlint.ts's own pattern comments.
+  # Rule-pinned per file (exfil-home-path only — no secret rule widens here);
+  # severity stays MEDIUM per the ruling, every suppression enumerated (G14).
+  - { rule: "exfil-home-path", match: "*", file: "src/artifacts/RESIDUE-CONTRACT.md" }
+  - { rule: "exfil-home-path", match: "*", file: "src/channels/CHANNEL-CONTRACTS.md" }
+  - { rule: "exfil-home-path", match: "*", file: "src/engines/ADAPTER-CONTRACT.md" }
+  - { rule: "exfil-home-path", match: "*", file: "src/engines/secretlint.ts" }
+  - { rule: "exfil-home-path", match: "*", file: "tools/spike-secretlint.mjs" }
+  - { rule: "exfil-home-path", match: "*", file: "assets/prompts/llm-review.md" }
+  - { rule: "exfil-home-path", match: "*", file: "border.yaml" }
+  # (exfil, T5 ruling b) *.env PROPERTY ACCESS inside the tool's own sources:
+  # after the T5 calibration tightened the predicate (process.env / short
+  # receivers / x?.env dropped at the rule level), the residue is longer code
+  # receivers (input.env, entry.env…) — object properties in memory, never
+  # disk locations. Mirrors the established path-pattern src/** precedent
+  # above: scoped to the generated rule id × src/** only; the message facet
+  # (exfil-cred-location:message) is a different id and keeps full teeth, and
+  # real .env prose references outside src/** still surface as warnings.
+  - { rule: "exfil-cred-location", match: "*", file: "src/**" }
+  # (exfil, historical) the pre-ruling-(c) README config example carried a real-
+  # shape RFC1918 doc literal in its `ips:` line; that example predates the exfil
+  # lens and still rides the git HISTORY (commit 494b1fca… touched that line). The
+  # twin history leg flags it per doctrine; history rewrite is out of scope
+  # ("border detects, never erases", plan §边界) and the tip now uses RFC5737 doc
+  # space. Double-pinned: the value's sha256 (fec9cdea…40dc) × README.md path only —
+  # no other value, file, or rule is ever suppressed; enumerated in allowHits (G14).
+  # The literal itself is NOT written here: this file's own comment would otherwise
+  # trip the very rule it documents (round-3 dogfood lesson).
+  - { rule: "exfil-rfc1918", match: "fec9cdeaf025e268325956b138339005d0b106c7b2823ccc21515a71496040dc", file: "README.md" }
 
 engines:
   require:

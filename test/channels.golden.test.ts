@@ -45,6 +45,7 @@ import { computeEffectiveTargets } from "../src/check/context.ts";
 import {
   computeCheckRulesHash,
   computeConfigDigest,
+  resolveExfilFingerprintFiles,
   resolvePromptTemplatePath,
   resolveReleaseFingerprintFiles,
   resolveResidueFingerprintFiles,
@@ -76,13 +77,18 @@ after(() => {
 // Every fingerprint source file, the prompt template, the engine versions and
 // the effective config ride GOLDEN_RULES_HASH_NORMALIZED (path canonicalized);
 // the fixture state rides the headSha/porcelain/refSet/targets pins; the key
-// FORMULA rides the composition recompute in the test body. A residue/release
-// table edit STILL invalidates the pin — the file digests moved.
+// FORMULA rides the composition recompute in the test body. A residue/release/
+// exfil table edit STILL invalidates the pin — the file digests moved.
+// Rotation: W4 pin → exfil lens T2 (vendored TOML gained the two exfil rules,
+// src/exfil/** folded into computeCheckRulesHash) re-captured 2026-09-25 via
+// BORDER_GOLDEN_RECENTRE=1 per .omo/evidence/residue-spike/W32-GOLDEN-
+// NORMALIZATION.md — the recipe input list below MIRRORS the product's
+// bundledRulePaths exactly (gitleaks TOML + residue + release + exfil).
 const GOLDEN_HEAD_SHA = "b838689d96b1a1cda8d2919ec3c716f23210a5f2";
 const GOLDEN_PORCELAIN_DIGEST = "5782837b399a70eb135d2f1c2ac96ba010ff6e13f1800e14e6b8b9416effd8e3";
 const GOLDEN_REFSET = ["refs/heads/main"];
 const GOLDEN_EFFECTIVE_TARGETS = ["git", "npm", "pypi"];
-const GOLDEN_RULES_HASH_NORMALIZED = "a2b167c44bc8371029647790cc6a836aaecebdd1f17ff9eca3dfa00f6709412d";
+const GOLDEN_RULES_HASH_NORMALIZED = "5392bdb9e01a9d2bd4a3088f9c400b0171a90819a186433f76313d57d4916f16";
 const GOLDEN_EXPOSURE = ["https://example.com/origin.git", "npm:widgets@1.0.0", "pypi:pushdemo@0.1.0"];
 const GOLDEN_DRYRUN_STDOUT = [
   "border DRY-RUN: no --yes, so nothing runs — this is the plan (m-R5-a) contract",
@@ -266,20 +272,26 @@ engines:
     "fp.rulesHash is not the product recipe over the probed inputs",
   );
   const templatePath = resolvePromptTemplatePath({ ...process.env });
-  assert.equal(
-    await normalizedRulesHash({
-      bundledPaths: [
-        GITLEAKS_VENDORED_CONFIG,
-        ...resolveResidueFingerprintFiles({ ...process.env }),
-        ...resolveReleaseFingerprintFiles({ ...process.env }),
-      ],
-      promptPaths: existsSync(templatePath) ? [templatePath] : [],
-      configDigest,
-      engineVersions: probe.engineVersions,
-    }),
-    GOLDEN_RULES_HASH_NORMALIZED,
-    "normalized rulesHash changed (rule/classifier/prompt bytes, engine versions, or effective config)",
-  );
+  const normalized = await normalizedRulesHash({
+    bundledPaths: [
+      GITLEAKS_VENDORED_CONFIG,
+      ...resolveResidueFingerprintFiles({ ...process.env }),
+      ...resolveReleaseFingerprintFiles({ ...process.env }),
+      ...resolveExfilFingerprintFiles({ ...process.env }),
+    ],
+    promptPaths: existsSync(templatePath) ? [templatePath] : [],
+    configDigest,
+    engineVersions: probe.engineVersions,
+  });
+  if (process.env.BORDER_GOLDEN_RECENTRE === "1") {
+    console.log(`GOLDEN_RULES_HASH_NORMALIZED=${normalized}`);
+  } else {
+    assert.equal(
+      normalized,
+      GOLDEN_RULES_HASH_NORMALIZED,
+      "normalized rulesHash changed (rule/classifier/prompt bytes, engine versions, or effective config) — re-capture with BORDER_GOLDEN_RECENTRE=1 and update the pin + rotation note",
+    );
+  }
   // Key FORMULA: independent sha256(stableStringify(six fields)) with the
   // env-local raw rulesHash plugged in — field set/name/serialization drift
   // fails even though the raw key value itself is checkout-bound.
