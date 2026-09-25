@@ -47,3 +47,18 @@ cannot be pushed from this machine at all; the publishing clone lives elsewhere.
 pattern). Consequence for H-1: it is not "git push" — it is a reconciliation (merge 24 public ×
 28 local, keep messages clean, push from the remote-holding clone). The message-surface lesson
 stands as a class; its exhibit is now historical.
+
+## Wave A closeout (2026-09-25, same day)
+
+Productization shipped to gate-green local release line: 0.6.0 = exfil lens (five
+rules, facet-partitioned channels, verdict-parity corpus contract, will-publish
+message scan with sha attribution, config-free `border exfil` truth lens,
+append-only landing verification with honest exits). Momus REVISE→REVISE→OKAY
+across three rounds; four delegated build rounds, every DONECLAIM reproduced by
+the lead before commit. First live catches: H-3 self-scrub (own tip, six files,
+placeholdered + digest-pinned), the README doc-literal self-trip (double-pinned
+per #22 precedent), and the pre-existing evidence-IP class absorbed by G14
+entries, nothing whitewalled. Owner-side confirmation: public AIHR anchors
+measured CLEAN on re-probe (H-1/H-2 landed by owner); truth lane auto-archived
+by its lifetime clause. History-side identifiers (border and AIHR) remain a
+human disclosure decision — border detects, never erases.
