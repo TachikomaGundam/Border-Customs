@@ -90,6 +90,33 @@ export function resolveReleaseFingerprintFiles(
   });
 }
 
+// T1 exfil lens (plan R1 红线归位): the exfil rule core folds into the SAME
+// fingerprint mechanism, as a PARALLEL list exactly like RELEASE_FINGERPRINT_SOURCES
+// above — every src/exfil/*.ts ships here; the guard test in
+// test/exfil.core.test.ts readdirSync's the directory and fails loudly on an
+// unregistered new file, killing the "changed the native table, nobody
+// noticed" drift shape. BORDER_EXFIL_SRC_DIR is the same test/ops seam.
+const EXFIL_FINGERPRINT_SOURCES: ReadonlyArray<{ readonly dir: "exfil"; readonly base: string }> = [
+  { dir: "exfil", base: "severity.ts" },
+  { dir: "exfil", base: "rules.ts" },
+  { dir: "exfil", base: "scan.ts" },
+];
+
+export const EXFIL_FINGERPRINT_BASENAMES: readonly string[] = EXFIL_FINGERPRINT_SOURCES.map((s) => s.base);
+
+export function resolveExfilFingerprintFiles(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): readonly string[] {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const seam = env.BORDER_EXFIL_SRC_DIR;
+  return EXFIL_FINGERPRINT_SOURCES.map(({ dir, base }) => {
+    if (seam !== undefined) return join(seam, base);
+    const live = join(here, "..", dir, base);
+    if (existsSync(live)) return live;
+    return resolveAsset(import.meta.url, ["exfil-src", base]);
+  });
+}
+
 /**
  * The llm review template whose bytes are part of the rules fingerprint.
  * BORDER_PROMPT_TEMPLATE_PATH is the test/ops seam (same spirit as engine
@@ -128,6 +155,7 @@ export async function computeCheckRulesHash(input: {
       GITLEAKS_VENDORED_CONFIG,
       ...resolveResidueFingerprintFiles(input.env ?? process.env),
       ...resolveReleaseFingerprintFiles(input.env ?? process.env),
+      ...resolveExfilFingerprintFiles(input.env ?? process.env),
     ],
     configDigest: input.configDigest,
     engineVersions: input.engineVersions,
