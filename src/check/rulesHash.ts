@@ -99,6 +99,7 @@ export function resolveReleaseFingerprintFiles(
 const EXFIL_FINGERPRINT_SOURCES: ReadonlyArray<{ readonly dir: "exfil"; readonly base: string }> = [
   { dir: "exfil", base: "severity.ts" },
   { dir: "exfil", base: "rules.ts" },
+  { dir: "exfil", base: "rulesPath.ts" },
   { dir: "exfil", base: "scan.ts" },
 ];
 

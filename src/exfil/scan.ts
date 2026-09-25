@@ -30,6 +30,7 @@ import { createHash } from "node:crypto";
 import {
   emitRulesFor,
   exfilFindingId,
+  EXFIL_SECRET_VALUE_RULES,
   observedSeverity,
   type ExfilChannel,
   type ExfilFacet,
@@ -67,6 +68,13 @@ export type ExfilScanInput = {
   readonly source: string;
   /** operator's rules.hosts (config.ts:102) for the ssh-target predicate. */
   readonly hosts?: readonly string[];
+  /**
+   * Ingest hook mirroring the redact.ts adapter contract ("every adapter
+   * registers every value it ingests"): the check pipeline passes
+   * (raw, digest) => sanitizer.register(digest, raw) so flagged literals are
+   * scrubbed from all rendered text; stays local so the import-audit holds.
+   */
+  readonly onMatch?: (rawValue: string, valueDigest: string) => void;
 };
 
 export type ExfilFinding = {
@@ -108,6 +116,7 @@ function scanFacet(input: ExfilScanInput, facet: Extract<ExfilFacet, "tree" | "m
     if (severity === null) continue; // emitRulesFor excludes nulls; type narrowing kept honest.
     for (const hit of PREDICATES[rule](input.text, options)) {
       const { valueDigest, snippet } = maskValue(hit.matched);
+      if (EXFIL_SECRET_VALUE_RULES.includes(rule)) input.onMatch?.(hit.matched, valueDigest); // F4: location class never registers
       findings.push({
         id: exfilFindingId(rule, facet),
         rule,

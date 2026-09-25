@@ -1,4 +1,5 @@
 {
+  "_h3_legend": "H-3 self-scrub 2026-09-25: <INTERNAL-IP-A> = lab Windows device on the site LAN (real value removed per border exfil lens F5; keys/structure untouched, same device as in aihr-windows-install-diagnosis.md)",
   "verdict": "confirmed",
   "confidence": 0.95,
   "round": "R4",
@@ -85,7 +86,7 @@
   },
   "hygiene": {
     "hr_originals": "untouched — /home/lab/workspace/harness/hr: git status --porcelain 0 lines, no border.yaml, no .border/; all dogfood writes happened in /tmp copies, removed after",
-    "device": "192.168.10.70 never contacted; only pypi.org registry probes",
+    "device": "<INTERNAL-IP-A> never contacted; only pypi.org registry probes",
     "deps": "no new dependencies; verifier scripts used node stdlib + existing dist only",
     "timeouts": "every command bounded (30s-900s)",
     "repo_state": "border tracked-M set unchanged by verifier runs (24 files, 124 porcelain lines, 0 staged, identical pre/post); no commits made",

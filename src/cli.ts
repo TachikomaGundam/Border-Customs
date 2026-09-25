@@ -36,6 +36,7 @@ export function usage(): string {
     "  scan           inspect a third-party package ([ecosystem:]name@version) for residue",
     "  roundtrip      install+uninstall a package (registry spec or local artifact file) in a throwaway container, report uninstall residue",
     "  opencode       install|status|uninstall the official opencode plugin adapter (files under $XDG_CONFIG_HOME/opencode)",
+    "  exfil          read-only exfil-lens scan of <ref|url> [ref...]: tip tree + tag notes (--deep adds reachable-history blobs + commit messages)",
     "",
     "flags:",
     "  --config <path>             config file (default: ./border.yaml, then git-remote fallback)",
@@ -46,11 +47,12 @@ export function usage(): string {
     "  --llm                       include the optional LLM review layer",
     "  --json                      machine-readable report on stdout",
     "  --record / --no-record      `border roundtrip` records a ledger proof by default; --no-record opts out",
+    "  --deep                      `border exfil`: also scan reachable-history blobs and the `:message` commit-message facet",
     "  --help, -h                  this table",
     "",
     "exit codes: 0 pass (MEDIUM/INFO/LOW allowed) | 1 gate-blocked (CRITICAL/HIGH) or partial push | 2 config/tool error",
     "",
-    "subcommands: check, push, status, llm-request, llm-ingest, scan, roundtrip, opencode",
+    "subcommands: check, push, status, llm-request, llm-ingest, scan, roundtrip, opencode, exfil",
   ].join("\n");
 }
 
@@ -87,6 +89,7 @@ function parseFlags(argv: readonly string[]): { flags: Flags; positionals: reado
         json: { type: "boolean" },
         record: { type: "boolean" },
         "no-record": { type: "boolean" },
+        deep: { type: "boolean" },
         help: { type: "boolean" },
       },
     });
@@ -108,6 +111,7 @@ function parseFlags(argv: readonly string[]): { flags: Flags; positionals: reado
       llm: llm === true,
       json: json === true,
       ...(values["no-record"] === true ? { record: false } : values.record === true ? { record: true } : {}),
+      ...(values.deep === true ? { deep: true } : {}),
     };
     return { flags, positionals, help: values.help === true };
   } catch (err) {
