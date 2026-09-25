@@ -32,7 +32,7 @@ import {
   computeCheckRulesHash,
   resolveExfilFingerprintFiles,
 } from "../src/check/rulesHash.ts";
-import { BORDER_ROOT, assembleOctet } from "./helpers/fixtures.ts";
+import { BORDER_ROOT, assembleHost, assembleOctet } from "./helpers/fixtures.ts";
 
 const TREE = { facet: "tree" } as const;
 const MSG = { facet: "message" } as const;
@@ -158,11 +158,11 @@ test("ssh-target RED: RFC1918 literal, closed suffix set, configured hosts", () 
   const reds = [
     "synthuser@10.200.30.40", // T6 golden anchor rides the MESSAGE facet (band fires there; tree exempts per F2 parity)
     assembleOctet("synthuser@172.20.30", "40"),
-    "deploy@synth-one.internal",
-    "deploy@synth-two.lan",
-    "deploy@synth-three.local",
-    "deploy@synth-four.corp",
-    "deploy@synth-five.intra",
+    assembleHost("deploy", "synth-one", "internal"),
+    assembleHost("deploy", "synth-two", "lan"),
+    assembleHost("deploy", "synth-three", "local"),
+    assembleHost("deploy", "synth-four", "corp"),
+    assembleHost("deploy", "synth-five", "intra"),
   ];
   for (const line of reds) {
     assert.equal(matchSshTarget(line, MSG).length, 1, `red: ${line}`);
@@ -171,7 +171,7 @@ test("ssh-target RED: RFC1918 literal, closed suffix set, configured hosts", () 
   // non-band IP hosts fire on the tree predicate too; the band does not (twin parity):
   assert.equal(matchSshTarget(assembleOctet("synthuser@172.20.30", "40"), TREE).length, 1, "172.20/12 host is no exempt band — tree predicate red");
   assert.deepEqual(matchSshTarget("synthuser@10.200.30.40", TREE), [], "F2 parity: fixture-band ssh host exempt on the tree facet (twins behave identically)");
-  assert.equal(matchSshTarget("ssh SYNTHUSER@SYNTHDB.INTERNAL -v", MSG).length, 1, "case-insensitive host fold");
+  assert.equal(matchSshTarget(`ssh ${assembleHost("SYNTHUSER", "SYNTHDB", "INTERNAL")} -v`, MSG).length, 1, "case-insensitive host fold");
   const opts = { facet: "tree", hosts: ["synth-node-7", "synthgit.example"] } as const;
   assert.equal(matchSshTarget("rsync synthuser@synth-node-7:backup", opts).length, 1, "bare configured host (no dot) via rules.hosts");
   assert.equal(matchSshTarget("push to synthuser@synthgit.example main", opts).length, 1, "operator-listed host wins over the RFC2606 shape exemption");
@@ -270,7 +270,7 @@ test("scanTreeText: MEDIUM-family attribution only; native HIGH family unemittab
     "copied from /home/synthuser/.ssh/config",
     "runner exports SSHPASS",
     "peer 10.200.30.40 joined",
-    "synthuser@synthdb.internal",
+    assembleHost("synthuser", "synthdb", "internal"),
     "read staging.env",
   ].join("\n");
   const findings = scanTreeText({ text, source: "docs/example.md", hosts: [] });
@@ -292,7 +292,7 @@ test("scanMessageText: full :message family, sha attribution, no raw evidence on
   const text = [
     "copied from /home/synthuser/.ssh/config",
     "peer 10.200.30.40 joined",
-    "synthuser@synthdb.internal",
+    assembleHost("synthuser", "synthdb", "internal"),
     "read staging.env",
   ].join("\n");
   const findings = scanMessageText({ text, source: SYNTH_SHA });
@@ -366,4 +366,31 @@ test("EXFIL-FINGERPRINT: a one-byte edit to an exfil source rotates computeCheck
   writeFileSync(target, `${readFileSync(target, "utf8")}\n// +1 byte\n`, "utf8");
   const h2 = await computeCheckRulesHash({ ...base, env });
   assert.notEqual(h1, h2, "cached PASS must go stale when an exfil rule source moves (plan R1 / AC5)");
+});
+
+test("EXFIL-DOC: README renders every non-null EXFIL_MATRIX cell verbatim from the single home, and forbids the null facets in prose", () => {
+  const readme = readFileSync(join(BORDER_ROOT, "README.md"), "utf8");
+  const lines = readme.split("\n");
+  let renderedCells = 0;
+  for (const facet of EXFIL_FACETS) {
+    for (const channel of EXFIL_CHANNELS) {
+      for (const rule of EXFIL_RULE_IDS) {
+        const severity = observedSeverity(rule, facet, channel);
+        if (severity === null) continue;
+        renderedCells += 1;
+        const hit = lines.some(
+          (l) => l.includes(`\`${rule}\``) && l.includes(facet) && l.includes(channel) && l.toUpperCase().includes(severity),
+        );
+        assert.ok(hit, `README matrix must carry the cell ${rule} × ${facet} × ${channel} → ${severity} (single-home rendering, no re-decision)`);
+      }
+    }
+  }
+  assert.equal(renderedCells, 12, "the matrix has exactly twelve observable cells (7 tree + 5 message); a new cell means a README + guard change together");
+  // null-cell prose duties: the facets the core must never emit on are named as such
+  const lower = readme.toLowerCase();
+  assert.ok(/tag notes? [^.]*never|never [^.]*tag notes?/.test(lower), "README must state the core never scans tag notes (engine owns that facet)");
+  assert.ok(lower.includes(":message") && lower.includes("allow"), "README must document the :message id family's allow-list isolation");
+  assert.ok(lower.includes("10.200.0.0/16"), "fixture band doctrine must be in the README");
+  assert.ok(lower.includes("assembleoctet") && lower.includes("assemblehost"), "runtime-assembly fixture doctrine must be in the README");
+  assert.ok(lower.includes("border_exfil_truth"), "opt-in truth lane must be documented");
 });
