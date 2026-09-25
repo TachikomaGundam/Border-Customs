@@ -18,8 +18,12 @@ import {
   parseConfig,
   type BorderConfig,
 } from "../src/config.ts";
+import { assembleHost } from "./helpers/fixtures.ts";
 
 // ---------------------------------------------------------------- fixtures
+
+/** Round-4 R4.1: assembled at runtime — checked-out bytes carry no complete user@private-suffix token. */
+const PRIVATE_MAIL = assembleHost("private", "corp", "internal");
 
 const GIT_ENV: NodeJS.ProcessEnv = {
   ...process.env,
@@ -410,7 +414,7 @@ test("private overlay .border/config.local.yaml deep-merges over the base config
     ".border/config.local.yaml",
     `rules:
   authors:
-    emails: ["private@corp.internal"]
+    emails: ["${PRIVATE_MAIL}"]
   hosts: ["git.corp.internal"]
 targets:
   npm:
@@ -421,7 +425,7 @@ targets:
   assert.ok(res.kind === "loaded");
   const cfg = res.config;
   // overlay wins for arrays it defines
-  assert.deepEqual(cfg.rules.authors.emails, ["private@corp.internal"]);
+  assert.deepEqual(cfg.rules.authors.emails, [PRIVATE_MAIL]);
   assert.deepEqual(cfg.rules.hosts, ["git.corp.internal"]);
   // base survives keys the overlay does not touch (deep, not shallow)
   assert.deepEqual(cfg.rules.authors.names, ["Acme Dev"]);
