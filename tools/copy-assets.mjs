@@ -40,4 +40,12 @@ for (const [dir, base] of [
 const releaseSrc = join(dest, "release-src");
 mkdirSync(releaseSrc, { recursive: true });
 copyFileSync(join(root, "src", "rules", "releaseCoherence.ts"), join(releaseSrc, "releaseCoherence.ts"));
+// T1 exfil lens: fingerprint inputs — keep byte-identical to
+// EXFIL_FINGERPRINT_SOURCES in src/check/rulesHash.ts; a missing entry fails
+// CLOSED at check time (MissingRulesInputError ⇒ exit 2), never a silent pass.
+const exfilSrc = join(dest, "exfil-src");
+mkdirSync(exfilSrc, { recursive: true });
+for (const base of ["severity.ts", "rules.ts", "scan.ts"]) {
+  copyFileSync(join(root, "src", "exfil", base), join(exfilSrc, base));
+}
 console.log("assets staged into dist/assets/");
