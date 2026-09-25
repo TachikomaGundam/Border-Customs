@@ -34,3 +34,16 @@
 ## 待人类两判
 
 - H-1 推送前修到 GitHub main（从有推送位的克隆）；H-2 v0.4.0 tag 处置（接受+披露注记 vs 撤 tag——撤/换 tag = 历史重写类，纯人类闸门）。
+
+## Live-rewrite observation (same session, ~10:20 UTC)
+
+Audit raced the owner's AIHR session: hr@main was REWRITTEN mid-record (8255206→b8e632a,
+"191 -> testbed"→"nickname -> testbed" — message facet scrubbed independently by the other
+session; 04b8323/0b5b91d/8255206 now unresolvable, reflog empty). Local v0.4.0 tag tree now
+carries 0 hits (retagged locally). Divergence measured: local main vs public main = 28 ahead /
+24 behind (merge-base 94ff1bf8) — and BOTH hr/AIHR clones here have NO remote ⇒ the forward-fix
+cannot be pushed from this machine at all; the publishing clone lives elsewhere. Public re-probe
+(second, live): main and v0.4.0 STILL carry the identifiers (PUSH ×1, README ×2 incl. account
+pattern). Consequence for H-1: it is not "git push" — it is a reconciliation (merge 24 public ×
+28 local, keep messages clean, push from the remote-holding clone). The message-surface lesson
+stands as a class; its exhibit is now historical.
