@@ -143,6 +143,11 @@ allow:
   # The literal itself is NOT written here: this file's own comment would otherwise
   # trip the very rule it documents (round-3 dogfood lesson).
   - { rule: "exfil-rfc1918", match: "fec9cdeaf025e268325956b138339005d0b106c7b2823ccc21515a71496040dc", file: "README.md" }
+  # (exfil, T8) the README's own exfil-home-path row must display the Windows user-profile
+  # shape — the pre-existing drive-letter path-pattern fires on the documentation literal.
+  # Double-pinned: that value's sha256 (28f709d7…30bf) x README.md path only; no other
+  # value, file, or rule is suppressed; enumerated in allowHits (G14).
+  - { rule: "path-pattern:[A-Za-z]:\\\\", match: "28f709d79730058e2a461518e34126da18ceda07729e792c92f7ca1251e730bf", file: "README.md" }
 
 engines:
   require:
