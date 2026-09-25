@@ -237,6 +237,74 @@ itself keeps blocking until it stops tripping the scan.
 - Both new rules are ordinary findings: the allow-list can waive them and every waiver is
   enumerated in `allowHits` — no hidden channel.
 
+### The exfil lens (0.6.0)
+
+Exfil-shaped literals — internal IPv4s, `user@internal-host` ssh targets, home paths,
+credential-file locations, host fingerprints — are not credentials, so classic secret
+scanners stay silent on them while they still describe the private network a public repo
+lives inside. The exfil lens adds five rules over the surfaces about to become public:
+
+| Rule | What it catches |
+| --- | --- |
+| `exfil-rfc1918` | RFC1918 private-address literals (10/8, 172.16/12, 192.168/16) |
+| `exfil-ssh-target` | `user@host` where the host is a private literal, a configured `rules.hosts` entry, or one closed internal suffix set (`.internal` `.lan` `.local` `.corp` `.intra`) |
+| `exfil-home-path` | `/home/<user>` and `C:\Users\<user>` shapes |
+| `exfil-cred-location` | `~/.pypirc`, `SSHPASS`, `*.env` credential-location shapes |
+| `exfil-host-profile` | multi-signal host fingerprints (os+version / no-docker / no-passwordless-sudo co-occurrences in one paragraph) |
+
+The severity a reader **observes** is the (rule × facet × channel) matrix, and its single
+home is [src/exfil/severity.ts](src/exfil/severity.ts) — the check pipeline, the
+`border exfil` CLI and this table all render that table, never re-decide it; the
+`EXFIL-DOC` guard test fails the build if a cell is restated wrong:
+
+| Rule | Facet | Channel | Observed severity |
+| --- | --- | --- | --- |
+| `exfil-rfc1918` | tree | gitleaks-twin, secretlint-twin | CRITICAL |
+| `exfil-ssh-target` | tree | gitleaks-twin, secretlint-twin | CRITICAL |
+| `exfil-home-path` | tree | native | MEDIUM |
+| `exfil-cred-location` | tree | native | MEDIUM |
+| `exfil-host-profile` | tree | native | MEDIUM |
+| `exfil-rfc1918` | message | native | HIGH |
+| `exfil-ssh-target` | message | native | HIGH |
+| `exfil-home-path` | message | native | MEDIUM |
+| `exfil-cred-location` | message | native | MEDIUM |
+| `exfil-host-profile` | message | native | MEDIUM |
+
+Why an observed `CRITICAL` stands where the intent table says HIGH: the twin channels have
+no HIGH rung — every ingested gitleaks finding carries CRITICAL, and secretlint's `error`
+level maps to CRITICAL — so the matrix records the channel mechanics honestly
+(`不硬掰，如实表`) instead of faking a severity the engines cannot emit. The message facet
+is native-exclusive and carries the `:message` id family (`exfil-rfc1918:message`): allow
+entries match ids exactly, so waiving the tree face can never waive a commit-message hit,
+or vice versa. Tag notes are never scanned by the exfil core — the pre-existing engine leg
+owns that facet and reports hits there under its own `tag-message-secret` id.
+
+- **Exemptions.** Documented ranges never fire: loopback, the RFC5737 documentation bands
+  (192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24), and RFC2606 TLDs (`.example` `.test`
+  `.invalid` `.localhost`). The **fixture band** 10.200.0.0/16 is this project's reserved
+  test range: on tree surfaces all channels stay silent on it, and the twins carry the same
+  band exemption natively (TOML allowlists / negative lookaheads) so verdicts agree across
+  channels. Commit messages are the one exception — a message describing any private-shape
+  literal still fires its `:message` rule.
+- **Fixture doctrine (for contributors).** Checked-out bytes must not contain complete
+  leak shapes outside the fixture band: no real-looking private IPv4s, no full
+  `user@host.<internal-suffix>` tokens. Tests assemble them at runtime with
+  `assembleOctet()` / `assembleHost()` (test/helpers) and assert red — which keeps
+  border's own lens green against its own corpus while the red stories stay armed.
+- **Truth lane.** `BORDER_EXFIL_TRUTH=1` opts the golden suite into its live-URL leg
+  against the external fixture repo; skipped by default in CI. Its red anchors are
+  product facts with a lifetime clause: when the upstream owner scrubs them, the lane
+  passes with an archive-backed note rather than failing — expiration by design is not
+  regression.
+
+The same rule sources feed three places: `border check` (tip tree + will-publish commit
+messages), the standalone read-only `border exfil <rev|url>` lens (tip tree by default,
+plus tag notes in local mode — which the engine leg reports under its own
+`tag-message-secret` id; `--deep` adds full-history blobs and every reachable
+commit message; `file://` and scp-shaped URLs are fetched into a temp clone that is
+destroyed on exit), and post-push landing verification. The sources are fingerprinted into
+`rulesHash` like every other rule surface — editing a rule invalidates cached PASSes.
+
 ### Release coherence (0.4.1)
 
 Founding case — **aihr**: the wheel published on PyPI under version `0.2.2` carried
@@ -341,6 +409,15 @@ never from cache:
   retried on failure because a half-published version can never be republished.
 - If one remote of several succeeded before a failure, border says so explicitly (PARTIAL)
   and exits 1; a rerun of `border push --yes` picks up only the still-PENDING targets.
+- After every git leg that moved, border **verifies the landing**: it re-observes the remote
+  tip (`git ls-remote`, then a fetch of exactly that tip when it is not local) and scans the
+  landed tree with the same exfil machinery as `border exfil`. Three honest outcomes: clean
+  appends a `t:"landing"` ledger record and preserves the push exit; a blocking hit exits 1
+  with `ALREADY PUBLIC; border detects, never erases` — the bytes are out, and border's job
+  there is detection, recording the fact, never rewriting history; an unobservable tip exits
+  2 with `landed, verification unavailable` and mints **no record** (no verification, no
+  fact). The ledger stays append-only: executed-push rows are never mutated, and a DRY-RUN
+  push never fetches or records anything landing-related.
 
 ### What `border push` actually runs
 
@@ -413,6 +490,7 @@ border <command> [options]
 | `llm-request` | emit the masked review bundle for LLM-authored commits |
 | `llm-ingest <findings.json>` | validate agent findings and record the combined verdict |
 | `scan <[ecosystem:]name@version>` | inspect a third-party published artifact for residue before installing it |
+| `exfil <rev\|url>` | read-only exfil lens over a local rev or a remote URL (tip tree by default) |
 | `opencode <install\|status\|uninstall>` | install/status/uninstall the official OpenCode plugin adapter |
 
 Every subcommand accepts the same global flags (verified against `border <cmd> --help`):
@@ -425,16 +503,17 @@ Every subcommand accepts the same global flags (verified against `border <cmd> -
 | `--yes` | execute mutations (push only); without it a push is always DRY-RUN |
 | `--require-engine <list>` | replaces the required-engine set from config; unknown or unprobeable names degrade the run (exit 2) |
 | `--llm` | opt this check into the LLM review layer (a plain check can never satisfy an llm-recorded skip) |
-| `--json` | machine-readable report on stdout (check, scan) |
+| `--json` | machine-readable report on stdout (check, scan, exfil) |
+| `--deep` | exfil only: also scan full-history blobs and every reachable commit message (default scans the tip tree + tag notes) |
 | `--help, -h` | usage table |
 
 ### Exit codes (the contract)
 
 | Code | Meaning |
 | --- | --- |
-| `0` | PASS (or no-op): MEDIUM / LOW / INFO findings are allowed and listed |
-| `1` | gate-blocked: HIGH or CRITICAL findings; or a push refused (BLOCKED targets); or a partial push |
-| `2` | the gate could not answer: config error, missing/degraded engine, unreachable registry, malformed input, concurrent lock holder |
+| `0` | PASS (or no-op): MEDIUM / LOW / INFO findings are allowed and listed; a clean landing verification preserves the executor's exit |
+| `1` | gate-blocked: HIGH or CRITICAL findings; or a push refused (BLOCKED targets); or a partial push; or landing verification found blocking findings on the tip that is now **already public** (border detects, never erases) |
+| `2` | the gate could not answer: config error, missing/degraded engine, unreachable registry, malformed input, concurrent lock holder; or a push landed but the remote tip could not be verified (executed-push records stand, no PASS is endorsed for the public face) |
 
 The `2` class matters as much as `1`: a tool error never exits 0, and no exit-0 run ever
 rests on a leg that silently skipped. Engine exit codes are translated against a closed
@@ -638,7 +717,7 @@ plugin entry ships as `exports["./server"]`):
 ```jsonc
 {
   // pin the exact version — an @latest channel hits the registry on every cold start
-  "plugin": ["border-customs@0.5.1"]
+  "plugin": ["border-customs@0.6.0"]
 }
 ```
 
@@ -723,6 +802,39 @@ code.
   lock makes concurrent runs exit 2 instead of racing.
 
 ## Changelog
+
+### 0.6.0 (2026-09-25)
+- Add: **the exfil lens** — five rules (`exfil-rfc1918`, `exfil-ssh-target`,
+  `exfil-home-path`, `exfil-cred-location`, `exfil-host-profile`) that flag
+  exfil-shaped literals on about-to-be-public surfaces, the gap classic secret
+  scanners leave open because an internal IP is not a credential. The observed
+  severity of every (rule × facet × channel) cell lives in one machine-readable
+  home, `src/exfil/severity.ts`, rendered — never re-decided — by the check
+  pipeline, the new read-only `border exfil <rev|url>` CLI (tip tree by default,
+  `--deep` history, URL modes into a destroyed temp clone) and the README table,
+  each cell pinned by a docs guard. The tree HIGH family ships as vendored
+  twins (gitleaks TOML + secretlint patterns, ids byte-equal, verdict parity
+  tested); the commit-message facet is native-exclusive with a `:message` id
+  family so allow-list waivers can never cross facets; tag notes stay with the
+  pre-existing `tag-message-secret` engine leg. All exfil sources are
+  fingerprinted into `rulesHash`.
+- Add: **post-push landing verification** — after git legs move, the remote tip
+  is re-observed and scanned with the same machinery; clean appends an
+  append-only `t:"landing"` record and preserves the exit, a blocking hit exits
+  1 ("ALREADY PUBLIC; border detects, never erases"), an unobservable tip exits
+  2 with no record minted. Executed-push rows are never mutated; DRY-RUN lands
+  nothing.
+- Add: **fixture band + assembly doctrine** — 10.200.0.0/16 is reserved as the
+  always-exempt-on-tree test range (exemption mirrored natively in both twins,
+  message facet deliberately not exempt), and the test corpus assembles every
+  other leak shape at runtime (`assembleOctet`/`assembleHost`) so checked-out
+  bytes carry no complete leak tokens: border's own lens is green against
+  border's own corpus. Golden-suite coverage includes an opt-in truth lane
+  (`BORDER_EXFIL_TRUTH=1`) with a documented red-anchor lifetime clause.
+- Note: this release line traces to the 0.5.1 impersonation-wave audit; that
+  wave's H-3 follow-up — scrubbing this repo's own historical tip surfaces —
+  landed here as byte edits with the extracted values withheld from public
+  records by design (see the sanitized `.omo/evidence/` trail, not this log).
 
 ### 0.5.1 (2026-09-24)
 - Fix: **plugin impersonation — the `border` tool could spawn the host binary instead of the
@@ -883,3 +995,5 @@ border 是一个 fail-closed(失败即拦截)的推送前门禁 CLI:`npm install
 发布一致性(0.4.1):起因是 aihr 事故——PyPI 上标为 0.2.2 的 wheel 里 `__init__.__version__` 却写着 0.2.1,构件名、元数据与实际模块行为三者不一致,所有 `==0.2.2` 的用户静默装上了旧行为;同类漂移在本仓库也出现过两次(npm tarball 的 User-Agent 停在 0.3.0 而 package.json 是 0.3.1;package-lock.json 根版本两个 release 一直躺在 0.1.0)。发布阶段扫描器因此在构件内部逐源交叉核对版本号:`release-coherence-version-drift` 为 CRITICAL(package.json 与被强制打包的 package-lock、wheel 文件名对 dist-info 目录对 METADATA `Version:` 对 `__init__` 字面量、sdist 的 pyproject 对 PKG-INFO/setup 系字面量、Cargo.toml 对已打包的 Cargo.lock、.gemspec 对 metadata.gz、dist 文件名对 sdist 内 PKG-INFO);版本源存在但无法静态解析(动态 `__version__`、`attr:`、`dynamic = ["version"]`、坏 lockfile)判 MEDIUM `release-coherence-unverifiable-source`——不可核查绝不静默算干净;第二版本源根本没被打包时不发现在内,缺源不是漂移,这条边界是承重的,误报的门禁会把用户训练成 `--force`。唯一可静态强制的跨包管理器声明是 opt-in `release.twin`(`{pypi, npm}` 严格 zod 对列表,未知键 exit 2):同一 run 的 dist 里孪生版本不等 ⇒ CRITICAL `release-coherence-twin-drift`,消息点名两个构件。规则源文件与 residue 指纹表一样并入 rulesHash,改一个匹配器即令全部缓存 PASS 失效。
 
 OpenCode 插件适配层(0.5.0):零手工装载两条路线——主路是在 `opencode.jsonc` 声明 `"plugin": ["border-customs@0.5.0"]`(建议钉具体版本,@latest 每次冷启动都打注册表),opencode 自行下载构件,插件入口走 `exports["./server"]`;插件自带 CLI 解析,顺序为 `BORDER_BIN` 覆盖(独占,坏了就报错、绝不静默回退)> 包内同侧 `dist/index.js`(shebang 直接执行,不可执行则回退 PATH 上的 `node` 承载)> PATH 上的 `border`,免全局安装、免 PATH 配置;0.5.1 起任何候选都必须先过**身份握手**(以 `--help` 应答出 border 横幅与 `usage: border` 才算数),通过之前绝不投递用户 argv,握手不过即 cannot-answer exit 2、不运行任何其他二进制——0.5.0 曾用 `process.execPath` 承载包内 dist,而在插件宿主里 execPath 是 opencode 本体,边检门被静默冒充为宿主(2026-09-22 事故,见 0.5.1 变更日志)。备路是 `border opencode install|status|uninstall` 文件投递,落盘 `$XDG_CONFIG_HOME/opencode` 下的 `plugins/border.ts` 与 `commands/border.md`(无 XDG 回退 HOME/.config):受管文件凭 marker 行识别身份,同名外人文件 exit 2 拒绝、绝不覆盖,卸载只删自己带 marker 的文件,字节相同即 `up to date`。装载面只有一个 `border` 工具(argv-only 生成、无 shell、300 秒与每流 64 KiB 上限,命令闭集 check/push/status/llm-request/llm-ingest/scan/roundtrip/--help)与一条 `/border` 斜杠命令(config 钩子以 `??=` 自注册,用户同名文件命令保持权威)。边界如实说:allowlist 是 UX/防呆而非安全边界——插件进程与 opencode 进程同权,门禁的牙齿在 CLI 与账本,不在适配层;`push --yes` 按设计留在终端人审,工具端机械拒绝,会话内裸 push 本就是 CLI 合同的 DRY-RUN。装载验证走 opt-in 探针 `BORDER_OPENCODE_PROBE=1`(临时 HOME/XDG 起 `opencode serve` 对照组,断言 `border` 工具 id 与恰好一条 border 命令,重复即 FAIL;插件加载失败是静默的,只认 HTTP 响应不认退出码)。两条路线装载后都需重启 opencode:工具与命令在启动时扫描。
+
+外泄透镜(0.6.0):经典密钥扫描器看不见内网 IP、`user@内网主机`、家目录、凭据文件位置、主机画像这类"外泄形状"字面量——它们不是密钥,却如实描述公网仓库身后的私网。0.6.0 加五条规则 `exfil-rfc1918/exfil-ssh-target/exfil-home-path/exfil-cred-location/exfil-host-profile`,每个(规则×分面×通道)格子的**观察严重度**只有单一事实源 `src/exfil/severity.ts`:树面 HIGH 族走双生规则(gitleaks TOML + secretlint pattern,id 逐字节相等、三通道判决对等性有测试钉死),因两引擎都没有 HIGH 档而如实记为 CRITICAL(不硬掰,如实表);树面 MEDIUM 族走原生腿;提交消息面原生独占、id 带 `:message` 后缀,allow 条目按 id 精确匹配、跨面豁免在结构上不可能;tag note 分面归既有引擎腿 `tag-message-secret`,核心绝不重复发。规则源文件并入 rulesHash,改一个匹配器即令全部缓存 PASS 失效。独立只读入口 `border exfil <rev|url>`(默认树尖,`--deep` 补全史 blob 与全部可达提交消息;URL 模式落临时克隆、退出即销毁)。push 之后新增**落地核验**:ls-remote 复读远端尖、必要时精确 fetch 该对象,用同一套机制扫已公开树——干净则追加 `t:"landing"` 账本行并保留原退出码;有阻断发现则 exit 1 并明说 ALREADY PUBLIC;border 只检测、从不抹除;远端不可观测则 exit 2、一条记录都不造(没核验就没事实),已执行的 push 记录原样矗立——账本 append-only,任何情况下不改写历史。测试语料遵守夹具纪律:10.200.0.0/16 为预留夹具段(树面全通道静默、双生规则原生镜像该豁免,消息面例外照红),其余泄漏形状一律由 `assembleOctet`/`assembleHost` 运行时拼装,签出字节里没有完整泄漏 token——border 的透镜对自己的仓库绿,红故事照常武装。真值通道 `BORDER_EXFIL_TRUTH=1` 为 opt-in,红锚点带生命周期条款:上游作者清理后按设计转绿、留档不判败。

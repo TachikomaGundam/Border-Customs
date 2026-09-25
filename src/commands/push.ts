@@ -27,6 +27,7 @@ import { loadConfig } from "../config.ts";
 import { computeFingerprint, latestPassCoveringTargets, readLedger } from "../ledger.ts";
 import { derivePushState, formatTargetLine, pushableTargets, recordPushSuccess, PushStateError, type PushStateResult } from "../pushstate.ts";
 import { confirmRemoteBranch, DIVERGED_MESSAGE, executePush, fastForwardGuard, type GitRemoteTarget } from "../push/git.ts";
+import { runLandingVerification } from "../push/landing.ts";
 import { publishChannels } from "../channels/registry.ts";
 import { sanitizeUrl } from "../redact.ts";
 import { gitTargetId } from "../gitTargetId.ts";
@@ -216,6 +217,21 @@ async function executeYesPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExi
       done.push(leg.target);
       ctx.stdout(`border: pushed ${leg.target} — ${shortSha(remoteSha)} confirmed via ls-remote`);
     }
+
+    // S3 landing verification (plan §S3; git targets only — registry publish-byte
+    // landing is the named follow-up). Runs AFTER the push executed, NEVER as a
+    // rollback: unreachable ⇒ exit 2 with the push record untouched; blocking
+    // hit ⇒ exit 1 "ALREADY PUBLIC; border detects, never erases"; clean ⇒
+    // t:"landing" record + the executor exit preserved.
+    const landing = await runLandingVerification({
+      repoDir,
+      key: state.key,
+      legs: legs.map((leg) => ({ target: leg, branch })),
+      env,
+      out: ctx.stdout,
+      err: ctx.stderr,
+    });
+    if (landing !== null) return landing;
   }
 
   // Cross-target order fixed by the plan: git remotes (done above) → npm → PyPI.

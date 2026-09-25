@@ -186,6 +186,16 @@ export function assembleOctet(prefix: string, suffix: string): string {
 }
 
 /**
+ * Round-4 extension of the F3 doctrine to hostname shapes: test sources must
+ * not carry complete `user@host.<private-suffix>` tokens in checked-out bytes
+ * (the ssh-target twin would fire on the fixture corpus itself). Red stories
+ * for all five suffixes stay covered — assemble at runtime, assert red.
+ */
+export function assembleHost(user: string, hostLabel: string, suffix: string): string {
+  return `${user}@${hostLabel}.${suffix}`;
+}
+
+/**
  * Every git call is fenced to the fixture itself: GIT_CEILING_DIRECTORIES
  * stops repo discovery from walking up into border's OWN repository (a leak
  * here commits planted secrets into the product repo), and the explicit .git
