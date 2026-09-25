@@ -1,6 +1,7 @@
 # aihr Windows install failure — diagnosis evidence (read-only)
 
-Date: 2026-09-08 · Device: sonic@192.168.10.70 (Windows, CPython 3.14.6 MSC v1944) · Subject: `pip install aihr` then `python -m hr setup` crashes.
+Date: 2026-09-08 · Device: <INTERNAL-USER-A>@<INTERNAL-IP-A> (Windows, CPython 3.14.6 MSC v1944) · Subject: `pip install aihr` then `python -m hr setup` crashes.
+> H-3 self-scrub (2026-09-25, border exfil lens): `<INTERNAL-IP-A>` = the lab Windows device on the site LAN; `<INTERNAL-USER-A>` = its local account name. Real values removed per F5 (border detects, never erases context: dates, versions, file:line refs unchanged).
 Governing constraints (user, verbatim intent):
 - 不要直接修改目标设备 — device is read-only for diagnosis only.
 - 不要在本 session 改 hr 代码 — fix must come from **border itself**: 边检升级具备检测+修复能力 → 在 hr workspace 调用边检完成修复 → 发布 → 设备重装 → 走通此闭环才算真修复（边检自进化）。

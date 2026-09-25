@@ -1,4 +1,5 @@
 {
+  "_h3_legend": "H-3 self-scrub 2026-09-25: <INTERNAL-IP-A> = lab Windows device on the site LAN (real value removed per border exfil lens F5; keys/structure untouched, same device as in aihr-windows-install-diagnosis.md)",
   "verdict": "needs-fix",
   "confidence": "high",
   "round": "R3a-verify-1",
@@ -32,17 +33,83 @@
     }
   },
   "probes": [
-    {"id": "P1", "target": "pypi pathlib home write, NON-dotfile target: pathlib.Path.home()/'.local/share/acme/env' + write_text in setup.py", "command": "/tmp/r3a-verify/probe.ts via node --import tools/register-ts.mjs -> residuePypiHits", "observable": "residue-out-of-tree-write HIGH, msg 't3-py-expanduser'", "verdict": "PASS — expanduser-token doctrine is NOT blind to Path.home() (pattern \\b(?:os\\.path\\.expanduser|Path\\.home)\\s*\\(|\\.expanduser\\s*\\( covers all three shapes incl .expanduser()); R3a-F test covers the dotfile variant."},
-    {"id": "P1b", "target": "pypi home via env: open(os.environ[\"HOME\"]+'/.cache/acme/x','w') in setup.py", "command": "same probe harness", "observable": "(silent)", "verdict": "OBSERVATION — no pattern names HOME-env for py legs (npm T1 lane has process.env.HOME marks, t3 families do not). Within plan §57 wording (which enumerates expanduser only); falls under the general §1.6-9 computed-target epistemic but §8 does not name this concrete instance -> nit (add os.environ[\"HOME\"] to t3-py-expanduser, or one §8 clause)."},
-    {"id": "P2", "target": "setup.py os.system('pip install foo') at build time", "command": "same probe harness", "observable": "residue-cross-manager-write HIGH naming pip (xmgr-pip shell-text arm \\bpip install\\b)", "verdict": "PASS"},
-    {"id": "P3", "target": "pyproject [build-system] backend=my_custom; my_backend/__init__.py (packed, non-hook) writes open(os.path.expanduser('~/.profile'),'a') + subprocess.run(['pip','install','helper'])", "command": "same probe harness, tree with setup.py neutral + pyproject backend decl + module", "observable": "(silent — ZERO residue rows)", "verdict": "FAIL vs §8(c) wording — T2/T3/xmgr families only scan setup.py/[build-system] block; non-hook modules receive ONLY the T4 sweep. Control probe P3b proves visibility is T4-token-only: same module with 'crontab' string => T4 CRITICAL fires. §8(c) claims an unnamed backend is 'detected only if it writes/names enumerated tokens somewhere in the sdist' — ~/.profile and pip-argv ARE enumerated tokens named in the sdist yet nothing detects them => documented coverage overclaims. Code scope is plan-conformant (plan enumerates setup.py+cmdclass only) -> blocker is DOCUMENTATION HONESTY (§8 fix), not scope creep."},
-    {"id": "C4", "target": "clean idiomatic crate FP control: let out_dir = env::var(\"OUT_DIR\").unwrap(); fs::write(PathBuf::from(&out_dir).join(\"generated.txt\"),..)", "command": "residueCratesHits probe", "observable": "residue-out-of-tree-write HIGH fires (confinement row) — FALSE POSITIVE", "verdict": "FAIL (fail-CLOSED direction) — §8 pins 'clean OUT_DIR-confined crate emits ZERO findings' but holds only for the inline env::var form the worker fixture uses and the bare-identifier form (C4b probe: silent, correct). Same defect class hits legitimate let-shadow refinement chains (let o = OUT_DIR; let o = PathBuf::from(&o)) because confined() requires EVERY let-line to name the uppercase token. Recommendation: resolve the chain HEAD identifier (expr before first .method) through the existing let-binding check; keep the no-binding fail-closed default."},
-    {"id": "C5", "target": "build.rs fs::write(Path::new(\"/home/evil/.bashrc\"),..) — wait, probe used fs::write(\"/home/evil/.bashrc\",..)", "command": "residueCratesHits probe", "observable": "2x residue-out-of-tree-write HIGH (t3-dotfile family row + confinement row), same fileRel => IDENTICAL valueDigest (digest key = identity:residue:rule:fileRel, residue.ts:54)", "verdict": "PASS on detection; NIT on duplicate same-digest rows (allow-listing one digest mutes both lanes; message differs). Path::new(\"…\") variant behaves identically (no token in arg => confined false)."},
-    {"id": "C6", "target": "build.rs OpenOptions::new().create(true).write(true).open(\"/tmp/x\") + write_all", "command": "residueCratesHits probe", "observable": "(silent)", "verdict": "PASS — verb-set gap EXPLICITLY named in §8 ('{fs::write, File::create} exactly; OpenOptions/create_dir_all/rename OUT… widening requires a plan amendment') and in plan §57's literal verb list. Task rule: blocker only if undocumented — documented, so not a blocker. Mitigation shown by C6b: OpenOptions onto a DOTFILE path still caught by t3-dotfile family (HIGH fires)."},
-    {"id": "C7", "target": "[build-dependencies] reqwest = \"0.12\" vs [dependencies] reqwest = \"0.12\"", "command": "residueCratesHits probe x2 (Cargo.toml variants)", "observable": "build-dep => 1x residue-install-download HIGH on Cargo.toml; runtime deps => (silent)", "verdict": "PASS — section anchoring works both directions (also matches worker test R3a-D). Note: row labeled t2-rs-reqwest rather than t2-rs-builddep because both share RESIDUE_T2_RULE and familyHits dedupes by rule — label-only, same severity/rule; the dedicated t2-rs-builddep arm matters for dependency-line shapes where \\breqwest\\b matches anyway; nit-worthy at most."},
-    {"id": "C8", "target": "rebind attack: let mut o = env::var(\"OUT_DIR\").unwrap(); o = format!(\"{}/.cache/implant\", env::var(\"HOME\")…); fs::write(&o, ..)", "command": "residueCratesHits probe", "observable": "(silent — confinement passes; bare assignment not a \\blet\\s+ line so the ALL-bindings rule never sees the tainted value)", "verdict": "FAIL-OPEN — task doctrine: 'o = home-ish ⇒ must flip to violation'. Empirically it does not flip. §8 wording 'a rebinding later in the file is caught by the ALL-bindings rule' is FALSE for non-let rebinding (true only for let-shadowing, probe C8b: correctly flips to T3). Non-dotfile target (/implant under ~/.cache) means no family backstop either => complete miss. BLOCKER."},
-    {"id": "C8b", "target": "let-shadow rebind: let o = OUT_DIR…; let o = format!(HOME…)", "command": "residueCratesHits probe", "observable": "residue-out-of-tree-write HIGH (ALL-bindings rule fires)", "verdict": "PASS — shadowing via let does flip; isolates the C8 gap to bare assignment specifically."},
-    {"id": "A1", "target": "computed write arg: fs::write(format!(\"/etc/{}\", \"cron.d\"),..)", "command": "residueCratesHits probe", "observable": "confinement T3 HIGH fires (arg has no token, not bare id => fail-closed)", "verdict": "PASS — unrecognized shapes fail closed as §1.6 doctrine demands; obfuscated/computed writes live in the accepted §1.6-9 undecidability lane (same posture as npm), and both legs' §8/residual ledger entries state it."}
+    {
+      "id": "P1",
+      "target": "pypi pathlib home write, NON-dotfile target: pathlib.Path.home()/'.local/share/acme/env' + write_text in setup.py",
+      "command": "/tmp/r3a-verify/probe.ts via node --import tools/register-ts.mjs -> residuePypiHits",
+      "observable": "residue-out-of-tree-write HIGH, msg 't3-py-expanduser'",
+      "verdict": "PASS — expanduser-token doctrine is NOT blind to Path.home() (pattern \\b(?:os\\.path\\.expanduser|Path\\.home)\\s*\\(|\\.expanduser\\s*\\( covers all three shapes incl .expanduser()); R3a-F test covers the dotfile variant."
+    },
+    {
+      "id": "P1b",
+      "target": "pypi home via env: open(os.environ[\"HOME\"]+'/.cache/acme/x','w') in setup.py",
+      "command": "same probe harness",
+      "observable": "(silent)",
+      "verdict": "OBSERVATION — no pattern names HOME-env for py legs (npm T1 lane has process.env.HOME marks, t3 families do not). Within plan §57 wording (which enumerates expanduser only); falls under the general §1.6-9 computed-target epistemic but §8 does not name this concrete instance -> nit (add os.environ[\"HOME\"] to t3-py-expanduser, or one §8 clause)."
+    },
+    {
+      "id": "P2",
+      "target": "setup.py os.system('pip install foo') at build time",
+      "command": "same probe harness",
+      "observable": "residue-cross-manager-write HIGH naming pip (xmgr-pip shell-text arm \\bpip install\\b)",
+      "verdict": "PASS"
+    },
+    {
+      "id": "P3",
+      "target": "pyproject [build-system] backend=my_custom; my_backend/__init__.py (packed, non-hook) writes open(os.path.expanduser('~/.profile'),'a') + subprocess.run(['pip','install','helper'])",
+      "command": "same probe harness, tree with setup.py neutral + pyproject backend decl + module",
+      "observable": "(silent — ZERO residue rows)",
+      "verdict": "FAIL vs §8(c) wording — T2/T3/xmgr families only scan setup.py/[build-system] block; non-hook modules receive ONLY the T4 sweep. Control probe P3b proves visibility is T4-token-only: same module with 'crontab' string => T4 CRITICAL fires. §8(c) claims an unnamed backend is 'detected only if it writes/names enumerated tokens somewhere in the sdist' — ~/.profile and pip-argv ARE enumerated tokens named in the sdist yet nothing detects them => documented coverage overclaims. Code scope is plan-conformant (plan enumerates setup.py+cmdclass only) -> blocker is DOCUMENTATION HONESTY (§8 fix), not scope creep."
+    },
+    {
+      "id": "C4",
+      "target": "clean idiomatic crate FP control: let out_dir = env::var(\"OUT_DIR\").unwrap(); fs::write(PathBuf::from(&out_dir).join(\"generated.txt\"),..)",
+      "command": "residueCratesHits probe",
+      "observable": "residue-out-of-tree-write HIGH fires (confinement row) — FALSE POSITIVE",
+      "verdict": "FAIL (fail-CLOSED direction) — §8 pins 'clean OUT_DIR-confined crate emits ZERO findings' but holds only for the inline env::var form the worker fixture uses and the bare-identifier form (C4b probe: silent, correct). Same defect class hits legitimate let-shadow refinement chains (let o = OUT_DIR; let o = PathBuf::from(&o)) because confined() requires EVERY let-line to name the uppercase token. Recommendation: resolve the chain HEAD identifier (expr before first .method) through the existing let-binding check; keep the no-binding fail-closed default."
+    },
+    {
+      "id": "C5",
+      "target": "build.rs fs::write(Path::new(\"/home/evil/.bashrc\"),..) — wait, probe used fs::write(\"/home/evil/.bashrc\",..)",
+      "command": "residueCratesHits probe",
+      "observable": "2x residue-out-of-tree-write HIGH (t3-dotfile family row + confinement row), same fileRel => IDENTICAL valueDigest (digest key = identity:residue:rule:fileRel, residue.ts:54)",
+      "verdict": "PASS on detection; NIT on duplicate same-digest rows (allow-listing one digest mutes both lanes; message differs). Path::new(\"…\") variant behaves identically (no token in arg => confined false)."
+    },
+    {
+      "id": "C6",
+      "target": "build.rs OpenOptions::new().create(true).write(true).open(\"/tmp/x\") + write_all",
+      "command": "residueCratesHits probe",
+      "observable": "(silent)",
+      "verdict": "PASS — verb-set gap EXPLICITLY named in §8 ('{fs::write, File::create} exactly; OpenOptions/create_dir_all/rename OUT… widening requires a plan amendment') and in plan §57's literal verb list. Task rule: blocker only if undocumented — documented, so not a blocker. Mitigation shown by C6b: OpenOptions onto a DOTFILE path still caught by t3-dotfile family (HIGH fires)."
+    },
+    {
+      "id": "C7",
+      "target": "[build-dependencies] reqwest = \"0.12\" vs [dependencies] reqwest = \"0.12\"",
+      "command": "residueCratesHits probe x2 (Cargo.toml variants)",
+      "observable": "build-dep => 1x residue-install-download HIGH on Cargo.toml; runtime deps => (silent)",
+      "verdict": "PASS — section anchoring works both directions (also matches worker test R3a-D). Note: row labeled t2-rs-reqwest rather than t2-rs-builddep because both share RESIDUE_T2_RULE and familyHits dedupes by rule — label-only, same severity/rule; the dedicated t2-rs-builddep arm matters for dependency-line shapes where \\breqwest\\b matches anyway; nit-worthy at most."
+    },
+    {
+      "id": "C8",
+      "target": "rebind attack: let mut o = env::var(\"OUT_DIR\").unwrap(); o = format!(\"{}/.cache/implant\", env::var(\"HOME\")…); fs::write(&o, ..)",
+      "command": "residueCratesHits probe",
+      "observable": "(silent — confinement passes; bare assignment not a \\blet\\s+ line so the ALL-bindings rule never sees the tainted value)",
+      "verdict": "FAIL-OPEN — task doctrine: 'o = home-ish ⇒ must flip to violation'. Empirically it does not flip. §8 wording 'a rebinding later in the file is caught by the ALL-bindings rule' is FALSE for non-let rebinding (true only for let-shadowing, probe C8b: correctly flips to T3). Non-dotfile target (/implant under ~/.cache) means no family backstop either => complete miss. BLOCKER."
+    },
+    {
+      "id": "C8b",
+      "target": "let-shadow rebind: let o = OUT_DIR…; let o = format!(HOME…)",
+      "command": "residueCratesHits probe",
+      "observable": "residue-out-of-tree-write HIGH (ALL-bindings rule fires)",
+      "verdict": "PASS — shadowing via let does flip; isolates the C8 gap to bare assignment specifically."
+    },
+    {
+      "id": "A1",
+      "target": "computed write arg: fs::write(format!(\"/etc/{}\", \"cron.d\"),..)",
+      "command": "residueCratesHits probe",
+      "observable": "confinement T3 HIGH fires (arg has no token, not bare id => fail-closed)",
+      "verdict": "PASS — unrecognized shapes fail closed as §1.6 doctrine demands; obfuscated/computed writes live in the accepted §1.6-9 undecidability lane (same posture as npm), and both legs' §8/residual ledger entries state it."
+    }
   ],
   "blockers": [
     {
@@ -63,17 +130,48 @@
     }
   ],
   "nits": [
-    {"id": "N1", "title": "OUT_DIR-confinement FALSE POSITIVE on idiomatic out_dir.join()/PathBuf::from(&out_dir).join(...) and on legitimate let-refinement chains (C4). Fail-CLOSED direction, so not a blocker under this gate's doctrine, but it contradicts §8's 'clean OUT_DIR-confined crate = ZERO findings' promise beyond the fixture's inline form; suggested fix (chain-head identifier resolution through the existing let check) also shrinks the R3A-V1 surface. Worker's own corpus dodges it only by inlining env::var(\"OUT_DIR\") inside the write call."},
-    {"id": "N2", "title": "Same-file+same-rule double rows share one valueDigest (residue.ts:54 key identity:residue:rule:fileRel): C5 emits confinement+t3-dotfile as two HIGH rows that an allow by digest mutes together, and gate surfaces may double-count. Consider appending pattern-id to the digest key or collapsing hits per (rule,file) — behavior-neutral today, cheap to fix before R4 aggregates ledgers."},
-    {"id": "N3", "title": "t3-py-expanduser blind to os.environ[\"HOME\"]/expandvars home resolution (P1b silent). Plan §57 enumerates only expanduser so this is plan-conformant, and §1.6-9 covers the obfuscation lane — but the npm lane carries explicit process.env.HOME marks, so the asymmetry deserves one §8 residual sentence (or add expandvars|environ[\"HOME\"] to the pattern; strengthens detection)."},
-    {"id": "N4", "title": "Worker residual list says '§1.6-9 eval-equivalence applies to new legs' — verified true empirically (A1: computed args fail CLOSED into the confinement row), no action; recording so R4 inherits the adjudication."}
+    {
+      "id": "N1",
+      "title": "OUT_DIR-confinement FALSE POSITIVE on idiomatic out_dir.join()/PathBuf::from(&out_dir).join(...) and on legitimate let-refinement chains (C4). Fail-CLOSED direction, so not a blocker under this gate's doctrine, but it contradicts §8's 'clean OUT_DIR-confined crate = ZERO findings' promise beyond the fixture's inline form; suggested fix (chain-head identifier resolution through the existing let check) also shrinks the R3A-V1 surface. Worker's own corpus dodges it only by inlining env::var(\"OUT_DIR\") inside the write call."
+    },
+    {
+      "id": "N2",
+      "title": "Same-file+same-rule double rows share one valueDigest (residue.ts:54 key identity:residue:rule:fileRel): C5 emits confinement+t3-dotfile as two HIGH rows that an allow by digest mutes together, and gate surfaces may double-count. Consider appending pattern-id to the digest key or collapsing hits per (rule,file) — behavior-neutral today, cheap to fix before R4 aggregates ledgers."
+    },
+    {
+      "id": "N3",
+      "title": "t3-py-expanduser blind to os.environ[\"HOME\"]/expandvars home resolution (P1b silent). Plan §57 enumerates only expanduser so this is plan-conformant, and §1.6-9 covers the obfuscation lane — but the npm lane carries explicit process.env.HOME marks, so the asymmetry deserves one §8 residual sentence (or add expandvars|environ[\"HOME\"] to the pattern; strengthens detection)."
+    },
+    {
+      "id": "N4",
+      "title": "Worker residual list says '§1.6-9 eval-equivalence applies to new legs' — verified true empirically (A1: computed args fail CLOSED into the confinement row), no action; recording so R4 inherits the adjudication."
+    }
   ],
   "deviation_adjudication": [
-    {"deviation": "wheel-scan T4 double-attribution (primitive string fires in BOTH sdist and wheel)", "verdict": "acceptable — strengthens detection; explicitly documented in §8 ('ships twice… per-archive attribution makes both visible'); tested (residue.pypi.test.ts R3a-D asserts exactly 2 rows with both attributions); plan R3a AC is silent on wheel T4 and plan T4 doctrine is 'artifact-wide' — consistent."},
-    {"deviation": "new section-anchored rs pattern (t2-rs-builddep run ONLY over [build-dependencies] block via sectionBlock)", "verdict": "plan-warranted — plan §56 negative space: 'reqwest|ureq|curl in [build-dependencies]' is section-scoped by the plan text itself; [dependencies] silence pinned by worker test R3a-D control AND verifier probe C7b."},
-    {"deviation": "OUT_DIR one-hop let-binding doctrine with rebind-flip", "verdict": "SILENT-CREEP THAT WEAKENS: plan §57 says ANY other fs::write|File::create target ⇒ T3; the let-hop concession is implementable-per-plan, but the ALL-bindings rule empirically fails on bare-assignment rebind (probe C8) and §8 describes that flip as caught when it is not — see blocker R3A-V1. (The let-shadow variant C8b does flip.)"},
-    {"deviation": "crates attribution without !archive (root:'' => rows are '<name>-<ver>/build.rs')", "verdict": "presentation-only nit — plan's `<archive>!<inner>` AC sentence is scoped to the pypi sdist AC; crates .crate wrapper name is already the identity-bearing dir; §8 documents the sep/root matrix. No detection difference."}
+    {
+      "deviation": "wheel-scan T4 double-attribution (primitive string fires in BOTH sdist and wheel)",
+      "verdict": "acceptable — strengthens detection; explicitly documented in §8 ('ships twice… per-archive attribution makes both visible'); tested (residue.pypi.test.ts R3a-D asserts exactly 2 rows with both attributions); plan R3a AC is silent on wheel T4 and plan T4 doctrine is 'artifact-wide' — consistent."
+    },
+    {
+      "deviation": "new section-anchored rs pattern (t2-rs-builddep run ONLY over [build-dependencies] block via sectionBlock)",
+      "verdict": "plan-warranted — plan §56 negative space: 'reqwest|ureq|curl in [build-dependencies]' is section-scoped by the plan text itself; [dependencies] silence pinned by worker test R3a-D control AND verifier probe C7b."
+    },
+    {
+      "deviation": "OUT_DIR one-hop let-binding doctrine with rebind-flip",
+      "verdict": "SILENT-CREEP THAT WEAKENS: plan §57 says ANY other fs::write|File::create target ⇒ T3; the let-hop concession is implementable-per-plan, but the ALL-bindings rule empirically fails on bare-assignment rebind (probe C8) and §8 describes that flip as caught when it is not — see blocker R3A-V1. (The let-shadow variant C8b does flip.)"
+    },
+    {
+      "deviation": "crates attribution without !archive (root:'' => rows are '<name>-<ver>/build.rs')",
+      "verdict": "presentation-only nit — plan's `<archive>!<inner>` AC sentence is scoped to the pypi sdist AC; crates .crate wrapper name is already the identity-bearing dir; §8 documents the sep/root matrix. No detection difference."
+    }
   ],
   "claim_5_note_on_count": "22 dirty tracked, not 21; worker count off-by-one again (matches prior-round pattern), benign.",
-  "hard_rule_compliance": {"src_test_edits": "none (verifier worked read-only in repo; all writes under /tmp/r3a-verify + this report + one ledger line)", "commits": "0 (HEAD still 4a8836d)", "hr": "not invoked", "remote_host": "192.168.10.70 never contacted", "timeouts": "every command timeout-bounded", "tmp_cleanup": "see receipt in ledger tail + rm -rf /tmp/r3a-verify"}
+  "hard_rule_compliance": {
+    "src_test_edits": "none (verifier worked read-only in repo; all writes under /tmp/r3a-verify + this report + one ledger line)",
+    "commits": "0 (HEAD still 4a8836d)",
+    "hr": "not invoked",
+    "remote_host": "<INTERNAL-IP-A> never contacted",
+    "timeouts": "every command timeout-bounded",
+    "tmp_cleanup": "see receipt in ledger tail + rm -rf /tmp/r3a-verify"
+  }
 }

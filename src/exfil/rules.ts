@@ -25,10 +25,12 @@ export type RuleHit = {
 };
 
 export type RuleOptions = {
-  /** drives the fixture-band exemption (see matchRfc1918); never selects severity. */
+  /** drives the band-exemption split (tree exempts DEFAULT_EXEMPT_BANDS, message fires everything); never selects severity. */
   readonly facet: ExfilFacet;
   /** operator's rules.hosts (config.ts:102) — exact-match ssh targets, closed set. */
   readonly hosts?: readonly string[];
+  /** exemption-band override (production default DEFAULT_EXEMPT_BANDS; [] forces in-range arms red in unit tests). */
+  readonly exemptBands?: readonly string[];
 };
 
 // ---------------------------------------------------------------- IPv4 machinery
@@ -37,25 +39,28 @@ const OCTET = "(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])";
 /** Full IPv4 with strict token boundaries (won't fire inside 5-dotted versions/urls). */
 const IPV4_SRC = `(?<![0-9A-Za-z.\\-])${OCTET}\\.${OCTET}\\.${OCTET}\\.${OCTET}(?![0-9A-Za-z.\\-])`;
 
-/** RFC 5737 documentation bands (/24): TEST-NET-1..3 as number tuples, never dotted strings. */
-const RFC5737_BANDS: readonly (readonly [number, number, number])[] = [
-  [192, 0, 2],
-  [198, 51, 100],
-  [203, 0, 113],
-];
-/** 10.200/16 (/16 over the second octet) — the synthetic-fixture band (evidence ruling 2; v1's proposal voided). */
-const FIXTURE_BAND: readonly [number, number] = [10, 200];
-/** 127/8 loopback. */
-function isLoopback(o: readonly number[]): boolean {
-  return o[0] === 127;
+/**
+ * The production closed exemption bands (F2 twin-parity + F3 fixture doctrine):
+ * loopback, each RFC 5737 documentation /24, and the 10.200/16 SYNTHETIC-FIXTURE
+ * band. Dotted PREFIX strings (never full quads — self-stealth); a hit is
+ * exempt when its leading octets equal a band. ALL channels — native tree
+ * policy and both twins — exempt exactly these; the message facet alone stays
+ * band-fired (it is native-exclusive and carries the golden red anchors).
+ * Unit tests may pass options.exemptBands = [] to force in-range arms red with
+ * assembled (never checked-in-as-quad) literals.
+ */
+export const DEFAULT_EXEMPT_BANDS: readonly string[] = ["127", "192.0.2", "198.51.100", "203.0.113", "10.200"];
+
+function bandOctets(band: string): number[] {
+  return band.split(".").map(Number);
 }
-function isRfc5737(o: readonly number[]): boolean {
-  return RFC5737_BANDS.some((b) => o[0] === b[0] && o[1] === b[1] && o[2] === b[2]);
+function inAnyBand(oct: readonly number[], bands: readonly string[]): boolean {
+  return bands.some((b) => {
+    const parts = bandOctets(b);
+    return parts.every((v, i) => oct[i] === v);
+  });
 }
-function inFixtureBand(o: readonly number[]): boolean {
-  return o[0] === FIXTURE_BAND[0] && o[1] === FIXTURE_BAND[1];
-}
-/** 10/8 ∪ 172.16/12 ∪ 192.168/16 — the plan's exfil-rfc1918 range set. */
+/** 10/8 ∪ 172.16/12 ∪ 192.168/16 — the plan's exfil-rfc1918 range set (loopback & RFC5737 are OUT of range by construction). */
 function inRfc1918(o: readonly number[]): boolean {
   const [a = 0, b = 0] = o;
   if (a === 10) return true;
@@ -69,25 +74,50 @@ function isIpLiteral(host: string): boolean {
   return /^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$/.test(host);
 }
 
+/** Octet + boundary pieces shared by the JS twins (secretlint) — single source. */
+const OCTET_GRP = `(?:${OCTET})`;
+// Each branch is FULLY expanded (three or four octets as the prefix demands):
+// an alternation branch would otherwise swallow a shared suffix only into its
+// LAST arm — the precedence trap this exact line replaces.
+const RFC1918_FULL = `10\\.${OCTET_GRP}\\.${OCTET_GRP}\\.${OCTET_GRP}|172\\.(?:1[6-9]|2[0-9]|3[01])\\.${OCTET_GRP}\\.${OCTET_GRP}|192\\.168\\.${OCTET_GRP}\\.${OCTET_GRP}`;
+const SUFFIX_HOST = `[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\\.(?:internal|lan|local|corp|intra)`;
+
+/**
+ * The secretlint-twin pattern sources for the HIGH family (plan §分面契约 row
+ * 1: emission id = pattern name, ids VERBATIM equal to the rule ids). Negative
+ * classes at the IP/head position exempt exactly DEFAULT_EXEMPT_BANDS (loopback
+ * / RFC5737 / 10.200/16 fixture band) — F2 verdict parity: the same bytes must
+ * read the same on every channel at the tree facet; the corpus test
+ * (test/exfil.pipeline.test.ts) is the real contract, id-equality alone was a
+ * hole. The gitleaks TOML carries Go-RE2 variants (no lookaround) of these
+ * same bodies + equivalent per-rule allowlists.
+ */
+const BAND_NEGATIVE = `(?!127\\.|10\\.200\\.|192\\.0\\.2\\.|198\\.51\\.100\\.|203\\.0\\.113\\.)`;
+export const EXFIL_TWIN_PATTERNS: ReadonlyArray<{ readonly name: ExfilRuleId; readonly source: string }> = [
+  { name: "exfil-rfc1918", source: `(?<![0-9A-Za-z.\\-])${BAND_NEGATIVE}(?:${RFC1918_FULL})(?![0-9A-Za-z.\\-])` },
+  { name: "exfil-ssh-target", source: `(?<![A-Za-z0-9._+%-])[A-Za-z0-9._+%-]+@${BAND_NEGATIVE}(?:${RFC1918_FULL}|${SUFFIX_HOST})(?![A-Za-z0-9._-])` },
+];
+
 // ---------------------------------------------------------------- exfil-rfc1918
 
 /**
- * RFC1918 literals. Closed exemptions (plan table): loopback, each RFC5737
- * /24, and the 10.200/16 SYNTHETIC-FIXTURE band — the fixture band is
- * exempt on the TREE facet only (it exists so the repo's own planted golden
- * fixtures stay green on the blob face, T6); commit messages are the
- * public-exposure surface with no fixture excuse, so the band FIRES there
- * (this is what makes "message 面带合成 IP 树干净 ⇒ 必红" mechanically true).
+ * RFC1918 literals. Closed exemptions: DEFAULT_EXEMPT_BANDS (loopback + each
+ * RFC5737 /24 are OUT of range by construction; the 10.200/16 fixture band is
+ * in-range and exempted on every facet EXCEPT message — commit messages are
+ * the public-exposure surface with no fixture excuse, so the band FIRES there
+ * ("message 面带合成 IP 树干净 ⇒ 必红" stays mechanically true, and the twins,
+ * which never scan messages, match the tree-side policy exactly: F2 parity).
  */
 export function matchRfc1918(text: string, o: RuleOptions): RuleHit[] {
   const re = new RegExp(IPV4_SRC, "g");
+  const bands = o.exemptBands ?? DEFAULT_EXEMPT_BANDS;
   const hits: RuleHit[] = [];
   text.split("\n").forEach((body, idx) => {
     for (const m of body.matchAll(re)) {
       const ip = m[0] ?? "";
       const oct = octetsOf(ip);
-      if (!inRfc1918(oct) || isLoopback(oct) || isRfc5737(oct)) continue;
-      if (o.facet !== "message" && inFixtureBand(oct)) continue;
+      if (!inRfc1918(oct)) continue;
+      if (o.facet !== "message" && inAnyBand(oct, bands)) continue;
       hits.push({ rule: "exfil-rfc1918", matched: ip, line: idx + 1, message: "RFC1918 private-network address literal on a surface about to become public." });
     }
   });
@@ -112,11 +142,13 @@ function hasDotSuffix(host: string, suffixes: readonly string[]): boolean {
  * Closed exemption: RFC 2606 (bare public domains like user@example.com are
  * out of the hit set by construction — they match nothing). An explicitly
  * operator-configured host wins over the RFC2606 shape exemption (listing it
- * IS the operator declaring it internal). The 10.200 fixture band does NOT
- * exempt here: `synthuser@` + fixture-band address is the T6 golden red anchor.
+ * IS the operator declaring it internal). IP hosts: DEFAULT_EXEMPT_BANDS
+ * exempt on the tree facet (twin parity, F2); the message facet still fires
+ * `synthuser@` + fixture-band address — the T6 golden red anchor rides :message.
  */
 export function matchSshTarget(text: string, o: RuleOptions): RuleHit[] {
   const hosts = (o.hosts ?? []).map((h) => h.trim().toLowerCase()).filter((h) => h !== "");
+  const bands = o.exemptBands ?? DEFAULT_EXEMPT_BANDS;
   const hits: RuleHit[] = [];
   text.split("\n").forEach((body, idx) => {
     for (const m of body.matchAll(SSH_TOKEN_RE)) {
@@ -124,7 +156,7 @@ export function matchSshTarget(text: string, o: RuleOptions): RuleHit[] {
       if (host === "") continue;
       const isIp = isIpLiteral(host);
       let fired = false;
-      if (isIp ? inRfc1918(octetsOf(host)) : false) {
+      if (isIp ? inRfc1918(octetsOf(host)) && !(o.facet !== "message" && inAnyBand(octetsOf(host), bands)) : false) {
         fired = true;
       } else if (!isIp && hosts.includes(host)) {
         fired = true;
@@ -139,108 +171,9 @@ export function matchSshTarget(text: string, o: RuleOptions): RuleHit[] {
   return hits;
 }
 
-// ---------------------------------------------------------------- exfil-home-path
-
-/** /home/<user> — class-gated so "/homebrew" or a lone "/home/" never fires. */
-const HOME_POSIX_RE = /\/home\/([A-Za-z0-9._-]+)/g;
-/** C:\Users\<user> (any drive letter, either slash), case-insensitive. */
-const HOME_WINDOWS_RE = /([A-Za-z]:[\\/]+Users[\\/]+)([A-Za-z0-9._-]+)/gi;
-
-export function matchHomePath(text: string, _o: RuleOptions): RuleHit[] {
-  const hits: RuleHit[] = [];
-  text.split("\n").forEach((body, idx) => {
-    for (const m of body.matchAll(HOME_POSIX_RE)) {
-      hits.push({ rule: "exfil-home-path", matched: m[0] ?? "", line: idx + 1, message: "Home-directory path exposing a local username (privacy leak — plan: grade after T5 self-calibration)." });
-    }
-    for (const m of body.matchAll(HOME_WINDOWS_RE)) {
-      hits.push({ rule: "exfil-home-path", matched: m[0] ?? "", line: idx + 1, message: "Windows user-profile path exposing a local username (privacy leak — plan: grade after T5 self-calibration)." });
-    }
-  });
-  return hits;
-}
-
-// ---------------------------------------------------------------- exfil-cred-location
-
-const PYPIRC_RE = /~\/\.pypirc/g;
-const SSHPASS_RE = /\bSSHPASS\b/g;
-/** *.env token: path chars then ".env" ending the token (prod.env.example stays green). */
-const ENVFILE_RE = /[A-Za-z0-9_.~/-]*\.env(?![A-Za-z0-9_./-])/g;
-
-/** *.env location-shape gate (see matchCredLocation header for the calibration evidence). */
-function envTokenIsLocation(tok: string): boolean {
-  const stem = tok.slice(0, -".env".length);
-  if (stem === "") return true;
-  if (/[\/~]/.test(stem)) return true;
-  const parts = stem.split(".");
-  const receiver = parts[parts.length - 1] ?? "";
-  if (receiver === "process" || receiver === "os") return false;
-  return receiver.length >= 3;
-}
-
-/**
- * Credential-BEARING LOCATIONS referenced by the outgoing text — position, not
- * value (plan: "位置 ≠ 值"): ~/.pypirc, SSHPASS (env var name), *.env files.
- * T5-calibrated (2026-09-25 self-scan: 186/354 raw tree matches were JS
- * property access like process.env / o.env / x?.env, not disk locations):
- * a *.env token counts only when it names the file itself, carries a path
- * prefix, or has a real file-stem receiver (≥3 chars, never the process/os
- * API names); the JS optional-chain read `x?.env` never counts.
- */
-export function matchCredLocation(text: string, _o: RuleOptions): RuleHit[] {
-  const hits: RuleHit[] = [];
-  const push = (matched: string, line: number): void => {
-    hits.push({ rule: "exfil-cred-location", matched, line, message: "Reference to a credential-bearing location (env file / pypirc / SSHPASS); the location itself, value not required to fire." });
-  };
-  text.split("\n").forEach((body, idx) => {
-    for (const m of body.matchAll(PYPIRC_RE)) push(m[0] ?? "", idx + 1);
-    for (const m of body.matchAll(SSHPASS_RE)) push(m[0] ?? "", idx + 1);
-    for (const m of body.matchAll(ENVFILE_RE)) {
-      const tok = m[0] ?? "";
-      if ((body[(m.index ?? 0) - 1] ?? "") === "?") continue;
-      if (envTokenIsLocation(tok)) push(tok, idx + 1);
-    }
-  });
-  return hits;
-}
-
-// ---------------------------------------------------------------- exfil-host-profile
-
-/** Conservative multi-signal table (plan: 要素 ≥2 同段, closed regex set). */
-const PROFILE_SIGNALS: ReadonlyArray<{ readonly name: string; readonly re: RegExp }> = [
-  { name: "os+version", re: /\b(?:Ubuntu|Debian|Raspbian|CentOS|Rocky Linux|AlmaLinux|Amazon Linux|Red Hat Enterprise Linux|RHEL|Windows Server|SUSE Linux Enterprise|Fedora)\s+v?[0-9][0-9.]*/i },
-  { name: "no-docker", re: /\bno docker\b|\bdocker\b[^\n]{0,24}?\bnot (?:installed|present|available|running)\b|\bwithout docker\b|\bno container (?:runtime|engine)\b/i },
-  { name: "sudo-pattern", re: /\bpasswordless sudo\b|\bnopasswd\b|\bsudo\b[^\n]{0,24}?\b(?:without|needs?|requires?) (?:a )?password\b|\b(?:needs?|requires?) (?:a )?password\b[^\n]{0,12}?\bsudo\b/i },
-];
-
-/**
- * Host-fingerprint disclosure: ≥2 DISTINCT signal groups (os+version /
- * no-docker / sudo pattern) inside the SAME paragraph (blank-line-split
- * block). Deliberately conservative: one signal never fires. The matched
- * value is the SIGNAL-NAME CLUSTER, never the paragraph text (privacy +
- * nothing raw on the Finding). Phase-2 note (plan): bare user@hostname and
- * semantic combos ride ledger rows later — this predicate stays silent there.
- */
-export function matchHostProfile(text: string, _o: RuleOptions): RuleHit[] {
-  const hits: RuleHit[] = [];
-  let paraLines: string[] = [];
-  let paraStart = 1;
-  const flush = (): void => {
-    if (paraLines.length === 0) return;
-    const para = paraLines.join("\n");
-    const found = PROFILE_SIGNALS.filter((s) => s.re.test(para)).map((s) => s.name);
-    if (found.length >= 2) {
-      hits.push({ rule: "exfil-host-profile", matched: found.join("+"), line: paraStart, message: `Host configuration fingerprint: ${String(found.length)} profile signals (os+version / no-docker / sudo-pattern) clustered in one paragraph.` });
-    }
-    paraLines = [];
-  };
-  text.split("\n").forEach((body, idx) => {
-    if (body.trim() === "") {
-      flush();
-      return;
-    }
-    if (paraLines.length === 0) paraStart = idx + 1;
-    paraLines.push(body);
-  });
-  flush();
-  return hits;
-}
+// ---------------------------------------------------------------- path & profile rules (250-LOC ceiling split)
+//
+// matchHomePath / matchCredLocation / matchHostProfile live in rulesPath.ts
+// and are re-exported here so every consumer keeps importing the five
+// predicates from one module. Type-only imports keep that pair acyclic.
+export { matchCredLocation, matchHomePath, matchHostProfile } from "./rulesPath.ts";

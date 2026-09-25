@@ -562,7 +562,7 @@ rules:
     names: [Acme CI]
     allowBots: true
   hosts: ["git.internal.acme.example"]      # turned into detection patterns
-  ips: ["10.20.30.40"]
+  ips: ["192.0.2.1"]
   pathPatterns: ["/Users/*", "*.pfx"]
   maxFileKB: 500                            # oversized-file threshold (default)
 allow:                                      # enumerated suppressions, never blanket

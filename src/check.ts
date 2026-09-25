@@ -29,6 +29,8 @@ import { gatherContext, runGitChecked, type CheckContext } from "./check/context
 import { applyAllowList } from "./check/allow.ts";
 import { filterBorderStateFindings } from "./check/exclusions.ts";
 import { acquireLock, BORDER_STATE_DIR, releaseLock } from "./check/lock.ts";
+import { scanExfilTree } from "./check/exfilTreeScan.ts";
+import { scanCommitMessages } from "./check/messageScan.ts";
 import { hasBlockingResidueCapability, proofFindings, RESIDUE_RULE_IDS } from "./check/proofValve.ts";
 import { computeCheckKey, computeCheckRulesHash } from "./check/rulesHash.ts";
 import { twinCoherenceFindings } from "./rules/releaseCoherence.ts";
@@ -146,6 +148,23 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
   }
   findings.push(...scanAiArtifacts({ repoDir, refSet: [...ctx.refSet], cfg: o.cfg.rules, ...envOpt }));
   findings.push(...scanIdentity({ repoDir, refSet: [...ctx.refSet], cfg: o.cfg, ...envOpt }));
+  // T2/T3 exfil lens (plan §分面契约): the native tree leg carries the MEDIUM
+  // family on the blob face (the HIGH family's tree face belongs to the twins
+  // above), and the message leg scans `exfil-*:message` over the will-publish
+  // range (endpoint unresolvable ⇒ whole ref, identity.ts:144-146). BOTH ride
+  // with the native rules OUTSIDE the broken.has gates — "native 腿不吃引擎
+  // 健康守卫": a degraded engine may never silence them.
+  findings.push(...filterBorderStateFindings(scanExfilTree({ repoDir, hosts: o.cfg.rules.hosts, ...legOptions(o, sanitizer) }), repoDir));
+  findings.push(...filterBorderStateFindings(
+    scanCommitMessages({
+      repoDir,
+      refSet: ctx.refSet.length > 0 ? [...ctx.refSet] : [ctx.headSha],
+      remotes: o.cfg.targets.git.remotes,
+      hosts: o.cfg.rules.hosts,
+      ...legOptions(o, sanitizer),
+    }),
+    repoDir,
+  ));
 
   // GAP B (todos 11+12 wired end-to-end): packed/built bytes are scanned HERE, in
   // the full-check path only — the SKIP path consults the ledger before executeCheck,
