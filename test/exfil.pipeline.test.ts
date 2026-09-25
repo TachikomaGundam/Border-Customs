@@ -33,7 +33,7 @@ import { DEFAULT_EXEMPT_BANDS, EXFIL_TWIN_PATTERNS, matchRfc1918, matchSshTarget
 import { scanMessageText, scanTreeText } from "../src/exfil/scan.ts";
 import { GITLEAKS_VENDORED_CONFIG } from "../src/engines/gitleaks.ts";
 import { requireGitleaks } from "./helpers/require-engines.ts";
-import { BORDER_ROOT, assembleOctet, gitAddCommit, gitInit, makeFixtureDir, removeDir, writeRel } from "./helpers/fixtures.ts";
+import { BORDER_ROOT, assembleHost, assembleOctet, gitAddCommit, gitInit, makeFixtureDir, removeDir, writeRel } from "./helpers/fixtures.ts";
 
 requireGitleaks();
 
@@ -49,7 +49,7 @@ function fixture(name: string): string {
 }
 
 /** The same planted text drives every channel fixture: one hit per matrix family. */
-const PROBE_TEXT = `peer ${assembleOctet("10.31.4", "5")} joined\nssh synthuser@synthdb.internal now\ncopy /home/synthuser/x done\nrotate staging.env nightly\n`;
+const PROBE_TEXT = `peer ${assembleOctet("10.31.4", "5")} joined\nssh ${assembleHost("synthuser", "synthdb", "internal")} now\ncopy /home/synthuser/x done\nrotate staging.env nightly\n`;
 
 // ---------------------------------------------------------------- TWIN-ID-EQUALITY (real artifacts)
 
@@ -221,13 +221,13 @@ test("VERDICT-PARITY: native tree policy, secretlint twin and gitleaks twin agre
     `real one-nine-two ${REAL_192}`,
     "ssh band synthuser@10.200.30.40",
     `ssh real synthuser@${REAL_172}`,
-    "ssh suffix deploy@synth-one.lan",
+    `ssh suffix ${assembleHost("deploy", "synth-one", "lan")}`,
     "mail synthuser@example.com",
     `version string 1.${REAL_10} no-match`,
   ];
   const text = `${corpus.join("\n")}\n`;
 
-  const expected = new Set([sha(REAL_10), sha(REAL_172), sha(REAL_192), sha(`synthuser@${REAL_172}`), sha("deploy@synth-one.lan")]);
+  const expected = new Set([sha(REAL_10), sha(REAL_172), sha(REAL_192), sha(`synthuser@${REAL_172}`), sha(assembleHost("deploy", "synth-one", "lan"))]);
   for (const band of ["10.200.30.40", "10.200.13.37", "synthuser@10.200.30.40"]) {
     assert.ok(!expected.has(sha(band)), `band member ${band} must be green on every channel`);
   }

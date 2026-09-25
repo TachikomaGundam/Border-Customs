@@ -67,8 +67,8 @@ function scanBlobsNative(git: CliGit, blobs: readonly BlobRef[]): Finding[] {
   return findings;
 }
 
-/** Tip tree: native MEDIUM on the blob map + both twins on the materialized text tree (exfil ids only). */
-async function scanTipTree(git: CliGit, treeRoot: string, rev: string, env: Readonly<Record<string, string | undefined>>): Promise<Finding[]> {
+/** Tip tree: native MEDIUM on the blob map + both twins on the materialized text tree (exfil ids only). Exported for the S3 landing pass (same tip-scan machinery, one source). */
+export async function scanTipTree(git: CliGit, treeRoot: string, rev: string, env: Readonly<Record<string, string | undefined>>): Promise<Finding[]> {
   const blobs = tipTree(git, rev);
   const texts = blobTexts(git, blobs);
   const native: Finding[] = [];

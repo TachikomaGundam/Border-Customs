@@ -78,7 +78,31 @@ export type RoundtripRecord = {
 
 export type RoundtripVerdict = RoundtripRecord["verdict"];
 
-export type LedgerRecord = CheckRecord | PushRecord | RoundtripRecord;
+/**
+ * S3 landing-verification record (plan §S3): minted ONLY by the post-push
+ * landing pass over a git target after a real push. A FACT log like roundtrip:
+ * clean AND blocked landings are both recorded; an UNREACHABLE verification
+ * mints nothing (there is no fact to record — "PASS 不背书公开面").
+ * Executed push records are never rewritten: landing appends, ever.
+ */
+export const LANDING_VERDICTS = ["clean", "blocked"] as const;
+export type LandingVerdict = (typeof LANDING_VERDICTS)[number];
+
+export type LandingRecord = {
+  readonly t: "landing";
+  /** the fingerprint key the push was certified under (join to check/push rows). */
+  readonly key: string;
+  readonly target: string;
+  readonly ref: string;
+  /** the remote's observed tip sha at verification time. */
+  readonly remoteSha: string;
+  readonly verdict: LandingVerdict;
+  readonly blocking: number;
+  readonly rulesHash: string;
+  readonly ts: string;
+};
+
+export type LedgerRecord = CheckRecord | PushRecord | RoundtripRecord | LandingRecord;
 
 export function ledgerPath(repoDir: string): string {
   return join(repoDir, BORDER_STATE_DIR, LEDGER_FILE);
@@ -145,6 +169,37 @@ export function buildRoundtripRecord(i: {
 
 function bad(msg: string): never {
   throw new Error(msg);
+}
+
+/** S3: landing records are minted here so the hex/enum/shape gates cannot be skipped by consumers (buildRoundtripRecord precedent). */
+export function buildLandingRecord(i: {
+  readonly key: string;
+  readonly target: string;
+  readonly ref: string;
+  readonly remoteSha: string;
+  readonly verdict: LandingVerdict;
+  readonly blocking: number;
+  readonly rulesHash: string;
+  readonly ts?: string;
+}): LandingRecord {
+  if (!HEX64.test(i.key)) bad("key is not hex-shaped");
+  if (!HEX64.test(i.rulesHash)) bad("rulesHash is not hex-shaped");
+  if (!HEX40.test(i.remoteSha)) bad("remoteSha is not hex-shaped");
+  if (i.target === "") bad("target must be non-empty");
+  if (i.ref === "") bad("ref must be non-empty");
+  if (!(LANDING_VERDICTS as readonly string[]).includes(i.verdict)) bad(`verdict must be one of ${LANDING_VERDICTS.join("|")}, got '${i.verdict}'`);
+  if (!Number.isInteger(i.blocking) || i.blocking < 0) bad("blocking must be a non-negative integer");
+  return {
+    t: "landing",
+    key: i.key,
+    target: i.target,
+    ref: i.ref,
+    remoteSha: i.remoteSha,
+    verdict: i.verdict,
+    blocking: i.blocking,
+    rulesHash: i.rulesHash,
+    ts: i.ts ?? new Date().toISOString(),
+  };
 }
 
 function needString(o: Record<string, unknown>, field: string): string {
@@ -251,6 +306,23 @@ export function parseLedgerRecord(value: unknown): LedgerRecord {
       verdict,
       rulesHash: needHex(o, "rulesHash", HEX64),
       rows,
+      ts: needString(o, "ts"),
+    };
+  }
+  if (t === "landing") {
+    const verdict = needString(o, "verdict");
+    if (!(LANDING_VERDICTS as readonly string[]).includes(verdict)) bad(`verdict must be one of ${LANDING_VERDICTS.join("|")}, got '${verdict}'`);
+    const blocking = o.blocking;
+    if (typeof blocking !== "number" || !Number.isInteger(blocking) || blocking < 0) bad("blocking must be a non-negative integer");
+    return {
+      t: "landing",
+      key: needHex(o, "key", HEX64),
+      target: needString(o, "target"),
+      ref: needString(o, "ref"),
+      remoteSha: needHex(o, "remoteSha", HEX40),
+      verdict: verdict as LandingVerdict,
+      blocking,
+      rulesHash: needHex(o, "rulesHash", HEX64),
       ts: needString(o, "ts"),
     };
   }
