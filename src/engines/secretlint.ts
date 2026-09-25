@@ -34,6 +34,7 @@ import { creator as patternCreator, type PatternType } from "@secretlint/secretl
 import { creator as presetRecommendCreator } from "@secretlint/secretlint-rule-preset-recommend";
 import type { SecretLintCoreConfig, SecretLintCoreResultMessage } from "@secretlint/types";
 
+import { EXFIL_TWIN_PATTERNS } from "../exfil/rules.ts";
 import { type Finding } from "../findings.ts";
 import { redact, type TextSanitizer } from "../redact.ts";
 import {
@@ -136,6 +137,11 @@ function generatePatterns(rules: SecretlintRulesInput | undefined): {
   for (const ip of rules?.ips ?? []) optionPatterns.push(makePattern(`internal-ip:${ip}`, ip, true, compiled));
   for (const pp of rules?.pathPatterns ?? []) optionPatterns.push(makePattern(`path-pattern:${pp}`, pp, true, compiled));
   for (const dflt of DEFAULT_PATH_PATTERNS) optionPatterns.push(makePattern(`path-pattern:${dflt}`, dflt, false, compiled));
+  // T2 exfil twins (plan §分面契约 row 1): the HIGH family rides this channel
+  // with emission id = pattern name, kept VERBATIM equal to the src/exfil rule
+  // ids — single-sourced from EXFIL_TWIN_PATTERNS, so a core edit rotates the
+  // rulesHash (the pattern bytes ship inside the fingerprinted module).
+  for (const twin of EXFIL_TWIN_PATTERNS) optionPatterns.push(makePattern(twin.name, twin.source, false, compiled));
   return { optionPatterns, compiled };
 }
 

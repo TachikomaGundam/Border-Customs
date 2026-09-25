@@ -13,7 +13,7 @@
 // gate-blocked⇒1, gate-unavailable⇒2. It must never print a misleading 0.
 import type { BorderExit } from "./exit.ts";
 
-export const SUBCOMMANDS = ["check", "push", "status", "llm-request", "llm-ingest", "scan", "roundtrip", "opencode"] as const;
+export const SUBCOMMANDS = ["check", "push", "status", "llm-request", "llm-ingest", "scan", "roundtrip", "opencode", "exfil"] as const;
 
 export type Subcommand = (typeof SUBCOMMANDS)[number];
 
@@ -28,6 +28,8 @@ export type Flags = {
   readonly json: boolean;
   /** `border roundtrip` proof leg: undefined/true = record (default ON), false only via --no-record. */
   readonly record?: boolean;
+  /** `border exfil --deep`: reachable-history blobs + commit messages on top of the default tip tree + tag notes. */
+  readonly deep?: boolean;
 };
 
 export type Writer = (line: string) => void;

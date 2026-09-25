@@ -45,7 +45,7 @@ copyFileSync(join(root, "src", "rules", "releaseCoherence.ts"), join(releaseSrc,
 // CLOSED at check time (MissingRulesInputError ⇒ exit 2), never a silent pass.
 const exfilSrc = join(dest, "exfil-src");
 mkdirSync(exfilSrc, { recursive: true });
-for (const base of ["severity.ts", "rules.ts", "scan.ts"]) {
+for (const base of ["severity.ts", "rules.ts", "rulesPath.ts", "scan.ts"]) {
   copyFileSync(join(root, "src", "exfil", base), join(exfilSrc, base));
 }
 console.log("assets staged into dist/assets/");

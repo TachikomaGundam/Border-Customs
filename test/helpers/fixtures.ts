@@ -174,6 +174,18 @@ export function writeRel(dir: string, relPath: string, content: string | Buffer)
 }
 
 /**
+ * F3 fixture doctrine (plan border-exfil-lens, round-3 ruling): production-visible
+ * checked-out bytes must never carry a full RFC1918 dotted quad outside the
+ * exempt 10.200/16 band. Unit tests that need REAL-SHAPE red hits (172.16/12,
+ * 192.168/16, non-band 10/8 arms) assemble them at runtime from octet parts —
+ * the on-disk source contains only 2-3 part prefixes, mirroring the
+ * self-stealth discipline of src/exfil/**.
+ */
+export function assembleOctet(prefix: string, suffix: string): string {
+  return `${prefix}.${suffix}`;
+}
+
+/**
  * Every git call is fenced to the fixture itself: GIT_CEILING_DIRECTORIES
  * stops repo discovery from walking up into border's OWN repository (a leak
  * here commits planted secrets into the product repo), and the explicit .git
