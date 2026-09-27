@@ -10,7 +10,7 @@
 import { resolveRepoDir } from "../check/context.ts";
 import { EXIT_ERROR, EXIT_PASS, type BorderExit } from "../cli/exit.ts";
 import type { Ctx } from "../cli/types.ts";
-import { loadConfig } from "../config.ts";
+import { loadConfig, remoteTrackingDrift } from "../config.ts";
 import { type CheckRecord, type PushRecord, readLedger } from "../ledger.ts";
 import { gitTargetId } from "../gitTargetId.ts";
 
@@ -61,6 +61,15 @@ export function runStatus(ctx: Ctx): BorderExit {
     return EXIT_ERROR;
   }
   for (const w of ledger.warnings) ctx.stderr(`border: WARNING ${w}`);
+
+  try {
+    const drift = remoteTrackingDrift(repoDir);
+    const names = drift.configured.length > 0 ? drift.configured.join(", ") : "(none configured — nothing can ever be pushed)";
+    const orphanNote = drift.orphans.length > 0 ? ` — DRIFT: tracking refs without config for: ${drift.orphans.join(", ")}` : "";
+    ctx.stdout(`git remotes: ${names}${orphanNote}`);
+  } catch {
+    ctx.stdout("git remotes: (unknown — not a git repo?)");
+  }
 
   let newest: CheckRecord | undefined;
   for (const r of ledger.records) if (r.t === "check") newest = r;
