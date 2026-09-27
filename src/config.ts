@@ -329,6 +329,32 @@ function headFile(toplevel: string, rel: string): string {
   return r.stdout;
 }
 
+// provenance: .omo/plans/border-exfil-lens.md wave-A closeout (2026-09-25 remote
+// config wipe incident, E-CFG-CLOBBER in .omo/evidence/F-L4-*.md) — a repo whose
+// remote.* config entries vanish keeps no positive signal in targets; the honest
+// detectable signature is remote-tracking refs whose named remote is unconfigured.
+// Full wipes (refs gone too) cannot be detected as drift by any local means — they
+// get the status.ts visibility line instead, never a claimed guarantee.
+export function remoteTrackingDrift(cwd: string): { configured: string[]; orphans: string[] } {
+  const configured = parseRemoteV(runGit(cwd, ["remote", "-v"]).stdout)
+    .map((r) => r.name)
+    .filter((n): n is string => n !== undefined)
+    .sort();
+  const refs = runGit(cwd, ["for-each-ref", "--format=%(refname:lstrip=2)", "refs/remotes"]);
+  const refNames = new Set<string>();
+  if (refs.ok) {
+    for (const line of refs.stdout.split("\n")) {
+      const first = line.trim().split("/")[0];
+      if (first !== undefined && first !== "") {
+        refNames.add(first);
+      }
+    }
+  }
+  const configuredSet = new Set(configured);
+  const orphans = [...refNames].filter((n) => !configuredSet.has(n)).sort();
+  return { configured, orphans };
+}
+
 function hasTargets(cfg: BorderConfig): boolean {
   return cfg.targets.git.remotes.length > 0 || publishChannels().some((c) => c.configured(cfg));
 }

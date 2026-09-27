@@ -81,7 +81,7 @@ test("newest check + per-target push table incl. pending list", async () => {
   assert.match(r.out, /PASS/);
   assert.match(r.out, /ls-remote/);
   const lines = r.out.split("\n");
-  const gitRow = lines.find((l) => l.trim().startsWith("git"));
+  const gitRow = lines.find((l) => l.trim().startsWith("git") && !l.trim().startsWith("git remotes"));
   const npmRow = lines.find((l) => l.trim().startsWith("npm"));
   assert.ok(gitRow !== undefined && /pushed/.test(gitRow), `git row: ${gitRow}`);
   assert.ok(npmRow !== undefined && /pending/.test(npmRow), `npm row must be pending: ${npmRow}`);
@@ -95,7 +95,7 @@ test("push records under an OLDER key do not mark the newest check as pushed", a
   appendRecord(dir, buildPushRecord({ key: "0".repeat(64), target: "git", remoteName: "origin", url: "origin.example:widgets.git", localSha: ctx.headSha, remoteSha: "1".repeat(40), confirmedVia: "ls-remote" }));
   const r = await status(dir);
   assert.equal(r.code, EXIT_PASS);
-  const gitRow = r.out.split("\n").find((l) => l.trim().startsWith("git"));
+  const gitRow = r.out.split("\n").find((l) => l.trim().startsWith("git") && !l.trim().startsWith("git remotes"));
   assert.ok(gitRow !== undefined && /pending/.test(gitRow), `stale-key push must not satisfy ${rec.key8}: ${gitRow}`);
 });
 

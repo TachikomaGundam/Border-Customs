@@ -23,7 +23,7 @@ import { computeEffectiveTargets, resolveRepoDir } from "../check/context.ts";
 import { computeConfigDigest, type LoadedConfig } from "../check/rulesHash.ts";
 import { EXIT_BLOCKED, EXIT_ERROR, EXIT_PASS, type BorderExit } from "../cli/exit.ts";
 import type { Ctx } from "../cli/types.ts";
-import { loadConfig } from "../config.ts";
+import { loadConfig, remoteTrackingDrift } from "../config.ts";
 import { computeFingerprint, latestPassCoveringTargets, readLedger } from "../ledger.ts";
 import { derivePushState, formatTargetLine, pushableTargets, recordPushSuccess, PushStateError, type PushStateResult } from "../pushstate.ts";
 import { confirmRemoteBranch, DIVERGED_MESSAGE, executePush, fastForwardGuard, type GitRemoteTarget } from "../push/git.ts";
@@ -58,6 +58,18 @@ export async function runPush(ctx: Ctx): Promise<BorderExit> {
   });
   if (loaded.kind === "no-op") {
     for (const warning of loaded.warnings) ctx.stderr(`border: ${warning}`);
+    let orphans: string[] = [];
+    try {
+      orphans = remoteTrackingDrift(resolveRepoDir(ctx.cwd, { env: ctx.env })).orphans;
+    } catch {
+      orphans = [];
+    }
+    if (orphans.length > 0) {
+      ctx.stderr(
+        `border: remote config drift — remote-tracking refs exist for UNCONFIGURED remotes: ${orphans.join(", ")}; their remote.* entries are gone (wiped or partial clone). Restore them or prune the refs; refusing to report this as a no-op.`,
+      );
+      return EXIT_ERROR;
+    }
     ctx.stdout("border: no targets discovered — nothing to push (NO-OP)");
     return EXIT_PASS;
   }
