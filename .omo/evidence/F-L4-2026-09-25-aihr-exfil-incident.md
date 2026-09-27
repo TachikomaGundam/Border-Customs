@@ -62,3 +62,21 @@ entries, nothing whitewalled. Owner-side confirmation: public AIHR anchors
 measured CLEAN on re-probe (H-1/H-2 landed by owner); truth lane auto-archived
 by its lifetime clause. History-side identifiers (border and AIHR) remain a
 human disclosure decision — border detects, never erases.
+
+## E-CFG-CLOBBER (2026-09-27 23:10 +0800 system clock, discovered at push attempt)
+
+.git/config wiped 09-25 10:57:35 to bare [core] (remote.origin, branch.main, ALL
+sections gone; remote-tracking refs gone too — ls showed refs/remotes empty). NOT
+perpetrated by this session (commands argv-logged; controlled experiment:
+before/after sha256 of .git/config over a full `npm test` run = UNTOUCHED) nor by
+repo tests. Clock correction: my 09-25 dates on wave-A artifacts stand (system was
+at 09-25 during the wave; wall clock now 09-27 — the wipe predates wave-A round-2
+dispatch, inside the round-1/verification window). Recovery: remote + branch config
+restored (git@github.com:TachikomaGundam/Border-Customs.git; ls-remote + fetch green,
+remote tip 0677de8 as expected). Guard productized in 0.6.0: orphan-ref drift =>
+push refuses false NO-OP (exit 2); status prints permanent remotes visibility line.
+Honest limit: a wipe that also prunes refs (this case) is locally undetectable as
+DRIFT — visibility, not detection. Culprit attribution: left OPEN for the human;
+candidate external actors with $HOME write on 09-25 morning include the parallel
+AIHR-session window (owner's own workspace work). border objects/history verified
+intact by fsck (one dangling tag = 09-24 retag churn).
