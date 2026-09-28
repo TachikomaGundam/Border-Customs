@@ -18,6 +18,10 @@ const POLL_INTERVAL_MS = 500;
 const POLL_DEADLINE_MS = 60_000;
 
 function pathHasOpenCode(): string {
+  const override = process.env["BORDER_OPENCODE_BIN"] ?? "";
+  if (override.length > 0) {
+    return existsSync(override) ? override : "";
+  }
   const paths = (process.env["PATH"] ?? "").split(":").filter((p) => p.length > 0);
   for (const dir of paths) {
     for (const name of ["opencode", "opencode.cmd"]) {
@@ -63,13 +67,25 @@ test("probe: installed plugin registers exactly one border command and the borde
     return;
   }
 
+  // Anti-vacuous-green clause (plan border-opencode-v2-plugin T3b): when the
+  // probe is explicitly opted in (env=1), a missing prerequisite FAILS loudly
+  // with its remedy named — a skip under opt-in is how the 2026-09-25/28 waves
+  // nearly passed on air (E-CFG-CLOBBER left no `opencode` on PATH here).
+  const optedIn = process.env["BORDER_OPENCODE_PROBE"] === "1";
   const opencodeBin = pathHasOpenCode();
   if (opencodeBin.length === 0) {
-    t.skip("no `opencode` binary found on PATH — build the probe environment and rerun");
+    const remedy = "set BORDER_OPENCODE_BIN=/path/to/opencode (or put it on PATH)";
+    if (optedIn) {
+      throw new Error(`probe opted in but no opencode binary resolves — ${remedy}`);
+    }
+    t.skip(`no \`opencode\` binary found on PATH — ${remedy}`);
     return;
   }
   const distIndex = join(BORDER_ROOT, "dist", "index.js");
   if (!existsSync(distIndex)) {
+    if (optedIn) {
+      throw new Error("probe opted in but dist/index.js is not built — run `npm run build` first");
+    }
     t.skip(`dist/index.js is not built (gitignored); run npm run build first`);
     return;
   }
