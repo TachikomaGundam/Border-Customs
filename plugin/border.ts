@@ -6,9 +6,17 @@
 // the human gate: nothing here can push for real (a bare `border push` is a
 // DRY-RUN by the CLI's own contract, and `--yes` is refused outright).
 //
-// V1 plugin format (opencode >= 1.14): default export { id, server }, where
+// Dual-shape default export — one module, two host generations:
+// V1 plugin format (opencode >= 1.18.29, object entry): { id, server }, where
 // server(input, options) resolves to Hooks; Hooks.tool is a
-// { [name]: ToolDefinition } record (see @opencode-ai/plugin).
+// { [name]: ToolDefinition } record (see @opencode-ai/plugin). The V1 host
+// ignores the extra `setup` key (this is the official dual-shape form).
+// V2 plugin format (@opencode-ai/cli beta line): the loader accepts only
+// { id, setup } (or { id, effect }) and silently drops anything else, so the
+// SAME tool registers through setup(ctx) -> ctx.tool.transform ->
+// editor.add(Info). Both edges share the pre-spawn gate (gateArgv) and the
+// execute substance (buildToolResult) below, so behavior stays identical;
+// test/opencode.v2shape.test.ts pins V1↔V2 rendering and refusal parity.
 // This file ships as-is (package.json "files") and reaches a session by two
 // routes, neither compiling it through border's tsc:
 // (A) copied into <CONFIG>/plugins/ by `border opencode install`, which also
@@ -234,8 +242,160 @@ contract: it reports the verdict the gate would produce without touching any
 remote.
 `;
 
+// --- V2 loader surface: local structural types ---------------------------------
+// shape proven from @opencode-ai/plugin beta-19271 .d.ts; live-gated by
+// test/opencode.v2.probe (plan T3). Deliberately NO V2 SDK import here (wave
+// plan D1/R3 pending): only the two members the setup() seam touches are
+// typed — ctx.tool.transform and editor.add — everything else stays opaque.
+
+/** Parsed tool input, mirroring the V1 args schema (command required, extra optional). */
+interface V2ToolArgs {
+  readonly command: string;
+  readonly extra?: readonly string[];
+}
+
+/** The V2 promise-entry result envelope: the rendered text in `content`. */
+interface V2ToolResult {
+  readonly content: string;
+}
+
+/** One tool registration handed to ToolEditor.add by the transform callback. */
+export interface V2ToolInfo {
+  readonly name: string;
+  readonly description: string;
+  /** Pure JSON Schema — ValueSchema accepts it without a schema-library import. */
+  readonly input: Record<string, unknown>;
+  readonly execute: (args: V2ToolArgs, context?: unknown) => Promise<V2ToolResult>;
+}
+
+export interface V2ToolEditor {
+  add(info: V2ToolInfo): void;
+}
+
+interface V2ToolRegistry {
+  transform(callback: (editor: V2ToolEditor) => void): Promise<unknown>;
+}
+
+export interface V2PluginContext {
+  readonly tool: V2ToolRegistry;
+}
+
+/**
+ * The ONE tool description, byte-shared by both edges: the V1 tool() schema
+ * and the V2 Info both render exactly this text (single source of truth).
+ */
+const TOOL_DESCRIPTION =
+  "Run the border fail-closed push-gate CLI on this machine. " +
+  "Pass the top-level command word in `command` (one of: check, push, status, " +
+  "llm-request, llm-ingest, scan, roundtrip, --help) and every remaining argv " +
+  "token in `extra`. The call is spawned argv-only (no shell) with a 300s " +
+  "timeout; the result always ends with the CLI exit code: 0 pass, 1 " +
+  "gate-blocked or partial push, 2 gate could not answer. Before running your " +
+  "argv the tool handshakes its binary candidate with `--help` and refuses " +
+  "everything (exit 2, cannot-answer) unless the responder provably is the " +
+  "border CLI — it never falls back to another binary. Honest privilege " +
+  "note: this tool runs the border CLI, and the CLI IS the gate that decides " +
+  "what leaves this machine — it carries the same power as the binary, so an " +
+  "agent may only *ask* the gate, never bypass it. `push --yes` is " +
+  "deliberately NOT reachable here: real pushes are the human gate and belong " +
+  "to a terminal. A bare `border push` through this tool is a DRY-RUN by the " +
+  "CLI's own contract.";
+
+/**
+ * The pre-spawn gate — the deliberate seam split, load-bearing for security:
+ *   gateArgv(argv) decides WHETHER the argv may run at all (allowlist
+ *   membership, `--yes` refusal) and returns the refusal text or null;
+ *   buildToolResult(argv) does the actual work (handshake, spawn, render)
+ *   and NEVER re-gates — it trusts its caller.
+ * Every edge (today: V1 tool.execute and V2 Info.execute) MUST call gateArgv
+ * BEFORE buildToolResult. A future edge that skips the gate silently gets no
+ * gating; test/opencode.v2shape.test.ts pins refusal parity on both edges.
+ */
+function gateArgv(argv: readonly string[]): string | null {
+  const command = argv[0] ?? "";
+  if (!ALLOWED_COMMANDS.includes(command)) {
+    return (
+      `border: refused '${command}' — not an allowed command. ` +
+      `Allowed: ${ALLOWED_COMMANDS.join(", ")}. Put the command word in 'command' ` +
+      `and every other token in 'extra'.`
+    );
+  }
+  if (argv.includes("--yes")) {
+    return (
+      `border: refused '${command}' with '--yes' — a real push is the human gate ` +
+      `and happens in a terminal. Run \`border push --yes\` there if a visible ` +
+      `human go-ahead exists. A bare \`border push\` through this tool is a ` +
+      `DRY-RUN by the CLI's own contract.`
+    );
+  }
+  return null;
+}
+
+/**
+ * The tool-execute substance shared by both edges (wave plan D2): resolve the
+ * CLI via resolveVerified (identity handshake included), spawn it argv-only
+ * via runCli, render the sectioned result. No gates and no V1-only
+ * context.metadata here — those stay at each edge, see gateArgv above.
+ */
+async function buildToolResult(argv: readonly string[]): Promise<string> {
+  const resolution = await resolveVerified();
+  if (!resolution.ok) {
+    return [
+      `$ border ${argv.join(" ")}`,
+      "exit: 2",
+      `note: cannot-answer — no border CLI passed the identity handshake, so nothing was run. Tried: ${resolution.reasons.join("; ")}. ` +
+        "Remedies: point BORDER_BIN at a real border CLI, run 'border opencode install' (route A), or npm i -g border-customs (PATH entry).",
+      "--- stdout ---\n(empty)",
+      "--- stderr ---\n(empty)",
+    ].join("\n");
+  }
+  const result = await runCli(resolution.resolution, argv, TIMEOUT_MS);
+  if (result.spawnFailed) verified = null;
+  const sections = [
+    `$ border ${argv.join(" ")}`,
+    `exit: ${String(result.status)}`,
+  ];
+  if (result.note.length > 0) sections.push(`note: ${result.note}`);
+  sections.push(`--- stdout ---\n${result.stdout.length === 0 ? "(empty)" : result.stdout}`);
+  sections.push(`--- stderr ---\n${result.stderr.length === 0 ? "(empty)" : result.stderr}`);
+  return sections.join("\n");
+}
+
+/** The V2-side tool registration: same gate + same substance as the V1 tool. */
+function makeV2ToolInfo(): V2ToolInfo {
+  return {
+    name: "border",
+    description: TOOL_DESCRIPTION,
+    input: {
+      type: "object",
+      properties: {
+        command: { type: "string" },
+        extra: { type: "array", items: { type: "string" } },
+      },
+      required: ["command"],
+      additionalProperties: false,
+    },
+    execute: async (args: V2ToolArgs): Promise<V2ToolResult> => {
+      const argv: readonly string[] = [args.command.trim(), ...(args.extra ?? [])];
+      const refusal = gateArgv(argv);
+      if (refusal !== null) return { content: refusal };
+      return { content: await buildToolResult(argv) };
+    },
+  };
+}
+
 export default {
+  // Shared plugin id: the V1 host reads it for the {id, server} object entry
+  // and the V2 loader reads this same id for its {id, setup} schema check.
   id: "border",
+  setup: async (ctx: V2PluginContext): Promise<void> => {
+    // transform's return is awaited (Promise<Registration>), but the callback
+    // body itself must stay SYNCHRONOUS — only editor.add inside, any async
+    // work belongs in Info.execute (contract E3; pinned by v2shape test (d)).
+    await ctx.tool.transform((editor: V2ToolEditor): void => {
+      editor.add(makeV2ToolInfo());
+    });
+  },
   server: async () => ({
     // Self-registering /border: opencode calls hook.config(cfg) once per
     // instance after ALL config sources are merged — file-based commands are
@@ -251,22 +411,7 @@ export default {
     },
     tool: {
       border: tool({
-        description:
-          "Run the border fail-closed push-gate CLI on this machine. " +
-          "Pass the top-level command word in `command` (one of: check, push, status, " +
-          "llm-request, llm-ingest, scan, roundtrip, --help) and every remaining argv " +
-          "token in `extra`. The call is spawned argv-only (no shell) with a 300s " +
-          "timeout; the result always ends with the CLI exit code: 0 pass, 1 " +
-          "gate-blocked or partial push, 2 gate could not answer. Before running your " +
-          "argv the tool handshakes its binary candidate with `--help` and refuses " +
-          "everything (exit 2, cannot-answer) unless the responder provably is the " +
-          "border CLI — it never falls back to another binary. Honest privilege " +
-          "note: this tool runs the border CLI, and the CLI IS the gate that decides " +
-          "what leaves this machine — it carries the same power as the binary, so an " +
-          "agent may only *ask* the gate, never bypass it. `push --yes` is " +
-          "deliberately NOT reachable here: real pushes are the human gate and belong " +
-          "to a terminal. A bare `border push` through this tool is a DRY-RUN by the " +
-          "CLI's own contract.",
+        description: TOOL_DESCRIPTION,
         args: {
           command: tool.schema
             .string()
@@ -276,47 +421,13 @@ export default {
             .optional()
             .describe("remaining argv tokens, e.g. ['--force']"),
         },
+        // V1 edge: gate → V1-only metadata → shared substance (see gateArgv).
         execute: async (args, context) => {
-          const command = args.command.trim();
-          if (!ALLOWED_COMMANDS.includes(command)) {
-            return (
-              `border: refused '${command}' — not an allowed command. ` +
-              `Allowed: ${ALLOWED_COMMANDS.join(", ")}. Put the command word in 'command' ` +
-              `and every other token in 'extra'.`
-            );
-          }
-          const extra = args.extra ?? [];
-          if (extra.includes("--yes")) {
-            return (
-              `border: refused '${command}' with '--yes' — a real push is the human gate ` +
-              `and happens in a terminal. Run \`border push --yes\` there if a visible ` +
-              `human go-ahead exists. A bare \`border push\` through this tool is a ` +
-              `DRY-RUN by the CLI's own contract.`
-            );
-          }
-          const argv: readonly string[] = [command, ...extra];
+          const argv: readonly string[] = [args.command.trim(), ...(args.extra ?? [])];
+          const refusal = gateArgv(argv);
+          if (refusal !== null) return refusal;
           context.metadata({ title: `border ${argv.join(" ")}` });
-          const resolution = await resolveVerified();
-          if (!resolution.ok) {
-            return [
-              `$ border ${argv.join(" ")}`,
-              "exit: 2",
-              `note: cannot-answer — no border CLI passed the identity handshake, so nothing was run. Tried: ${resolution.reasons.join("; ")}. ` +
-                "Remedies: point BORDER_BIN at a real border CLI, run 'border opencode install' (route A), or npm i -g border-customs (PATH entry).",
-              "--- stdout ---\n(empty)",
-              "--- stderr ---\n(empty)",
-            ].join("\n");
-          }
-          const result = await runCli(resolution.resolution, argv, TIMEOUT_MS);
-          if (result.spawnFailed) verified = null;
-          const sections = [
-            `$ border ${argv.join(" ")}`,
-            `exit: ${String(result.status)}`,
-          ];
-          if (result.note.length > 0) sections.push(`note: ${result.note}`);
-          sections.push(`--- stdout ---\n${result.stdout.length === 0 ? "(empty)" : result.stdout}`);
-          sections.push(`--- stderr ---\n${result.stderr.length === 0 ? "(empty)" : result.stderr}`);
-          return sections.join("\n");
+          return buildToolResult(argv);
         },
       }),
     },
