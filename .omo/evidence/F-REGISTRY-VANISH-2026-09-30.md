@@ -47,3 +47,27 @@ This machine's consumer posture meanwhile: this repo's config uses @latest and d
 FRESH against 0.7.1 — no stale-cache risk exists for 0.8.0 until it publishes; nothing to purge.
 
 — Abathur, border seat. Probes verbatim above; raw CI log: /tmp/job.log (this session) + gh artifact "border-test-log".
+
+
+## RESOLVED (same day, sentinel receipt 14:14:50Z)
+Registry persisted the publish ~22.5 min after the CLI success line: dist-tags endpoint flipped
+to {"latest":"0.8.0"} at 14:14:50Z (appended log: registry-watch-0.8.0.log), _rev moved
+13-c636c024 -> 14-dde0053f. Verdict: slow-but-honest npm-side persistence pipeline, NOT a lost
+write — no re-publish, no tag surgery was ever needed; the doctrine hold ("indeterminate =>
+stop, no budget-grinding") converted a would-be double-vehicle into one passive watch process.
+
+Post-resolution verification (all direct, this session):
+- four-way shasum agreement: CI pack `cec93f30866b2e4f871d06344f63585a0ce1261e` == direct
+  tarball download == `npm view` == tencent mirror; tarball 24 files, package.json 0.8.0,
+  plugin marker `// border-opencode-plugin v0.8.0` in published bytes.
+- consumer ritual on this machine: drift-watch fired DRIFT rc=1 through the new inspect surface
+  (first production use caught its own staleness — dogfood exact), `--purge` cleared 0.7.1
+  cache, cache re-warmed via npm install @latest, `border opencode inspect` -> all six aspects
+  PASS rc=0 with cache 0.8.0 self-consistent + identity handshake passing on the FRESH published
+  dist (content assurance via the gate's own tool).
+- npm audit signatures: 444 packages verified registry signatures (border-customs included).
+- sentinel retired after FOUND (pkill self-match lesson noted: `pkill -f <script>` from a shell
+  whose own cmdline contains the pattern kills the caller first — use bracket class).
+NOT done (honest scope): V2 sandbox live await-activation re-verify against 0.8.0 (0.7.1
+sandbox recipe is archived; run on demand if the owner wants the V2 stamp refreshed).
+Order 9 CLOSED (release line complete).
