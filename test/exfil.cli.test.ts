@@ -142,9 +142,12 @@ test("URL mode: offline file:// remote is fetched, scanned --deep, and the temp 
   assert.deepEqual(leftovers, [], "every fetched sandbox is destroyed even on a FAIL verdict");
 });
 
-test("plugin boundary (plan §S2): 'exfil' is NOT added to the opencode adapter's command allowlist", () => {
+test("plugin surface (owner ruling R1, 2026-09-30): 'exfil' IS on the opencode adapter's command allowlist", () => {
   const plugin = readFileSync(join(BORDER_ROOT, "plugin", "border.ts"), "utf8");
   const m = /const ALLOWED_COMMANDS: readonly string\[\] = \[([\s\S]*?)\];/.exec(plugin);
   assert.ok(m, "the closed allowlist block exists");
-  assert.ok(!m[1]?.includes('"exfil"'), "ledger follow-up wave decides plugin surface — not this one");
+  // 0.6.0 deferred this to a named wave (.omo/plans/border-exfil-lens.md:56); the ruling packet
+  // .omo/evidence/F-EXFIL-ALLOWLIST-RULING-2026-09-30.md passed the four-question gate (no
+  // mutation / no credentials / no foreign-byte exec / no local egress) and the owner ordered it.
+  assert.ok(m[1]?.includes('"exfil"'), "owner-ruled R1: exfil rides the audited plugin path");
 });

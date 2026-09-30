@@ -1,4 +1,4 @@
-// border-opencode-plugin v0.7.1
+// border-opencode-plugin v0.8.0
 // Official opencode plugin adapter for the border fail-closed push gate.
 // Registers ONE agent tool, `border`, that drives the border CLI — argv-only
 // (node:child_process execFile, never a shell), top-level commands restricted
@@ -65,6 +65,7 @@ const ALLOWED_COMMANDS: readonly string[] = [
   "llm-ingest",
   "scan",
   "roundtrip",
+  "exfil",
   "--help",
 ];
 
@@ -230,7 +231,7 @@ User request: $ARGUMENTS
 
 Interpret the request as ONE \`border\` CLI invocation: the first word is the
 command (\`check\`, \`push\`, \`status\`, \`llm-request\`, \`llm-ingest\`, \`scan\`,
-\`roundtrip\`, or \`--help\`) and the rest are argv tokens. Call the \`border\` tool
+\`roundtrip\`, \`exfil\`, or \`--help\`) and the rest are argv tokens. Call the \`border\` tool
 with \`command\` set to the first word and \`extra\` set to the remaining tokens,
 then report the CLI exit code (0 pass / 1 gate-blocked or partial push / 2 gate
 could not answer) and the relevant lines of its output. If no request was given,
@@ -287,7 +288,7 @@ export interface V2PluginContext {
 const TOOL_DESCRIPTION =
   "Run the border fail-closed push-gate CLI on this machine. " +
   "Pass the top-level command word in `command` (one of: check, push, status, " +
-  "llm-request, llm-ingest, scan, roundtrip, --help) and every remaining argv " +
+  "llm-request, llm-ingest, scan, roundtrip, exfil, --help) and every remaining argv " +
   "token in `extra`. The call is spawned argv-only (no shell) with a 300s " +
   "timeout; the result always ends with the CLI exit code: 0 pass, 1 " +
   "gate-blocked or partial push, 2 gate could not answer. Before running your " +
