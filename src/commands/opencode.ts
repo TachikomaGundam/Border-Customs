@@ -15,18 +15,25 @@
 // a single foreign/odd target writes nothing anywhere, and every write is
 // preceded by a fresh identity re-check (TOCTOU).
 
-import { createHash } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import os from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { EXIT_ERROR, EXIT_PASS, UnknownArgError, type BorderExit } from "../cli/exit.ts";
 import type { Ctx } from "../cli/types.ts";
+import { runInspectCore } from "../opencode/inspect.ts";
+import {
+  COMMAND_MARKER,
+  PLUGIN_MARKER,
+  firstLine,
+  opencodeConfigRoot,
+  sha256Hex,
+  type Env,
+} from "../opencode/contract.ts";
 
-/** First-line identity markers (the packaged assets must start with these prefixes). */
-export const PLUGIN_MARKER = "// border-opencode-plugin v";
-export const COMMAND_MARKER = "<!-- border-opencode-command -->";
+// Markers and the config-root rule live in the src/opencode/support.ts leaf,
+// shared with the inspector (single source); re-exported for existing importers.
+export { COMMAND_MARKER, PLUGIN_MARKER, opencodeConfigRoot };
 
 /** One installable artifact: packaged source -> opencode destination. */
 interface AssetTarget {
@@ -36,14 +43,6 @@ interface AssetTarget {
 }
 
 type TargetState = "up-to-date" | "outdated" | "foreign" | "absent";
-
-/** The opencode config root: $XDG_CONFIG_HOME or $HOME/.config (os.homedir() as last resort). */
-export function opencodeConfigRoot(env: Readonly<Record<string, string | undefined>>): string {
-  const xdg = env["XDG_CONFIG_HOME"] ?? "";
-  if (xdg.length > 0) return xdg;
-  const home = env["HOME"] ?? "";
-  return join(home.length > 0 ? home : os.homedir(), ".config");
-}
 
 // Packaged assets live at <root>/plugin/ — two levels above src/commands/ in
 // src mode, one level above dist/ in dist (bundled) mode; the assets.ts idiom
@@ -58,22 +57,12 @@ function resolvePluginAsset(moduleUrl: string, fileName: string): string {
   return candidates.find((p) => existsSync(p)) ?? (candidates[1] as string);
 }
 
-function targetsFor(env: Readonly<Record<string, string | undefined>>): readonly AssetTarget[] {
+function targetsFor(env: Env): readonly AssetTarget[] {
   const root = join(opencodeConfigRoot(env), "opencode");
   return [
     { fileName: "border.ts", destination: join(root, "plugins", "border.ts"), marker: PLUGIN_MARKER },
     { fileName: "border-command.md", destination: join(root, "commands", "border.md"), marker: COMMAND_MARKER },
   ];
-}
-
-function sha256(bytes: Buffer): string {
-  return createHash("sha256").update(bytes).digest("hex");
-}
-
-function firstLine(bytes: Buffer): string {
-  const text = bytes.toString("utf8");
-  const newline = text.indexOf("\n");
-  return newline < 0 ? text : text.slice(0, newline);
 }
 
 function carriesMarker(bytes: Buffer, marker: string): boolean {
@@ -196,8 +185,8 @@ function opencodeStatus(ctx: Ctx): BorderExit {
   for (const { target, packaged } of prepared) {
     const current = readTarget(target.destination);
     const state = classify(target, current, packaged);
-    const installedSha = current === null ? "-" : sha256(current);
-    ctx.stdout(`${target.destination}: ${state}  installed=${installedSha}  packaged=${sha256(packaged)}`);
+    const installedSha = current === null ? "-" : sha256Hex(current);
+    ctx.stdout(`${target.destination}: ${state}  installed=${installedSha}  packaged=${sha256Hex(packaged)}`);
   }
   return EXIT_PASS;
 }
@@ -225,23 +214,30 @@ function opencodeUninstall(ctx: Ctx): BorderExit {
   return EXIT_PASS;
 }
 
-export function runOpencode(ctx: Ctx): BorderExit {
-  const [sub, ...rest] = ctx.positionals;
-  if (rest.length > 0) {
-    throw new UnknownArgError(
-      `opencode ${sub ?? "<none>"}: unexpected argument '${rest[0] ?? ""}' — usage: border opencode install | status | uninstall`,
-    );
-  }
+export function runOpencode(ctx: Ctx): BorderExit | Promise<BorderExit> {
+  // Plan T3: strip the --json flag BEFORE subcommand dispatch. cli.ts
+  // parseFlags already folds known global flags into ctx.flags.json, so this
+  // filter only bites if an argv ever reaches us as a positional.
+  const [sub, ...restAll] = ctx.positionals;
+  const rest = restAll.filter((arg) => arg !== "--json");
+  const USAGE = "usage: border opencode install | status | uninstall | inspect";
   switch (sub) {
     case "install":
-      return opencodeInstall(ctx);
     case "status":
-      return opencodeStatus(ctx);
     case "uninstall":
-      return opencodeUninstall(ctx);
+    case "inspect": {
+      if (rest.length > 0) {
+        throw new UnknownArgError(`opencode ${sub}: unexpected argument '${rest[0] ?? ""}' — ${USAGE}`);
+      }
+      const table: Record<"install" | "status" | "uninstall" | "inspect", (c: Ctx) => BorderExit | Promise<BorderExit>> = {
+        install: opencodeInstall,
+        status: opencodeStatus,
+        uninstall: opencodeUninstall,
+        inspect: runInspectCore,
+      };
+      return table[sub](ctx);
+    }
     default:
-      throw new UnknownArgError(
-        `opencode: unknown subcommand '${sub ?? "<none>"}' — usage: border opencode install | status | uninstall`,
-      );
+      throw new UnknownArgError(`opencode: unknown subcommand '${sub ?? "<none>"}' — ${USAGE}`);
   }
 }
