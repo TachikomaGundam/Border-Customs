@@ -358,7 +358,7 @@ test("R4-DOC: README names all seven residue rule ids with severities matching t
   assert.ok(readme.includes("0.4.0"), "roundtrip valve pointer = 0.4.0");
   assert.ok(readme.includes("### 0.3.0"), "Changelog 0.3.0 entry present");
   const pkg = JSON.parse(readFileSync(join(BORDER_ROOT, "package.json"), "utf8")) as { version: string };
-  assert.equal(pkg.version, "0.7.1", "v0.7.1 supersedes the 0.7.0 pin: I4 verdaccio-log ruler race fixed for the release gate (package.json remains the single version source)");
+  assert.equal(pkg.version, "0.8.0", "v0.8.0 supersedes the 0.7.1 pin: border opencode inspect load-surface audit + exfil on the plugin allowlist (package.json remains the single version source)");
 });
 
 // ---------------------------------------------------------------- 7. contract-doc secret-literal guard

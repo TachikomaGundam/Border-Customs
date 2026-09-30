@@ -51,18 +51,18 @@ README/T6 的 boundary-honesty 段同一句话：inspect 只审计 V1 装载面�
 
 ## 交付分解
 
-- [ ] T1 core：新 `src/opencode/inspect.ts`（+ 小 `aspects/` 拆分若超 250 LOC 上限），
+- [x] T1 core：新 `src/opencode/inspect.ts`（+ 小 `aspects/` 拆分若超 250 LOC 上限），
   纯函数 + 注入缝（fs 根、env、fetcher——fetcher 复用 src/scan/fetch.ts 的
   ScanFetcher 型 src/scan/fetch.ts:42；registry base URL 可注入）+ **runner 注入缝**
   `runner(candidate, argv) => Promise<{status, stdout, stderr}>`（M2：aspect 3 的握手探测经缝，
   单测不真 spawn 冒充体也能判；ScanFetcher 同风）。零 ledger 写入、零 check 管道依赖
   （scan 的 import-audit 合同照抄）。
-- [ ] T2 握手判定共享：插件 plugin/border.ts 内的判定串与 inspect 的判定串
+- [x] T2 握手判定共享：插件 plugin/border.ts 内的判定串与 inspect 的判定串
   **镜像钉死测试**（运行时 import COMMAND 已有先例——同法导出/常量比对，防两处漂移）。
-- [ ] T3 CLI 接线：runOpencode 子命令 parse + usage 行（src/cli.ts:38）+ 错误路径（未知子命令
+- [x] T3 CLI 接线：runOpencode 子命令 parse + usage 行（src/cli.ts:38）+ 错误路径（未知子命令
   仍 exit 2）。实现要点（MINOR）：runOpencode 现对任何 `rest.length>0` 抛错
   （src/commands/opencode.ts:230）——须先剥 `--json` flag 再判子命令。
-- [ ] T4 tools/plugin-drift-watch.mjs **退役为薄壳**：内部 spawn
+- [x] T4 tools/plugin-drift-watch.mjs **退役为薄壳**：内部 spawn
   `border opencode inspect --json`，**逐 aspect 映射**（取 aspects[1..2]，非顶层 verdict——
   aspect-3 identity FAIL 不得触发 cron purge）→ 原三态 rc。**映射定案（B2，不留现场裁量）**：
   aspect-1 之"无缓存"CANNOT **特判回落 rc 0（NOT-CACHED，向后兼容现状**：现脚本 :84/:103 就是
@@ -74,7 +74,7 @@ README/T6 的 boundary-honesty 段同一句话：inspect 只审计 V1 装载面�
   候选序与后果：cron 落点将是 repo dist（可变工作树）。裁定：接受但具名——壳优先用
   `BORDER_BIN`（cron 行可带）或 repo dist 绝对路径，并在 F-INSPECT 证据里记录当次落点。
   脚本头部注明 verdict 单源=inspect。
-- [ ] T5 测试：逐 aspect 单测（HOME/XDG/registry-seam 全注入，离线默认；活网络 E2E 走
+- [x] T5 测试：逐 aspect 单测（HOME/XDG/registry-seam 全注入，离线默认；活网络 E2E 走
   env 开关门，同 scan 家风）；聚合优先序矩阵（F×C×P 组合）；cli 面（子命令表 + exit 2
   路径）；T2 镜像测试；T4 rc-mapping 单测含 NOT-CACHED→0 特判案例。**尺伤防复发条款（M2）**：
   任何 side-channel 计数断言必须走注入缝或同步屏障，**禁读异步日志行数**（verdaccio 6!==2
@@ -82,7 +82,7 @@ README/T6 的 boundary-honesty 段同一句话：inspect 只审计 V1 装载面�
   **基线数字（M3）**：全套件 = 现网基线 **794 / 779 pass / 2 恰 C5-1+C5-4 / 13 skips** + 新增，
   fail-set 不变；CI 口径 skips=12（runner-only 覆盖面已知差）——新增红或 skip 计数漂移 =
   publish.yml sanctioned-failure 闭集直接拒发。
-- [ ] T6 文档+dogfood：README opencode 节 + changelog **0.8.0**（版本单源纪律：
+- [x] T6 文档+dogfood：README opencode 节 + changelog **0.8.0**（版本单源纪律：
   package.json 为源，UA/测试钉随动 R4-DOC 同法：test/residue.config.test.ts:348 +
   test/releaseCoherence.test.ts；README 示例钉 `@0.7.1` 与插件 marker 行由该编舞自动轮转）；
   本机制真输出贴进 `.omo/evidence/F-INSPECT-0.8.0.md`；wiki 适配层页 follow-up ledger 勾账
