@@ -18,10 +18,17 @@ rules:
   authors:
     # Hardcoded from `git config user.email` == wiki@sumteclab.com and
     # `git config user.name` == Wiki.js (captured 2026-09-04 in this repo).
+    # 2026-09-30 OWNER RULING ("是，扩", order 8): the remote main lineage was
+    # deliberately identity-rewritten to the owner's GitHub noreply identity for
+    # GitHub attribution (forensics: .omo/evidence/F-MAINLINE-REWRITE-2026-09-30.md).
+    # Both identities are sanctioned from now on; the rewrite rotates rulesHash
+    # and invalidates every cached PASS by design.
     emails:
       - "wiki@sumteclab.com"
+      - "TachikomaGundam@users.noreply.github.com"
     names:
       - "Wiki.js"
+      - "TachikomaGundam"
   hosts: []
   ips: []
   # The repo's own absolute path must never leak outward: every occurrence of
