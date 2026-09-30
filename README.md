@@ -717,7 +717,7 @@ plugin entry ships as `exports["./server"]`):
 ```jsonc
 {
   // pin the exact version — an @latest channel hits the registry on every cold start
-  "plugin": ["border-customs@0.7.0"]
+  "plugin": ["border-customs@0.7.1"]
 }
 ```
 
@@ -814,6 +814,17 @@ code.
   lock makes concurrent runs exit 2 instead of racing.
 
 ## Changelog
+
+### 0.7.1 (2026-09-30)
+- Fix: **release-gate test ruler race** (`test/push.integration.test.ts` I4) — the
+  "dry-run made ZERO verdaccio requests" invariant counted lines in verdaccio's stdout
+  log, an eventually-consistent view: on a saturated CI runner the gate-leg probe lines
+  of an earlier phase land after the snapshot, inflating the dry-run delta (v0.7.0 CI
+  run 36671401844 failed `6 !== 2` while the identical bytes pass locally). The suite
+  now takes every snapshot through a FIFO drain barrier (sentinel request whose log line
+  must be visible before counting; sentinel traffic is excluded from the count). The
+  zero-network dry-run contract itself is unchanged — verified request-free on both sides
+  of the barrier; only the measuring instrument was repaired.
 
 ### 0.7.0 (2026-09-28)
 - Add: **OpenCode 2 (beta) plugin compatibility** — the plugin module is dual-shaped
@@ -988,6 +999,8 @@ code.
 MIT, see [LICENSE](LICENSE).
 
 ## 中文概要
+
+**0.7.1（2026-09-30）发布门禁尺伤修复**：I4 集成测试的"dry-run 对 registry 零请求"断言按 verdaccio stdout 日志行计数，而日志是最终一致视图——CI 满载 runner 上更早阶段的合法 probe 行晚于快照落盘，把差额错记到 dry-run 头上（v0.7.0 run 36671401844 红 `6 !== 2`，同字节本机绿）。修复=尺子不松语义：所有快照前后加 FIFO drain 屏障（哨兵请求行可见⇒先前请求行必已落盘；哨兵流量不计入计数）。dry-run 零网络契约本身未动，两侧实测请求为零。
 
 **0.7.0（2026-09-28）OpenCode 2（beta）兼容**：插件模块双形状——V1 宿主调 `server()`（对象入口需 ≥1.18.29），V2 宿主（`opencode2`）调 `setup(ctx)` 经 `ctx.tool.transform` 注册同一个工具；spawn 前门（allowlist/`--yes`）与 0.5.1 身份握手两形状共享，双边渲染逐字 parity 由测试钉死。V2 懒激活（断言前须 `POST /api/plugin/await-activation`）；`/border` 命令暂仅 V1（V2 投递 API 未定形）；已在 beta-19271 项目本地两形态活体验证。V1 活体探针反真空化：opt-in 缺前提即 FAIL 点名补救。
 
