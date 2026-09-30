@@ -12,4 +12,6 @@
 | 2b | 2026-09-24 | （承 2）inspect 计划 REVISE 待修 | Momus 4 项 blocking 折进 v2 | 计划稿 `.omo/plans/border-opencode-inspect.md` + Momus 判词（会话记录） | OPEN（波序由 owner 裁定后与订单 5 产品化一起排） |
 | 6 | 2026-09-28 | “确保插件能够适用于Opencode V2”→“继续，直到你对生成的内容满意” | V2 宿主真实装载 border：注册且执行过、1.x 零回归，双宿主活体为验收物 | 0.7.0 全链（5 commits：不变核 b9ddf67 → T3b+异常判破 f0927f6 → bump+终验 5542a55 + tag）；V2=beta-19271 活体 `border: active`（真 tarball→npm install→目录路由终验）；V1 探针 4/4 + flaky 根因判破（孤儿 serve 端口 squatter，非探针代码）；矩阵只印已证事实 | **BUILD CLOSED，发布待人类 push**；如实余项一条：V2 宿主内 execute 级实测需 session+模型凭据，未做——现证 = active（含 editor.add 接纳、setup 真抛会记 failed）+ 双边 execute 字节 parity 单测 + 同一执行体在 V1 宿主通道内活体绿（0.5.1 起）。push+发布后 T6 复验即全关 |
 
+| 7 | 2026-09-30 | （push 后实况登记，非用户新令）0.7.0 发布线 CI 红：run `36671401844` release gate 失败于 `I4 dry-run registry lines`（push.integration.test.ts:335，CI 实跑 expected 2 actual 6 verdaccio 请求；本机套件绿——runner-only 覆盖面） | npm 上出现 0.7.x 构件且发布链三方一致，或具名修复裁定入档 | OPEN——归因方向：dry-run 路径新增网络腿（landing/探针计数？）；复现=本地起 verdaccio 或 BORDER_ROUNDTRIP_DOCKER 类 env 门（读测试头）；tag v0.7.0 已推远端=不可重写，修复前进版 v0.7.1（具名决定）或人类删重打 | **OPEN（最高优先）** |
+
 注：本订单是 HANDOFF（2026-09-22）的正式闭环。此前会话对该通道的判定"不可信，直到修复"——修复已完成，通道可信性要到 0.5.1 实际装载进会话后成立。**闭环判定已成立（订单 2 行内：重启后 banner 实测）**。附带交付：发布礼仪（publish → drift-watch --purge）与两个待裁定尾巴（cron 哨兵档位、publish.yml 礼仪提示）见 2026-09-24 会话报告。
