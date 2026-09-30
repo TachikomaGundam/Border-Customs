@@ -35,7 +35,7 @@ export function usage(): string {
     "  llm-ingest     record provenance captured by the harness",
     "  scan           inspect a third-party package ([ecosystem:]name@version) for residue",
     "  roundtrip      install+uninstall a package (registry spec or local artifact file) in a throwaway container, report uninstall residue",
-    "  opencode       install|status|uninstall the official opencode plugin adapter (files under $XDG_CONFIG_HOME/opencode)",
+    "  opencode       install|status|uninstall|inspect the official opencode plugin adapter (files under $XDG_CONFIG_HOME/opencode; inspect = read-only V1 load-surface audit)",
     "  exfil          read-only exfil-lens scan of <ref|url> [ref...]: tip tree + tag notes (--deep adds reachable-history blobs + commit messages)",
     "",
     "flags:",
