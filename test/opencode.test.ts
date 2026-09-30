@@ -268,7 +268,7 @@ test("plugin: --help with the packaged dist resolves via the dist self-spawn", a
   assert.ok(res.includes("usage: border"), `dist --help must print the border usage:\n${res}`);
   assert.ok(res.includes("exit: 0"), `dist --help must exit 0:\n${res}`);
   // parity: the real CLI's help names the whole allowlist the tool exposes
-  for (const word of ["check", "push", "status", "llm-request", "llm-ingest", "scan", "roundtrip"]) {
+  for (const word of ["check", "push", "status", "llm-request", "llm-ingest", "scan", "roundtrip", "exfil"]) {
     assert.ok(res.includes(word), `dist --help must document the allowlisted command '${word}'`);
   }
 });
