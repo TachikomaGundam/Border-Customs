@@ -1,4 +1,4 @@
-// border-opencode-plugin v0.7.0
+// border-opencode-plugin v0.7.1
 // Official opencode plugin adapter for the border fail-closed push gate.
 // Registers ONE agent tool, `border`, that drives the border CLI — argv-only
 // (node:child_process execFile, never a shell), top-level commands restricted

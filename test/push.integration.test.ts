@@ -105,6 +105,17 @@ type LiveVerdaccio = {
   readonly url: string;
   requestCount(): number;
   putCount(): number;
+  /** I4-incident fix (v0.7.0 CI run 36671401844, `6 !== 2`): the log file is an
+   *  eventually-consistent view — verdaccio writes each response line AFTER the
+   *  response bytes go out, and under a saturated runner its event loop can lag
+   *  the awaiting client process by whole seconds, so a raw requestCount()
+   *  snapshot can miss an earlier phase's already-completed requests. The drain
+   *  is a FIFO barrier: it issues one sentinel GET and waits until that
+   *  sentinel's line is visible in the log. Single writer, synchronous ordered
+   *  writes ⇒ sentinel visible ⇒ every earlier line is already in the file.
+   *  Sentinel paths carry the "drain-" tag and are excluded from requestCount,
+   *  so barriers never inflate a snapshot. */
+  drain(): Promise<void>;
   stop(): Promise<void>;
 };
 
@@ -178,9 +189,21 @@ async function startVerdaccio(): Promise<LiveVerdaccio> {
   return {
     port,
     url,
-    requestCount: () => logLines().filter((l) => l.includes("http <--")).length,
+    // drain sentinels are measurement artifacts, not traffic under test: excluded.
+    requestCount: () => logLines().filter((l) => l.includes("http <--") && !l.includes("drain-")).length,
     // registries.test.ts:283 contract — the info line renders "requested 'PUT /widgets'"
     putCount: () => logLines().filter((l) => l.includes("requested 'PUT")).length,
+    drain: async () => {
+      const tag = `drain-${Math.random().toString(36).slice(2, 10)}`;
+      const res = await fetch(`${url}/${tag}`, { signal: AbortSignal.timeout(15_000) });
+      void res.status;
+      const deadline = Date.now() + 15_000;
+      for (;;) {
+        if (logLines().some((l) => l.includes(tag))) return;
+        if (Date.now() > deadline) throw new Error(`verdaccio drain sentinel '${tag}' never reached the log`);
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    },
     stop: async () => {
       if (stopped) return;
       stopped = true;
@@ -441,6 +464,10 @@ test("I4 dry-run registry lines: no-record honesty, then missing-bytes exit 2, t
   //     prints the exact publish command and touches the registry ZERO times.
   const stage = await runNpmArtifactStage({ repoDir: f.repo, cfg: f.registryCfg, env: f.env, skipGitleaks: true, skipSecretlint: true });
   assert.ok(stage.artifact !== null);
+  // Drain BEFORE the snapshot: (a)'s gate-leg registry probes are legitimate traffic,
+  // but their log lines may still be in flight on a loaded runner — counting them
+  // after hits0 would frame them as (c)'s dry-run traffic (v0.7.0 CI incident, 6 !== 2).
+  await v.drain();
   const hits0 = v.requestCount();
   const c = await runBorder(["push", "--config", f.cfgPath], f.repo, f.env);
   assert.equal(c.code, EXIT_PASS, dump(c));
@@ -448,6 +475,7 @@ test("I4 dry-run registry lines: no-record honesty, then missing-bytes exit 2, t
     c.out.some((l) => l.includes(`npm publish .border/dist/${basename("widgets-1.0.0.tgz")} --registry ${v.url}/`)),
     `exact publish line expected:\n${c.out.join("\n")}`,
   );
+  await v.drain();
   assert.equal(v.requestCount(), hits0, "dry-run made ZERO verdaccio requests (no probe, no re-pack network)");
   assert.equal(lsRemote(f.origin, "refs/heads/main"), null, "dry-run mutates no git remote");
   assert.equal(pushRecords(readLedger(f.repo).records).length, 0, "dry-run appends no push-record");
