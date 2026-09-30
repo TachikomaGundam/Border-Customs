@@ -86,6 +86,7 @@ test("hygiene: packaged assets carry the pinned markers and the plugin template 
   assert.equal(typeof deps["@opencode-ai/plugin"], "string", "the plugin adapter dependency must be declared");
   const files = pkg.files ?? [];
   assert.ok(Array.isArray(files) && files.includes("plugin"), 'package.json files must ship the "plugin" dir');
+  assert.ok(Array.isArray(files) && files.includes("index.ts"), 'files must ship the root index.ts V2 directory-discovery shim');
 
   const pluginSource = readFileSync(PLUGIN_PATH, "utf8");
   const pluginLines = pluginSource.split("\n");

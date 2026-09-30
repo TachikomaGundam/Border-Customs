@@ -717,7 +717,7 @@ plugin entry ships as `exports["./server"]`):
 ```jsonc
 {
   // pin the exact version — an @latest channel hits the registry on every cold start
-  "plugin": ["border-customs@0.6.0"]
+  "plugin": ["border-customs@0.7.0"]
 }
 ```
 
@@ -737,6 +737,18 @@ writes `plugins/border.ts` and `commands/border.md` into `$XDG_CONFIG_HOME/openc
 exit 2 and never overwritten, uninstall removes only marker-bearing files, and identical bytes
 report `up to date`. Either route, restart opencode afterwards — tools and commands are
 scanned at startup.
+
+**OpenCode 2 (beta) compatibility (0.7.0).** The same module is dual-shaped: V1 hosts call
+`server()` (object entry form, opencode ≥ 1.18.29 required); V2 hosts (`@opencode-ai/cli@beta`,
+bin `opencode2`) call `setup(ctx)` and register the identical tool through
+`ctx.tool.transform` — hand-written `{id, setup}` (the SDK's `define()` is identity), plain
+JSON Schema input, zero V2-SDK runtime dependency. Live-verified on beta-19271 via
+project-local `.opencode/plugins/` (both single-file and package-directory shapes; directory
+discovery resolves the root `index.ts` re-export, which is why the package ships it). V2
+activates plugins lazily — listing them requires `POST /api/plugin/await-activation` first.
+The `/border` slash command stays V1-only until the V2 command-delivery API settles; the
+`border` tool is the supported V2 surface. Config keys are shared (V2 normalizes
+`plugin`→`plugins`). Global file-drop discovery under V2 is untested and not claimed.
 
 What loads is one agent tool `border` plus a `/border` slash command. The tool spawns the CLI
 argv-only (no shell; 300 s cap, 64 KiB per stream) restricted to the closed command list
@@ -802,6 +814,20 @@ code.
   lock makes concurrent runs exit 2 instead of racing.
 
 ## Changelog
+
+### 0.7.0 (2026-09-28)
+- Add: **OpenCode 2 (beta) plugin compatibility** — the plugin module is dual-shaped
+  (`{id, setup}` for V2 hosts, frozen V1 `server()`), sharing the pre-spawn
+  allowlist/`--yes` gates and the 0.5.1 identity handshake across both shapes;
+  refusal/handshake/rendering byte-parity between edges is pinned by
+  `test/opencode.v2shape.test.ts` while the V1 path stays 16/16 on unmodified
+  tests. Root `index.ts` re-export shipped for V2 directory discovery (which
+  bypasses the exports map; live-proven on `@opencode-ai/cli` beta-19271).
+- Fix: the live V1 probe is anti-vacuous — opting in (`BORDER_OPENCODE_PROBE=1`)
+  without a resolvable binary or built dist now FAILS naming the remedy instead
+  of skipping green-adjacent (`BORDER_OPENCODE_BIN` override added).
+- Docs: support matrix (V1 object entry ≥ 1.18.29; V2 project-local verified;
+  `/border` command V1-only pending the V2 delivery API).
 
 ### 0.6.0 (2026-09-25)
 - Add: **the exfil lens** — five rules (`exfil-rfc1918`, `exfil-ssh-target`,
@@ -962,6 +988,8 @@ code.
 MIT, see [LICENSE](LICENSE).
 
 ## 中文概要
+
+**0.7.0（2026-09-28）OpenCode 2（beta）兼容**：插件模块双形状——V1 宿主调 `server()`（对象入口需 ≥1.18.29），V2 宿主（`opencode2`）调 `setup(ctx)` 经 `ctx.tool.transform` 注册同一个工具；spawn 前门（allowlist/`--yes`）与 0.5.1 身份握手两形状共享，双边渲染逐字 parity 由测试钉死。V2 懒激活（断言前须 `POST /api/plugin/await-activation`）；`/border` 命令暂仅 V1（V2 投递 API 未定形）；已在 beta-19271 项目本地两形态活体验证。V1 活体探针反真空化：opt-in 缺前提即 FAIL 点名补救。
 
 border 是一个 fail-closed(失败即拦截)的推送前门禁 CLI:`npm install -g border-customs` 安装,在仓库里跑 `border check`。它扫描 git 历史、工作区(未跟踪文件同样是一等输入)、归档、tag 注释和将要发布的 npm/PyPI/crates/RubyGems 字节,检出密钥与供应链风险;只有当"当前状态指纹"存在新鲜且完整的 PASS 记录时才允许 `border push --yes` 放行。指纹是 sha256(head、porcelain 摘要、规则哈希、暴露面、ref 集合、有效目标)六元组,任何一处变动,旧的 PASS 立即失效,必须重查。流水线:gitleaks(历史+工作区+tag,内置 8.30.1 规则,仓库自带的 ignore 文件直接判 CRITICAL)+ secretlint(进程内,AWS Key 规则强制开启)+ 原生规则(AI 会话产物闭集、提交身份白名单含传输对象检查)+ 注册表预检(版本已存在=必须 bump,名称被外人占有=拒绝;空响应/超时/解析失败一律 exit 2,沉默绝不等于不存在)。构件只构建一次进 `.border/dist/`,扫描的就是发布的字节,发布时再哈希比对,不一致直接拒发。跳过台账让重复检查不到 1 秒,但回放前先重算指纹并重新 pack 验证新鲜度。报告只输出掩码片段(sha256 摘要 + 前4…后4)。push 是多目标状态机,多 remote 先做全有或全无的 fast-forward 预检,永不 force-push;npm/twine/cargo/gem 的凭据经 stdio 透传,border 从不触碰。0.2.0 新增 crates.io 与 RubyGems 通道(公开 crates.io 固定、rubygems 可用 host 覆盖私有镜像),既有配置行为不变。0.3.0 新增残留扫描(residue gate):发布字节里的安装期钩子按 T0-T4 闭集签名表分类(闭集 T1 树内钩子降为 MEDIUM,未知形态原样保留 CRITICAL),外加跨包管理器写入、配对标记缺失(`# BEGIN` 块只检测不豁免)与 gem 不可解析扩展共七条 `residue-*` 规则;`residue.enabled` 是唯一豁免开关且改动指纹使旧 PASS 失效,规则表与分类器源码进入 rulesHash,改一个签名即强制重查。静态分析只证明"能力"不证明"事实",border 不是恶意软件沙箱,从不执行被读代码。0.4.0 新增证明阀
 `residue.requireProof`(默认关,strict):开启后,发布构件若触发阻断级 `residue-*` 发现,通道 PASS
