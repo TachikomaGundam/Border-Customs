@@ -1,0 +1,11 @@
+border: border check PASS: 10 finding(s), 0 blocking
+border: MEDIUM exfil-cred-location border-exfil README.md Reference to a credential-bearing location (env file / pypirc / SSHPASS); the location itself, value not required to fire.
+border: MEDIUM exfil-cred-location border-exfil README.md Reference to a credential-bearing location (env file / pypirc / SSHPASS); the location itself, value not required to fire.
+border: MEDIUM exfil-cred-location border-exfil README.md Reference to a credential-bearing location (env file / pypirc / SSHPASS); the location itself, value not required to fire.
+border: MEDIUM exfil-cred-location border-exfil README.md Reference to a credential-bearing location (env file / pypirc / SSHPASS); the location itself, value not required to fire.
+border: MEDIUM exfil-cred-location border-exfil border.yaml Reference to a credential-bearing location (env file / pypirc / SSHPASS); the location itself, value not required to fire.
+border: MEDIUM exfil-cred-location border-exfil border.yaml Reference to a credential-bearing location (env file / pypirc / SSHPASS); the location itself, value not required to fire.
+border: MEDIUM exfil-cred-location border-exfil border.yaml Reference to a credential-bearing location (env file / pypirc / SSHPASS); the location itself, value not required to fire.
+border: MEDIUM exfil-cred-location border-exfil border.yaml Reference to a credential-bearing location (env file / pypirc / SSHPASS); the location itself, value not required to fire.
+border: MEDIUM exfil-cred-location border-exfil tools/spike-secretlint.mjs Reference to a credential-bearing location (env file / pypirc / SSHPASS); the location itself, value not required to fire.
+border: MEDIUM exfil-cred-location border-exfil tools/spike-secretlint.mjs Reference to a credential-bearing location (env file / pypirc / SSHPASS); the location itself, value not required to fire.
