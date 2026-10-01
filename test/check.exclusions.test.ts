@@ -110,3 +110,38 @@ test("secretlint tracked-file scan skips .border/ at listing time", async () => 
   const findings = await scanGitTrackedFiles({ repoDir: dir, target: "git" });
   assert.deepEqual(findings.filter((f) => (f.path ?? "").split("/").includes(".border")), []);
 });
+
+// --- gate-config path-pattern self-exemption ---------------------------------
+import { suppressGateConfigPathPatterns, PATH_PATTERN_RULE_PREFIX } from "../src/check/exclusions.ts";
+
+function ppFinding(path: string | undefined): Finding {
+  return { ...finding(path), rule: `${PATH_PATTERN_RULE_PREFIX}\\\\[^\\\\]+\\\\` };
+}
+
+test("suppressGateConfigPathPatterns: exact config file exempted, everything else kept", () => {
+  const repoDir = "/a/repo";
+  const cfg = "/a/repo/border.yaml";
+  const findings = [
+    ppFinding("border.yaml"),                      // git leg: repo-relative
+    ppFinding(join(repoDir, "border.yaml")),       // tree leg: absolute
+    ppFinding("/else/border.yaml"),                // foreign same-name file: NOT exempt
+    ppFinding("src/lint.ts"),                      // other file, same rule: NOT exempt
+    { ...finding("border.yaml"), rule: "generic-api-key" }, // secret engine on config: NOT exempt
+    ppFinding("nested/border.yaml"),               // subdir lookalike: NOT exempt
+    ppFinding("/a/repo/border.yaml!inner"), // archive reattribution of the config: exempt
+  ];
+  const { kept, suppressed } = suppressGateConfigPathPatterns(findings, repoDir, cfg);
+  assert.equal(suppressed, 3);
+  assert.deepEqual(kept.map((f) => `${f.rule}|${f.path}`), [
+    "path-pattern:\\\\[^\\\\]+\\\\|/else/border.yaml",
+    "path-pattern:\\\\[^\\\\]+\\\\|src/lint.ts",
+    "generic-api-key|border.yaml",
+    "path-pattern:\\\\[^\\\\]+\\\\|nested/border.yaml",
+  ]);
+});
+
+test("suppressGateConfigPathPatterns: no config source ⇒ zero exemptions (fail-closed default)", () => {
+  const { kept, suppressed } = suppressGateConfigPathPatterns([ppFinding("border.yaml")], "/r", undefined);
+  assert.equal(suppressed, 0);
+  assert.equal(kept.length, 1);
+});

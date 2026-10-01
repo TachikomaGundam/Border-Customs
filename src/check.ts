@@ -1,4 +1,5 @@
 // provenance: original clean-room implementation per .omo/plans/border-push-gate.md todo 10
+import { createHash } from "node:crypto";
 //
 // The check pipeline — keystone wiring. Order (plan D1): ctx gathering → G22
 // state discipline + lock → tracked-state guard (round-5 B-R5-1, BEFORE any
@@ -27,7 +28,7 @@ import { scanAiArtifacts } from "./rules/aiArtifacts.ts";
 import { scanIdentity } from "./rules/identity.ts";
 import { gatherContext, runGitChecked, type CheckContext } from "./check/context.ts";
 import { applyAllowList } from "./check/allow.ts";
-import { filterBorderStateFindings } from "./check/exclusions.ts";
+import { filterBorderStateFindings, suppressGateConfigPathPatterns } from "./check/exclusions.ts";
 import { acquireLock, BORDER_STATE_DIR, releaseLock } from "./check/lock.ts";
 import { scanExfilTree } from "./check/exfilTreeScan.ts";
 import { scanCommitMessages } from "./check/messageScan.ts";
@@ -49,6 +50,10 @@ export type CheckPipelineOptions = {
   readonly env?: EngineOptions["env"];
   /** CLI --require-engine override for the engine policy probe. */
   readonly requireOverride?: readonly string[];
+  /** Absolute path of the border.yaml this run loaded (config self-exemption
+   *  of the path-pattern family; see check/exclusions.ts). Undefined ⇒ no file
+   *  was used (git-remote fallback) and nothing is exempt. */
+  readonly configSource?: string;
 };
 
 export type CheckOutcome = {
@@ -241,6 +246,25 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
   }
 
   const exposure = [...exposureSet(o.cfg, { cwd: repoDir })];
+  // Gate-config self-exemption (path-pattern family only, exact file the run
+  // loaded): rule IDs in border.yaml trip the heuristics with context-bound
+  // digests — no allow-list fixpoint exists. Suppressed count echoes as INFO
+  // so a PASS states what it hid. See check/exclusions.ts for the safety case.
+  const cfgExempt = suppressGateConfigPathPatterns(findings, repoDir, o.configSource);
+  if (cfgExempt.suppressed > 0) {
+    findings.length = 0;
+    findings.push(...cfgExempt.kept);
+    findings.push({
+      rule: "gate-config-path-exempt",
+      severity: "INFO",
+      target: "config",
+      ...(o.configSource !== undefined ? { path: o.configSource } : {}),
+      engine: "native",
+      message: `${String(cfgExempt.suppressed)} path-pattern finding(s) suppressed for the gate's own config file (self-referential rule-ID bytes; credential engines still cover it)`,
+      valueDigest: createHash("sha256").update(`gate-config-exempt:${String(o.configSource)}`).digest("hex"),
+      snippet: "gate-config-path-exempt",
+    });
+  }
   // G14 post-filter (todo 19): last gate before the verdict. Suppressed
   // findings never count/never block, but every suppression is enumerated in
   // report.allowHits — exit 0 must never hide what it hid.
