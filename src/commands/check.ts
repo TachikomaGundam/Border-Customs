@@ -96,6 +96,11 @@ export async function runCheck(ctx: Ctx): Promise<BorderExit> {
       ...(ctx.flags.requireEngine !== undefined && ctx.flags.requireEngine.length > 0
         ? { requireOverride: ctx.flags.requireEngine }
         : {}),
+      // config self-exemption binds to a REAL file path only — the "git-remote"/
+      // "<...>" source sentinels must never resolve onto a scanned content path.
+      ...(/^\/.*$/.test(effective.source) && !effective.source.startsWith("<")
+        ? { configSource: effective.source }
+        : {}),
     });
   } catch (err) {
     if (err instanceof BorderLockHeldError) {
