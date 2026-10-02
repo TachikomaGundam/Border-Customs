@@ -40,6 +40,7 @@ import {
 import {
   matchCredLocation,
   matchHomePath,
+  matchMachineBinding,
   matchHostProfile,
   matchRfc1918,
   matchSshTarget,
@@ -99,6 +100,7 @@ const PREDICATES: Readonly<Record<ExfilRuleId, (text: string, o: RuleOptions) =>
   "exfil-home-path": matchHomePath,
   "exfil-cred-location": matchCredLocation,
   "exfil-host-profile": matchHostProfile,
+  "exfil-machine-binding": matchMachineBinding,
 };
 
 /**

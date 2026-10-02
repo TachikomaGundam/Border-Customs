@@ -44,13 +44,14 @@
 export const EXFIL_SEVERITIES = ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
 export type ExfilSeverity = (typeof EXFIL_SEVERITIES)[number];
 
-/** The five exfil-lens rule ids, verbatim; twins must ship these ids byte-equal (T2 guard). */
+/** The exfil-lens rule ids, verbatim; twins must ship these ids byte-equal (T2 guard). */
 export const EXFIL_RULE_IDS = [
   "exfil-rfc1918",
   "exfil-ssh-target",
   "exfil-home-path",
   "exfil-cred-location",
   "exfil-host-profile",
+  "exfil-machine-binding",
 ] as const;
 export type ExfilRuleId = (typeof EXFIL_RULE_IDS)[number];
 
@@ -71,6 +72,7 @@ export const EXFIL_TABLE_SEVERITY: Readonly<Record<ExfilRuleId, ExfilSeverity>> 
   "exfil-home-path": "MEDIUM",
   "exfil-cred-location": "MEDIUM",
   "exfil-host-profile": "MEDIUM",
+  "exfil-machine-binding": "MEDIUM",
 };
 
 /** HIGH family: the two identity-carrying location rules; tree face belongs to the twins. */
@@ -85,7 +87,7 @@ export const EXFIL_HIGH_FAMILY: readonly ExfilRuleId[] = ["exfil-rfc1918", "exfi
  */
 export const EXFIL_SECRET_VALUE_RULES: readonly ExfilRuleId[] = EXFIL_HIGH_FAMILY;
 /** MEDIUM family: privacy-shape rules; native carries them on both scanned facets. */
-export const EXFIL_MEDIUM_FAMILY: readonly ExfilRuleId[] = ["exfil-home-path", "exfil-cred-location", "exfil-host-profile"];
+export const EXFIL_MEDIUM_FAMILY: readonly ExfilRuleId[] = ["exfil-home-path", "exfil-cred-location", "exfil-host-profile", "exfil-machine-binding"];
 
 /** null = FORBIDDEN cell: that channel must never emit that rule on that facet. */
 export type ObservedSeverity = ExfilSeverity | null;
@@ -96,6 +98,7 @@ const TWIN_HIGH: Readonly<Record<ExfilRuleId, ObservedSeverity>> = {
   "exfil-home-path": null,
   "exfil-cred-location": null,
   "exfil-host-profile": null,
+  "exfil-machine-binding": null,
 };
 const NULL_ROW: Readonly<Record<ExfilRuleId, ObservedSeverity>> = {
   "exfil-rfc1918": null,
@@ -103,13 +106,14 @@ const NULL_ROW: Readonly<Record<ExfilRuleId, ObservedSeverity>> = {
   "exfil-home-path": null,
   "exfil-cred-location": null,
   "exfil-host-profile": null,
+  "exfil-machine-binding": null,
 };
 
 /** The full (facet × channel × rule) truth table — the plan's 分面契约, machine-readable. */
 export const EXFIL_MATRIX: Readonly<Record<ExfilFacet, Readonly<Record<ExfilChannel, Readonly<Record<ExfilRuleId, ObservedSeverity>>>>>> = {
   tree: {
     // native tree leg = MEDIUM family补发 only (v2 double-emission revoked).
-    native: { ...NULL_ROW, "exfil-home-path": "MEDIUM", "exfil-cred-location": "MEDIUM", "exfil-host-profile": "MEDIUM" },
+    native: { ...NULL_ROW, "exfil-home-path": "MEDIUM", "exfil-cred-location": "MEDIUM", "exfil-host-profile": "MEDIUM", "exfil-machine-binding": "MEDIUM" },
     // gitleaks.ts:81 hardcodes CRITICAL for every ingested finding.
     "gitleaks-twin": TWIN_HIGH,
     // secretlint.ts:299-309 has no HIGH rung — error maps to CRITICAL as-is.

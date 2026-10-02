@@ -88,7 +88,8 @@ const GOLDEN_HEAD_SHA = "b838689d96b1a1cda8d2919ec3c716f23210a5f2";
 const GOLDEN_PORCELAIN_DIGEST = "5782837b399a70eb135d2f1c2ac96ba010ff6e13f1800e14e6b8b9416effd8e3";
 const GOLDEN_REFSET = ["refs/heads/main"];
 const GOLDEN_EFFECTIVE_TARGETS = ["git", "npm", "pypi"];
-const GOLDEN_RULES_HASH_NORMALIZED = "5392bdb9e01a9d2bd4a3088f9c400b0171a90819a186433f76313d57d4916f16";
+// rotation 2026-10-02: +exfil-machine-binding rule (L-MACHINE-LOCAL gate, incident-born).
+const GOLDEN_RULES_HASH_NORMALIZED = "772145d56d80ab86a4c0bd46d89b9302cf19e278eefef7954be87888d19fa29d";
 const GOLDEN_EXPOSURE = ["https://example.com/origin.git", "npm:widgets@1.0.0", "pypi:pushdemo@0.1.0"];
 const GOLDEN_DRYRUN_STDOUT = [
   "border DRY-RUN: no --yes, so nothing runs — this is the plan (m-R5-a) contract",

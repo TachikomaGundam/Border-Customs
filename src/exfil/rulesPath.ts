@@ -110,3 +110,31 @@ export function matchHostProfile(text: string, _o: RuleOptions): RuleHit[] {
   flush();
   return hits;
 }
+
+// ---------------------------------------------------------------- exfil-machine-binding
+
+/**
+ * L-MACHINE-LOCAL (owner ruling 2026-10-01; rule born 2026-10-02 after a
+ * vendor model id sat in another repo's portable README+code default for six
+ * releases unnoticed). Vendor inference-model identifiers pinned on portable
+ * surfaces couple a package to ONE operator's device authorization. Context
+ * gate: the line must ALSO speak of model/default/provider — prose mentions
+ * of a model name stay green (location, not vocabulary — mirrors the
+ * cred-location "position, not value" discipline).
+ * Self-stealth: literals are built in fragments so THIS file never trips
+ * its own regex.
+ */
+const BINDING_TOKEN = String.raw`\b(?:q` + "wen" + String.raw`|deep` + "seek" + String.raw`|kimi|g` + "lm" + String.raw`|ernie|dou` + "bao" + String.raw`|hunyuan|sp` + "ark" + String.raw`)[-\.\d][\w.-]*\b`;
+const BINDING_VENDOR_RE = new RegExp(BINDING_TOKEN, "gi");
+const BINDING_CONTEXT_RE = /(?:model|模型|default|默认|provider)/i;
+
+export function matchMachineBinding(text: string, _o: RuleOptions): RuleHit[] {
+  const hits: RuleHit[] = [];
+  text.split("\n").forEach((body, idx) => {
+    if (!BINDING_CONTEXT_RE.test(body)) return;
+    for (const m of body.matchAll(BINDING_VENDOR_RE)) {
+      hits.push({ rule: "exfil-machine-binding", matched: m[0] ?? "", line: idx + 1, message: "Machine binding: a vendor inference-model id pinned next to model/default/provider context — device authorization belongs in operator-local config, not portable surfaces (L-MACHINE-LOCAL)." });
+    }
+  });
+  return hits;
+}
