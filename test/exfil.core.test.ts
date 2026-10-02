@@ -71,7 +71,7 @@ test("MATRIX: message facet — native-exclusive :message family at table severi
   }
   assert.deepEqual(
     EXFIL_RULE_IDS.map((r) => EXFIL_TABLE_SEVERITY[r]),
-    ["HIGH", "HIGH", "MEDIUM", "MEDIUM", "MEDIUM"],
+    ["HIGH", "HIGH", "MEDIUM", "MEDIUM", "MEDIUM", "MEDIUM"],
     "plan rule table intent severities",
   );
 });
@@ -385,7 +385,7 @@ test("EXFIL-DOC: README renders every non-null EXFIL_MATRIX cell verbatim from t
       }
     }
   }
-  assert.equal(renderedCells, 12, "the matrix has exactly twelve observable cells (7 tree + 5 message); a new cell means a README + guard change together");
+  assert.equal(renderedCells, 14, "the matrix has exactly fourteen observable cells (8 tree + 6 message); a new cell means a README + guard change together");
   // null-cell prose duties: the facets the core must never emit on are named as such
   const lower = readme.toLowerCase();
   assert.ok(/tag notes? [^.]*never|never [^.]*tag notes?/.test(lower), "README must state the core never scans tag notes (engine owns that facet)");
