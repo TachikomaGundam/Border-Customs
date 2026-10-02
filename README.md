@@ -251,6 +251,7 @@ lives inside. The exfil lens adds five rules over the surfaces about to become p
 | `exfil-home-path` | `/home/<user>` and `C:\Users\<user>` shapes |
 | `exfil-cred-location` | `~/.pypirc`, `SSHPASS`, `*.env` credential-location shapes |
 | `exfil-host-profile` | multi-signal host fingerprints (os+version / no-docker / no-passwordless-sudo co-occurrences in one paragraph) |
+| `exfil-machine-binding` | vendor inference-model ids pinned on portable surfaces next to model/default/provider context (L-MACHINE-LOCAL; born 2026-10-02) |
 
 The severity a reader **observes** is the (rule × facet × channel) matrix, and its single
 home is [src/exfil/severity.ts](src/exfil/severity.ts) — the check pipeline, the
@@ -264,11 +265,13 @@ home is [src/exfil/severity.ts](src/exfil/severity.ts) — the check pipeline, t
 | `exfil-home-path` | tree | native | MEDIUM |
 | `exfil-cred-location` | tree | native | MEDIUM |
 | `exfil-host-profile` | tree | native | MEDIUM |
+| `exfil-machine-binding` | tree | native | MEDIUM |
 | `exfil-rfc1918` | message | native | HIGH |
 | `exfil-ssh-target` | message | native | HIGH |
 | `exfil-home-path` | message | native | MEDIUM |
 | `exfil-cred-location` | message | native | MEDIUM |
 | `exfil-host-profile` | message | native | MEDIUM |
+| `exfil-machine-binding` | message | native | MEDIUM |
 
 Why an observed `CRITICAL` stands where the intent table says HIGH: the twin channels have
 no HIGH rung — every ingested gitleaks finding carries CRITICAL, and secretlint's `error`
@@ -868,7 +871,7 @@ which is now a thin consumer of `inspect --json` with the rc contract unchanged
 
 ### 0.6.0 (2026-09-25)
 - Add: **the exfil lens** — five rules (`exfil-rfc1918`, `exfil-ssh-target`,
-  `exfil-home-path`, `exfil-cred-location`, `exfil-host-profile`) that flag
+  `exfil-home-path`, `exfil-cred-location`, `exfil-host-profile`, `exfil-machine-binding`) that flag
   exfil-shaped literals on about-to-be-public surfaces, the gap classic secret
   scanners leave open because an internal IP is not a credential. The observed
   severity of every (rule × facet × channel) cell lives in one machine-readable

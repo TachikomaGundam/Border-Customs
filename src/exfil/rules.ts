@@ -176,4 +176,4 @@ export function matchSshTarget(text: string, o: RuleOptions): RuleHit[] {
 // matchHomePath / matchCredLocation / matchHostProfile live in rulesPath.ts
 // and are re-exported here so every consumer keeps importing the five
 // predicates from one module. Type-only imports keep that pair acyclic.
-export { matchCredLocation, matchHomePath, matchHostProfile } from "./rulesPath.ts";
+export { matchCredLocation, matchHomePath, matchHostProfile, matchMachineBinding } from "./rulesPath.ts";
