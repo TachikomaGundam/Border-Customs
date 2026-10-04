@@ -31,6 +31,7 @@ import { applyAllowList } from "./check/allow.ts";
 import { filterBorderStateFindings, suppressGateConfigPathPatterns } from "./check/exclusions.ts";
 import { acquireLock, BORDER_STATE_DIR, releaseLock } from "./check/lock.ts";
 import { scanExfilTree } from "./check/exfilTreeScan.ts";
+import { scanTipTreeLens } from "./check/tipTreeLens.ts";
 import { scanCommitMessages } from "./check/messageScan.ts";
 import { hasBlockingResidueCapability, proofFindings, RESIDUE_RULE_IDS } from "./check/proofValve.ts";
 import { computeCheckKey, computeCheckRulesHash } from "./check/rulesHash.ts";
@@ -104,6 +105,11 @@ function legOptions(o: CheckPipelineOptions, sanitizer: TextSanitizer) {
   };
 }
 
+/** Identity of one finding AS SEEN BY A LENS: two legs that report the same rule+engine bytes at the same place/line/digest are one fact, reported once (the tip lens over a clean tree mirrors the disk lens exactly). */
+function lensIdentity(f: Finding): string {
+  return `${f.rule}\0${f.engine}\0${f.path ?? ""}\0${String(f.line ?? -1)}\0${f.valueDigest}`;
+}
+
 /** History scoping: gitleaks `--log-opts` receives the refSet as positive revs = "commits reachable from the refs a push would touch" (NOT --all). Detached HEAD with no tags falls back to the HEAD sha. */
 function historyRefRange(ctx: CheckContext): string {
   return ctx.refSet.length > 0 ? ctx.refSet.join(" ") : ctx.headSha;
@@ -170,6 +176,38 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
     }),
     repoDir,
   ));
+
+  // TIP LENS (2026-10-04 incident fix): landing verification (S3) judges the WHOLE
+  // pushed tip tree via scanTipTree; check used to certify only the range/disk
+  // lenses, so a green packet had no predictive power over the public face —
+  // merge-only tip bytes (git log -p skips merges) and tip files deleted from disk
+  // sailed through, and pins suppressed them at check while landing had no pins.
+  // The leg scans local HEAD (the exact commit push fast-forwards the branch to)
+  // with the SHARED machinery; findings merge before the allow list like every
+  // other leg, so owner rule+file+digest pins exempt matching tip bytes the same
+  // way in both faces — one lens, one standard. Exact twins of already-present
+  // disk-lens findings (same rule+engine+path+line+digest) are deduped so a clean
+  // tree's counts match the pre-fix report; tip-only bytes add NEW blocking facts.
+  // Any git failure throws (ConfigError ⇒ CLI exit 2 loud) — a silent empty tip
+  // scan is precisely the failure mode this leg exists to make impossible; the
+  // twin sub-legs inherit the existing broken-engine skips, the native leg never.
+  if (o.effectiveTargets.includes("git")) {
+    const tip = await scanTipTreeLens({
+      repoDir,
+      rev: ctx.headSha,
+      ...envOpt,
+      sanitizer,
+      skipGitleaks: broken.has("gitleaks"),
+      skipSecretlint: broken.has("secretlint"),
+    });
+    const seen = new Set(findings.map(lensIdentity));
+    for (const f of filterBorderStateFindings(tip, repoDir)) {
+      const id = lensIdentity(f);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      findings.push(f);
+    }
+  }
 
   // GAP B (todos 11+12 wired end-to-end): packed/built bytes are scanned HERE, in
   // the full-check path only — the SKIP path consults the ledger before executeCheck,

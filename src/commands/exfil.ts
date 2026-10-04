@@ -32,7 +32,7 @@ import { GITLEAKS_VENDORED_CONFIG, scanGitHistory, scanTree } from "../engines/g
 import { scanPaths } from "../engines/secretlint.ts";
 import { scanTreeText, type ExfilFinding } from "../exfil/scan.ts";
 import { computeVerdict, countFindings, type Finding, type Report } from "../findings.ts";
-import { sanitizeUrl } from "../redact.ts";
+import { sanitizeUrl, type TextSanitizer } from "../redact.ts";
 import { renderReportJson } from "../report.ts";
 import { blobTexts, historyBlobs, makeGit, tipTree, type BlobRef, type CliGit } from "./exfilGit.ts";
 
@@ -67,8 +67,18 @@ function scanBlobsNative(git: CliGit, blobs: readonly BlobRef[]): Finding[] {
   return findings;
 }
 
-/** Tip tree: native MEDIUM on the blob map + both twins on the materialized text tree (exfil ids only). Exported for the S3 landing pass (same tip-scan machinery, one source). */
-export async function scanTipTree(git: CliGit, treeRoot: string, rev: string, env: Readonly<Record<string, string | undefined>>): Promise<Finding[]> {
+/** Tip tree: native MEDIUM on the blob map + both twins on the materialized text tree (exfil ids only). Shared machinery for THREE faces: the exfil CLI, the S3 landing verification, and — since the 2026-10-04 incident fix — the check pipeline's tip lens (src/check/tipTreeLens.ts), so "green check" and "clean landing" judge literally the same scan. opts defaults reproduce the pre-fix behavior exactly: twins on, no sanitizer. skipGitleaks/skipSecretlint mirror the pipeline's broken-engine leg-skip; the native leg is pure in-process text and can never be skipped. */
+export async function scanTipTree(
+  git: CliGit,
+  treeRoot: string,
+  rev: string,
+  env: Readonly<Record<string, string | undefined>>,
+  opts?: {
+    readonly sanitizer?: TextSanitizer;
+    readonly skipGitleaks?: boolean;
+    readonly skipSecretlint?: boolean;
+  },
+): Promise<Finding[]> {
   const blobs = tipTree(git, rev);
   const texts = blobTexts(git, blobs);
   const native: Finding[] = [];
@@ -76,7 +86,15 @@ export async function scanTipTree(git: CliGit, treeRoot: string, rev: string, en
   for (const b of blobs) {
     const text = texts.get(b.sha);
     if (text === undefined) continue;
-    for (const f of scanTreeText({ text, source: b.path })) native.push(toTreeFinding(f));
+    for (const f of scanTreeText({
+      text,
+      source: b.path,
+      ...(opts?.sanitizer !== undefined
+        ? { onMatch: (rawValue: string, valueDigest: string): void => opts.sanitizer?.register(valueDigest, rawValue) }
+        : {}),
+    })) {
+      native.push(toTreeFinding(f));
+    }
     if (b.path.split("/").includes("..") || b.path === "") continue;
     const abs = join(treeRoot, b.path);
     if (existsSync(abs)) continue;
@@ -84,10 +102,11 @@ export async function scanTipTree(git: CliGit, treeRoot: string, rev: string, en
     writeFileSync(abs, text, "utf8");
     written.push(b.path);
   }
+  const eng = { ...(opts?.sanitizer !== undefined ? { sanitizer: opts.sanitizer } : {}) };
   // secretlint reports the RELATIVE paths it was handed (already repo-shaped);
   // only the gitleaks dir leg yields sandbox-absolute paths that need stripping.
-  const lint = (await scanPaths({ dir: treeRoot, files: written, target: "tree", env })).filter((f) => isExfilId(f.rule));
-  const gl = scanTree({ dir: treeRoot, stateDir: join(treeRoot, ".border-state"), target: "tree", env })
+  const lint = opts?.skipSecretlint === true ? [] : (await scanPaths({ dir: treeRoot, files: written, target: "tree", env, ...eng })).filter((f) => isExfilId(f.rule));
+  const gl = opts?.skipGitleaks === true ? [] : scanTree({ dir: treeRoot, stateDir: join(treeRoot, ".border-state"), target: "tree", env, ...eng })
     .filter((f) => isExfilId(f.rule))
     .map((f) => (f.path !== undefined && f.path.startsWith(`${treeRoot}/`) ? { ...f, path: f.path.slice(treeRoot.length + 1) } : f));
   return [...native, ...lint, ...gl];

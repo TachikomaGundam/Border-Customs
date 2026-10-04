@@ -168,7 +168,18 @@ export async function computeCheckRulesHash(input: {
  * The skip-ledger key (todo 14 contract): two runs share a key only when HEAD,
  * working-tree state, rules, exposure, refs and effective targets all match —
  * any change invalidates a previously recorded PASS.
+ *
+ * Lens identity (2026-10-04 incident fix): `border check` now ALSO certifies the
+ * landing-grade TIP-TREE lens (check/tipTreeLens.ts), not just the range/disk
+ * legs. The lens constant rides the key so a pre-fix range-only PASS record can
+ * NEVER certify a push under the tip-augmented lens: same HEAD/tree/rules still
+ * hashes differently, the skip ledger refuses the stale PASS, and pushstate
+ * refuses the stale key — old records stay in the append-only ledger as facts,
+ * they simply certify nothing any more. Bump this string whenever the SET OF
+ * LENSES the check verdict certifies changes.
  */
+export const CHECK_LENS_ID = "range+tip-tree/1";
+
 export type CheckKeyInput = {
   readonly headSha: string;
   readonly porcelainDigest: string;
@@ -179,5 +190,7 @@ export type CheckKeyInput = {
 };
 
 export function computeCheckKey(input: CheckKeyInput): string {
-  return sha256(stableStringify({ ...input }));
+  // `lens` rides LAST in the object: a future CheckKeyInput field can never
+  // shadow it through the spread and resurrect a pre-lens key shape.
+  return sha256(stableStringify({ ...input, lens: CHECK_LENS_ID }));
 }

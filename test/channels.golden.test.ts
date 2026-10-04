@@ -20,7 +20,7 @@
 //                      the hash really certifies (rule/classifier bytes, prompt
 //                      template bytes, engine versions, effective config) rides
 //                      the pin; the checkout path string does not;
-//   key composition  — sha256(stableStringify({the six components})) recomputed
+//   key composition  — sha256(stableStringify({the six components + lens})) recomputed
 //                      independently of computeCheckKey, with the env-local raw
 //                      rulesHash plugged in: any field-set/order/serialization
 //                      change fails even though the raw key value is env-bound;
@@ -43,6 +43,7 @@ import { fileURLToPath } from "node:url";
 import { buildPypiArtifacts } from "../src/artifacts/pypi.ts";
 import { computeEffectiveTargets } from "../src/check/context.ts";
 import {
+  CHECK_LENS_ID,
   computeCheckRulesHash,
   computeConfigDigest,
   resolveExfilFingerprintFiles,
@@ -293,9 +294,13 @@ engines:
       "normalized rulesHash changed (rule/classifier/prompt bytes, engine versions, or effective config) — re-capture with BORDER_GOLDEN_RECENTRE=1 and update the pin + rotation note",
     );
   }
-  // Key FORMULA: independent sha256(stableStringify(six fields)) with the
+  // Key FORMULA: independent sha256(stableStringify(six fields + lens)) with the
   // env-local raw rulesHash plugged in — field set/name/serialization drift
   // fails even though the raw key value itself is checkout-bound.
+  // Rotation 2026-10-04: +lens (check-tip-lens incident — the key now certifies
+  // the range+tip-tree lens set, see CHECK_LENS_ID in src/check/rulesHash.ts;
+  // the value is imported from the product so the pin mirrors the single source,
+  // while field names/order/serialization stay independently recomputed here).
   const expectedKey = createHash("sha256").update(
     stableStringify({
       headSha: GOLDEN_HEAD_SHA,
@@ -304,9 +309,10 @@ engines:
       exposureSet: GOLDEN_EXPOSURE,
       refSet: GOLDEN_REFSET,
       effectiveTargets: GOLDEN_EFFECTIVE_TARGETS,
+      lens: CHECK_LENS_ID,
     }),
   ).digest("hex");
-  assert.equal(fp.key, expectedKey, "check key composition changed across the channel-registry refactor");
+  assert.equal(fp.key, expectedKey, "check key composition changed");
 
   const out: string[] = [];
   const dryExit = await run(["push", "--config", "border.yaml"], (l) => out.push(l), () => {}, {
