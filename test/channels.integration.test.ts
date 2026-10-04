@@ -51,6 +51,7 @@ import { pushRecords, readLedger, type CheckRecord, type PushRecord } from "../s
 import { LEDGER_FILE, parseLedgerRecord } from "../src/ledger/records.ts";
 import { PUBLISH_WARNING } from "../src/push/core.ts";
 import { startRegistryStub, type RegistryStub } from "./helpers/registry-stub.ts";
+import { sanitizeUrl } from "../src/redact.ts";
 import { gitAddCommit, gitInit, gitRevParseHead, makeFixtureDir, randAwsPair, removeDir, writeRel } from "./helpers/fixtures.ts";
 import { requireGitleaks } from "./helpers/require-engines.ts";
 
@@ -312,8 +313,10 @@ test("C5-1 subset discipline: a git-only PASS authorizes NO publish leg; a full 
   const f = await buildFixture(scratch("c5-1"), { targets: ["npm", "pypi", "crates", "rubygems"] });
 
   // git-only certification: check --force --targets git (zero registry
-  // probes — nothing but the git leg in effectiveTargets).
-  const chk = await checkForce(f);
+  // probes — nothing but the git leg in effectiveTargets). The --targets git
+  // flag IS the point of this leg (file header C5-1) — a full-scope check
+  // would certify all five targets and defeat the subset-discipline assert.
+  const chk = await runBorder(["check", "--force", "--targets", "git", "--config", f.cfgPath], f);
   assert.equal(chk.code, EXIT_PASS, dump(chk));
   const pass = readLedger(f.repo).records.filter((r): r is CheckRecord => r.t === "check" && r.effectiveTargets.length === 1);
   assert.equal(pass.length, 1, "exactly one check record, git-scoped");
@@ -404,8 +407,11 @@ test("C5-4 ordering: publish legs execute in descriptor order git→npm→pypi�
   assert.equal(lsRemote(f.origin, "refs/heads/main"), head, "git remote sha moved");
   assert.ok(r.out.some((l) => l.includes("pushed git:origin")), `git success line:\n${r.out.join("\n")}`);
 
-  // registry legs: the SPAWN_LOG sequence is the exact ordered trace
-  assert.deepEqual(spawnLines(f), ["npm:publish", "twine:upload", "cargo:package", "cargo:publish", "gem:push"], "publish spawns in descriptor .order (git 0 → npm 1 → pypi 2 → crates 3 → rubygems 4); the repackage gate precedes the crates spawn");
+  // registry legs: the SPAWN_LOG sequence is the exact ordered trace. The
+  // twine:--version line is the pypi prePublishGate availability probe
+  // (src/channels/pypi.ts twineAvailable) — it must precede the upload and
+  // never follows a skipped leg.
+  assert.deepEqual(spawnLines(f), ["npm:publish", "twine:--version", "twine:upload", "cargo:package", "cargo:publish", "gem:push"], "publish spawns in descriptor .order (git 0 → npm 1 → pypi 2 → crates 3 → rubygems 4); the repackage gate precedes the crates spawn");
 
   // ledger round-trip: five records, one key, new confirmedVia values
   const records = pushTargets(f);
@@ -416,7 +422,11 @@ test("C5-4 ordering: publish legs execute in descriptor order git→npm→pypi�
   assert.equal(byTarget.get("pypi")?.confirmedVia, "pypi-json");
   assert.equal(byTarget.get("crates")?.confirmedVia, "crates-json");
   assert.equal(byTarget.get("rubygems")?.confirmedVia, "rubygems-json");
-  assert.equal(byTarget.get("crates")?.url, CRATES_IO_DEFAULT_URL, "the crates record keeps the DEFAULT url — the probe seam can never rewrite the recorded destination");
+  // G20: every push-record url is persisted through sanitizeUrl, whose WHATWG
+  // serialization canonically adds the trailing '/' to a host-only URL — the
+  // guard is unchanged: the record carries the DEFAULT destination (canonical
+  // form), never the probe-seam stub url.
+  assert.equal(byTarget.get("crates")?.url, sanitizeUrl(CRATES_IO_DEFAULT_URL), "the crates record keeps the DEFAULT url — the probe seam can never rewrite the recorded destination");
   for (const rec of records) assert.equal(rec.key, key, "state.key discipline: every push-record carries the PASS fingerprint key");
 });
 
