@@ -240,6 +240,9 @@ async function executeYesPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExi
       key: state.key,
       legs: legs.map((leg) => ({ target: leg, branch })),
       env,
+      // the SAME allow entries the certifying check honored — one standard
+      // across faces (2026-10-04 incident fix; see push/landing.ts doctrine).
+      allow: loaded.config.allow,
       out: ctx.stdout,
       err: ctx.stderr,
     });

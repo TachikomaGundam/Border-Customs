@@ -118,7 +118,18 @@ it, and the two registry-facing legs (pre-flight and publish) both have to agree
    against the history of every ref *and* against the object set a remote does not already
    have (the transmit set). Oversized-file, checked-in-binary, and notebook-output rules
    round it out.
-7. **Registry pre-flight** (npm, PyPI, crates.io, and RubyGems targets). Three outcomes per
+7. **Landing-grade tip lens.** The exact machinery `border push` uses to verify a landing
+   (`scanTipTree`: the tip tree materialized from git objects into a throwaway directory,
+   scanned by the native exfil family plus both twins filtered to `exfil-*` ids) also runs
+   here, against local HEAD — the tree a push would transmit. This closes the
+   disk-versus-tip gap: content that exists only in HEAD (introduced by a merge commit's
+   resolution and since deleted from disk, say) is invisible to the history and working-tree
+   legs above but cannot hide from the gate. Tip findings merge before the allow-list, so a
+   config `allow` pin exempts them by rule+file+digest exactly like every other finding, and
+   the post-push landing check honors the *same* pins — a green packet means green landing, in
+   both directions. The tip leg's git plumbing is fail-closed: a git failure aborts the run
+   (exit 2), never a silent clean.
+8. **Registry pre-flight** (npm, PyPI, crates.io, and RubyGems targets). Three outcomes per
    target: version already published ⇒ CRITICAL `version-exists` ("bump version required");
    name owned by someone outside your `rules.authors` allow-list ⇒ CRITICAL
    `name-foreign-owner`; ambiguous ownership signals ⇒ also CRITICAL, because guessing wrong
@@ -129,7 +140,7 @@ it, and the two registry-facing legs (pre-flight and publish) both have to agree
    one of that API's exact *absent* messages (its 404s are text, not JSON, and an
    unrecognized one is never guessed), a timeout, or unparseable JSON all fail closed as
    exit 2. An unreachable registry blocks the push instead of letting it run blind.
-8. **Artifact stage.** If registry targets are configured, packages are built **once** into
+9. **Artifact stage.** If registry targets are configured, packages are built **once** into
     `.border/dist/` (`npm pack --ignore-scripts`, `python -m build --no-isolation`,
     `cargo package --allow-dirty --no-verify`, `gem build <name>.gemspec -o .border/dist/`),
     that exact byte-stream is scanned (gitleaks + secretlint over the extracted contents),
@@ -145,14 +156,16 @@ it, and the two registry-facing legs (pre-flight and publish) both have to agree
     re-runs the check's exact `cargo package` into a throwaway directory and refuses to
     publish if the fresh digest differs from the certified `.crate`. `gem push` uploads the
     recorded `.gem` byte-for-byte, so it needs no such re-assertion.
-9. **Report.** Findings carry `valueDigest` (sha256 of the matched value) and a masked
+10. **Report.** Findings carry `valueDigest` (sha256 of the matched value) and a masked
    snippet: fully blocked for short values, else `first4…last4`. Raw secret bytes never
    leave process memory. A per-run `TextSanitizer` holds the digest-to-value registry and
    replaces every flagged literal in *all* rendered text, including agent-written strings in
    the LLM layer, so a secret cannot reappear inside a message about itself. `report.json`
    (canonical, byte-stable for machines) and `report.md` land under `.border/runs/`.
-10. **Ledger record.** A PASS is appended to `.border/ledger.jsonl` together with the key
-    and artifact digests. Degraded and NO-OP runs can never write a PASS.
+11. **Ledger record.** A PASS is appended to `.border/ledger.jsonl` together with the key
+    and artifact digests. Degraded and NO-OP runs can never write a PASS. The key folds in a
+    *lens identity*, so a PASS recorded under an older, weaker set of legs never certifies a
+    push under the current lens — upgrading the gate forces one fresh full check.
 
 ```bash
 $ border check          # full scan, ~seconds on a mid-size repo
@@ -414,7 +427,10 @@ never from cache:
   and exits 1; a rerun of `border push --yes` picks up only the still-PENDING targets.
 - After every git leg that moved, border **verifies the landing**: it re-observes the remote
   tip (`git ls-remote`, then a fetch of exactly that tip when it is not local) and scans the
-  landed tree with the same exfil machinery as `border exfil`. Three honest outcomes: clean
+  landed tree with the same exfil machinery as `border exfil` — the same lens `border check`
+  now runs pre-push, and the same config `allow` pins apply: blocking counts are computed
+  after the allow-list, and any exemption is echoed loudly (rule, entry index, count), never
+  silent. Three honest outcomes: clean
   appends a `t:"landing"` ledger record and preserves the push exit; a blocking hit exits 1
   with `ALREADY PUBLIC; border detects, never erases` — the bytes are out, and border's job
   there is detection, recording the fact, never rewriting history; an unobservable tip exits
@@ -1068,4 +1084,4 @@ border 是一个 fail-closed(失败即拦截)的推送前门禁 CLI:`npm install
 
 OpenCode 插件适配层(0.5.0):零手工装载两条路线——主路是在 `opencode.jsonc` 声明 `"plugin": ["border-customs@0.5.0"]`(建议钉具体版本,@latest 每次冷启动都打注册表),opencode 自行下载构件,插件入口走 `exports["./server"]`;插件自带 CLI 解析,顺序为 `BORDER_BIN` 覆盖(独占,坏了就报错、绝不静默回退)> 包内同侧 `dist/index.js`(shebang 直接执行,不可执行则回退 PATH 上的 `node` 承载)> PATH 上的 `border`,免全局安装、免 PATH 配置;0.5.1 起任何候选都必须先过**身份握手**(以 `--help` 应答出 border 横幅与 `usage: border` 才算数),通过之前绝不投递用户 argv,握手不过即 cannot-answer exit 2、不运行任何其他二进制——0.5.0 曾用 `process.execPath` 承载包内 dist,而在插件宿主里 execPath 是 opencode 本体,边检门被静默冒充为宿主(2026-09-22 事故,见 0.5.1 变更日志)。备路是 `border opencode install|status|uninstall` 文件投递,落盘 `$XDG_CONFIG_HOME/opencode` 下的 `plugins/border.ts` 与 `commands/border.md`(无 XDG 回退 HOME/.config):受管文件凭 marker 行识别身份,同名外人文件 exit 2 拒绝、绝不覆盖,卸载只删自己带 marker 的文件,字节相同即 `up to date`。装载面只有一个 `border` 工具(argv-only 生成、无 shell、300 秒与每流 64 KiB 上限,命令闭集 check/push/status/llm-request/llm-ingest/scan/roundtrip/exfil/--help)与一条 `/border` 斜杠命令(config 钩子以 `??=` 自注册,用户同名文件命令保持权威)。边界如实说:allowlist 是 UX/防呆而非安全边界——插件进程与 opencode 进程同权,门禁的牙齿在 CLI 与账本,不在适配层;`push --yes` 按设计留在终端人审,工具端机械拒绝,会话内裸 push 本就是 CLI 合同的 DRY-RUN。装载验证走 opt-in 探针 `BORDER_OPENCODE_PROBE=1`(临时 HOME/XDG 起 `opencode serve` 对照组,断言 `border` 工具 id 与恰好一条 border 命令,重复即 FAIL;插件加载失败是静默的,只认 HTTP 响应不认退出码)。两条路线装载后都需重启 opencode:工具与命令在启动时扫描。
 
-外泄透镜(0.6.0):经典密钥扫描器看不见内网 IP、`user@内网主机`、家目录、凭据文件位置、主机画像这类"外泄形状"字面量——它们不是密钥,却如实描述公网仓库身后的私网。0.6.0 加五条规则 `exfil-rfc1918/exfil-ssh-target/exfil-home-path/exfil-cred-location/exfil-host-profile`,每个(规则×分面×通道)格子的**观察严重度**只有单一事实源 `src/exfil/severity.ts`:树面 HIGH 族走双生规则(gitleaks TOML + secretlint pattern,id 逐字节相等、三通道判决对等性有测试钉死),因两引擎都没有 HIGH 档而如实记为 CRITICAL(不硬掰,如实表);树面 MEDIUM 族走原生腿;提交消息面原生独占、id 带 `:message` 后缀,allow 条目按 id 精确匹配、跨面豁免在结构上不可能;tag note 分面归既有引擎腿 `tag-message-secret`,核心绝不重复发。规则源文件并入 rulesHash,改一个匹配器即令全部缓存 PASS 失效。独立只读入口 `border exfil <rev|url>`(默认树尖,`--deep` 补全史 blob 与全部可达提交消息;URL 模式落临时克隆、退出即销毁)。push 之后新增**落地核验**:ls-remote 复读远端尖、必要时精确 fetch 该对象,用同一套机制扫已公开树——干净则追加 `t:"landing"` 账本行并保留原退出码;有阻断发现则 exit 1 并明说 ALREADY PUBLIC;border 只检测、从不抹除;远端不可观测则 exit 2、一条记录都不造(没核验就没事实),已执行的 push 记录原样矗立——账本 append-only,任何情况下不改写历史。测试语料遵守夹具纪律:10.200.0.0/16 为预留夹具段(树面全通道静默、双生规则原生镜像该豁免,消息面例外照红),其余泄漏形状一律由 `assembleOctet`/`assembleHost` 运行时拼装,签出字节里没有完整泄漏 token——border 的透镜对自己的仓库绿,红故事照常武装。真值通道 `BORDER_EXFIL_TRUTH=1` 为 opt-in,红锚点带生命周期条款:上游作者清理后按设计转绿、留档不判败。
+外泄透镜(0.6.0):经典密钥扫描器看不见内网 IP、`user@内网主机`、家目录、凭据文件位置、主机画像这类"外泄形状"字面量——它们不是密钥,却如实描述公网仓库身后的私网。0.6.0 加五条规则 `exfil-rfc1918/exfil-ssh-target/exfil-home-path/exfil-cred-location/exfil-host-profile`,每个(规则×分面×通道)格子的**观察严重度**只有单一事实源 `src/exfil/severity.ts`:树面 HIGH 族走双生规则(gitleaks TOML + secretlint pattern,id 逐字节相等、三通道判决对等性有测试钉死),因两引擎都没有 HIGH 档而如实记为 CRITICAL(不硬掰,如实表);树面 MEDIUM 族走原生腿;提交消息面原生独占、id 带 `:message` 后缀,allow 条目按 id 精确匹配、跨面豁免在结构上不可能;tag note 分面归既有引擎腿 `tag-message-secret`,核心绝不重复发。规则源文件并入 rulesHash,改一个匹配器即令全部缓存 PASS 失效。独立只读入口 `border exfil <rev|url>`(默认树尖,`--deep` 补全史 blob 与全部可达提交消息;URL 模式落临时克隆、退出即销毁)。push 之后新增**落地核验**:ls-remote 复读远端尖、必要时精确 fetch 该对象,用同一套机制扫已公开树——干净则追加 `t:"landing"` 账本行并保留原退出码;有阻断发现则 exit 1 并明说 ALREADY PUBLIC;border 只检测、从不抹除;远端不可观测则 exit 2、一条记录都不造(没核验就没事实),已执行的 push 记录原样矗立——账本 append-only,任何情况下不改写历史。2026-10-04 补上透镜对等:check 流水线在原生规则之后、注册表预检之前多跑一条**树尖腿**,用与落地核验完全同一套 scanTipTree 机制预扫本地 HEAD(push 将传输的那棵树),历史与工作面腿看不见的"只在树尖存在"内容(如合并提交解析引入、随后从磁盘删除的文件)从此无处藏;树尖发现汇入 allow 前合并点,按 rule+file+digest 与所有发现同权豁免——落地核验同样消费 cfg allow 并把每一次豁免大声列出(规则、条目号、条数),绝不沉默;绿色交接单与绿色落地双向一致。ledger key 折入透镜身份,旧一代(无树尖腿)的缓存 PASS 不再为新透镜背书,升级后强制一次全新全扫。树尖腿 git 故障即 exit 2,没有静默清白。测试语料遵守夹具纪律:10.200.0.0/16 为预留夹具段(树面全通道静默、双生规则原生镜像该豁免,消息面例外照红),其余泄漏形状一律由 `assembleOctet`/`assembleHost` 运行时拼装,签出字节里没有完整泄漏 token——border 的透镜对自己的仓库绿,红故事照常武装。真值通道 `BORDER_EXFIL_TRUTH=1` 为 opt-in,红锚点带生命周期条款:上游作者清理后按设计转绿、留档不判败。
