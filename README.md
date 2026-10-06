@@ -736,7 +736,7 @@ plugin entry ships as `exports["./server"]`):
 ```jsonc
 {
   // pin the exact version — an @latest channel hits the registry on every cold start
-  "plugin": ["border-customs@0.8.0"]
+  "plugin": ["border-customs@0.8.1"]
 }
 ```
 
@@ -845,6 +845,13 @@ which is now a thin consumer of `inspect --json` with the rc contract unchanged
   lock makes concurrent runs exit 2 instead of racing.
 
 ## Changelog
+
+### 0.8.1 (2026-10-06)
+- Maintenance release: certificate-chain rebuild off the scrubbed lineage (INCIDENT-20261006
+  identity-exposure cleanup). No functional change vs 0.8.0; 0.8.0's tarball is byte-intact but
+  its OIDC provenance pin moved with the history rewrite, so a fresh tag + publish restores a
+  verifiable chain. Rotation: package.json + lock roots + plugin marker + scan UA + README pins +
+  this entry.
 
 ### 0.8.0 (2026-09-30)
 - Add: **`border opencode inspect [--json]`** — the load-surface self-audit becomes a gate-owned

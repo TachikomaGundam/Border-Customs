@@ -156,6 +156,14 @@ allow:
   # value, file, or rule is suppressed; enumerated in allowHits (G14).
   - { rule: "path-pattern:[A-Za-z]:\\\\", match: "28f709d79730058e2a461518e34126da18ceda07729e792c92f7ca1251e730bf", file: "README.md" }
 
+  # Self-audit artifacts quoting detector SHAPES verbatim (generic [a-z]+ class,
+  # no username) — same sanctioned family as test/**: the check-tip lens note
+  # documents what the lens hunts; release receipts record rotation evidence.
+  # Re-pinned 2026-10-06 post identity-scrub (files predating this release's pins).
+  - { rule: "@secretlint/secretlint-rule-no-homedir/HOMEDIR", match: "*", file: ".border-notes/check-tip-lens-2026-10-04.md" }
+  - { rule: "path-pattern:/home/[a-z]+/", match: "*", file: ".border-notes/check-tip-lens-2026-10-04.md" }
+  - { rule: "@secretlint/secretlint-rule-no-homedir/HOMEDIR", match: "*", file: "docs/release/v0.8.0.md" }
+  - { rule: "path-pattern:/home/[a-z]+/", match: "*", file: "docs/release/v0.8.0.md" }
 engines:
   require:
     - gitleaks
