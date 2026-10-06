@@ -192,10 +192,11 @@ jobs:
           # channels C5 WIP reds. ANY other failure, ANY entry newly passing, or a counts
           # mismatch still exits 1.
           cat > /tmp/sanctioned.txt <<'SANCTIONED'
-          # PLANNED WIP red (border-push-channels C5) - retire when that scope lands
-          C5-1 subset discipline: a git-only PASS authorizes NO publish leg; a full PASS authorizes no crates-only push (fingerprint effectiveTargets scope binding)
-          # PLANNED WIP red (border-push-channels C5) - retire when that scope lands
-          C5-4 ordering: publish legs execute in descriptor order git→npm→pypi→crates→rubygems (exact spawn sequence), all five push-records under ONE key
+          # ALLOWLIST v5 (2026-10-06, release v0.8.1): the two C5 planned-WIP reds RETIRED AT
+          # SOURCE — the border-push-channels C5 scope has landed (src/channels/*, src/push/*),
+          # both tests green on runner AND on dev box incl. pre-scrub content control run
+          # (RCA evidence .omo/evidence/identity-rewrite-20261006/, INCIDENT-20261006 cycle).
+          # Empty list from here: ANY failure fails closed. Exact-set rule unchanged.
           SANCTIONED
           sed -i -e 's/^[[:space:]]*//' -e '/^#/d' /tmp/sanctioned.txt
 
