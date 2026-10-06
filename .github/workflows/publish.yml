@@ -229,10 +229,14 @@ jobs:
             echo '::endgroup'
             exit 1
           fi
-          # with a non-empty allowlist enforced above, a suite carrying exactly the
-          # sanctioned reds must exit 1; exit 0 would mean TAP and the runner disagree.
-          if [ "$TEST_EXIT" -ne 1 ]; then
-            echo "::error::expected 'npm test' to exit 1 (sanctioned reds present); got ${TEST_EXIT} — failing closed"
+          # TAP-vs-runner coherence (v5c, 2026-10-06): exit code must AGREE with the
+          # parsed failure count — 1 iff >=1 red, 0 iff clean. The old clause hard-coded
+          # "exit 1" (again the non-empty-allowlist assumption; same dead-end as v5b, third
+          # site). Exact-set + count gates above already ran; this keeps the disagree-check.
+          EXPECT_TEST_EXIT=0
+          [ "$SUM_FAIL" -gt 0 ] && EXPECT_TEST_EXIT=1
+          if [ "$TEST_EXIT" -ne "$EXPECT_TEST_EXIT" ]; then
+            echo "::error::'npm test' exited ${TEST_EXIT} but parsed fail=${SUM_FAIL} implies exit ${EXPECT_TEST_EXIT} (TAP/runner disagree) — failing closed"
             exit 1
           fi
           rm -f /tmp/sanctioned.txt /tmp/actual-failures.txt /tmp/sanctioned.sorted.txt
