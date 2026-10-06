@@ -85,12 +85,12 @@ after(() => {
 // BORDER_GOLDEN_RECENTRE=1 per .omo/evidence/residue-spike/W32-GOLDEN-
 // NORMALIZATION.md — the recipe input list below MIRRORS the product's
 // bundledRulePaths exactly (gitleaks TOML + residue + release + exfil).
-const GOLDEN_HEAD_SHA = "b838689d96b1a1cda8d2919ec3c716f23210a5f2";
+const GOLDEN_HEAD_SHA = "4fdcf22294181e6fe71c3c17be3cb26000efe7c2";
 const GOLDEN_PORCELAIN_DIGEST = "5782837b399a70eb135d2f1c2ac96ba010ff6e13f1800e14e6b8b9416effd8e3";
 const GOLDEN_REFSET = ["refs/heads/main"];
 const GOLDEN_EFFECTIVE_TARGETS = ["git", "npm", "pypi"];
 // rotation 2026-10-02: +exfil-machine-binding rule (L-MACHINE-LOCAL gate, incident-born).
-const GOLDEN_RULES_HASH_NORMALIZED = "772145d56d80ab86a4c0bd46d89b9302cf19e278eefef7954be87888d19fa29d";
+const GOLDEN_RULES_HASH_NORMALIZED = "eea023723a1a6e5df22c6f0d2cb670987a626e0a50018bb9a2cf8ecb27e72df4";
 const GOLDEN_EXPOSURE = ["https://example.com/origin.git", "npm:widgets@1.0.0", "pypi:pushdemo@0.1.0"];
 const GOLDEN_DRYRUN_STDOUT = [
   "border DRY-RUN: no --yes, so nothing runs — this is the plan (m-R5-a) contract",
