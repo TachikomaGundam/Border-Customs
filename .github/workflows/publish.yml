@@ -217,7 +217,12 @@ jobs:
           fi
 
           ACTUAL_N="$(grep -c . /tmp/actual-failures.txt || true)"
-          if [ "$SUM_FAIL" != "$ACTUAL_N" ] || [ "$((SUM_PASS + SUM_FAIL + SUM_SKIPPED))" != "$SUM_TESTS" ] || [ "$SUM_FAIL" -eq 0 ]; then
+          # v5b (2026-10-06): the anti-vacuity guarantee is "a run that EXECUTED NOTHING is
+          # red" (W3.2 intent). The old clause hard-required >=1 failure, which contradicts
+          # the empty-allowlist retirement path this file's own v3/v4 comments promise —
+          # with zero sanctioned entries a clean release could never pass. Exact-set check
+          # above still fails closed on ANY real red; vacuity still fails closed here.
+          if [ "$SUM_FAIL" != "$ACTUAL_N" ] || [ "$((SUM_PASS + SUM_FAIL + SUM_SKIPPED))" != "$SUM_TESTS" ] || [ "$((SUM_PASS + SUM_FAIL))" -eq 0 ]; then
             echo "::error::TAP counts inconsistent (tests=${SUM_TESTS} pass=${SUM_PASS} fail=${SUM_FAIL} not-ok-lines=${ACTUAL_N}) — failing closed"
             echo '::group::not-ok TAP detail (grep -A 25 "^not ok ")'
             grep -A 25 '^not ok ' "$TEST_LOG" || true
