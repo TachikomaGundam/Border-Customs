@@ -37,7 +37,7 @@
   "dependencies": {
     "@secretlint/core": "13.0.5",
     "@secretlint/secretlint-rule-no-dotenv": "13.0.5",
-    "@secretlint/secretlint-rule-no-homedir": "13.0.5",
+    "@secretlint/secretlint-rule-no-homedir": "13.1.0",
     "@secretlint/secretlint-rule-preset-recommend": "13.0.5",
     "@textlint/regexp-string-matcher": "2.0.2",
     "publint": "0.3.24",
