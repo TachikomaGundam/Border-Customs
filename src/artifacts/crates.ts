@@ -28,6 +28,8 @@ import { cratesCoherenceFindings } from "../rules/releaseCoherence.ts";
 import { scanTree } from "../engines/gitleaks.ts";
 import { scanPaths, type SecretlintMode } from "../engines/secretlint.ts";
 import { EngineMissingError, EngineRunError, type EngineOptions } from "../engines/support.ts";
+import { sandboxRun } from "./sandbox.ts";
+import { realDockerExec, type DockerExec } from "../roundtrip/docker.ts";
 import type { TextSanitizer } from "../redact.ts";
 
 /** Native-finding target label shared across the artifact-stage scans. */
@@ -50,6 +52,8 @@ export type CrateStageOptions = {
   readonly secretlintMode?: SecretlintMode;
   /** Exact cargo binary seam (tests / pinned toolchains); default "cargo" on PATH. */
   readonly cargoBinPath?: string;
+  /** W4 sandbox seam (only consulted when targets.crates.sandboxImage is set). */
+  readonly sandboxExec?: DockerExec;
   /** shared engine/extract timeout. */
   readonly timeoutMs?: number;
   readonly cargoTimeoutMs?: number;
@@ -58,6 +62,8 @@ export type CrateStageOptions = {
 export type CrateStageResult = {
   readonly findings: readonly Finding[];
   readonly artifact: CrateArtifactRecord | null;
+  /** Observed in-image toolchain versions (sandbox runs only) — record binding. */
+  readonly toolchain?: string;
 };
 
 function scopeFindingPath(f: Finding, extractDir: string): Finding {
@@ -123,15 +129,18 @@ export async function runCargoArtifactStage(o: CrateStageOptions): Promise<Crate
   const identity = manifestIdentity(repoDir, o.cfg);
   const crateName = `${identity.name}-${identity.version}.crate`;
 
-  const versionCheck = spawnSync(bin, ["--version"], {
-    encoding: "utf8",
-    stdio: "ignore",
-    ...(o.env === undefined ? {} : { env: { ...o.env } }),
-  });
-  if (versionCheck.error !== undefined || versionCheck.status !== 0) {
-    throw new EngineMissingError(
-      `cargo is not available (\`${bin} --version\` failed) — install Rust via rustup (https://rustup.rs) or pass cargoBinPath before running border check (border exit 2)`,
-    );
+  const sandboxImage = o.cfg.targets.crates.sandboxImage;
+  if (sandboxImage === undefined) {
+    const versionCheck = spawnSync(bin, ["--version"], {
+      encoding: "utf8",
+      stdio: "ignore",
+      ...(o.env === undefined ? {} : { env: { ...o.env } }),
+    });
+    if (versionCheck.error !== undefined || versionCheck.status !== 0) {
+      throw new EngineMissingError(
+        `cargo is not available (\`\${bin} --version\` failed) — install Rust via rustup (https://rustup.rs) or pass cargoBinPath before running border check (border exit 2)`,
+      );
+    }
   }
 
   ensureStateDir(repoDir);
@@ -142,31 +151,50 @@ export async function runCargoArtifactStage(o: CrateStageOptions): Promise<Crate
   rmSync(targetDir, { recursive: true, force: true }); // stale build output from an interrupted run
   mkdirSync(targetDir, { recursive: true });
 
+  const dist = join(distDir, crateName);
   try {
-    const result = spawnSync(bin, ["package", "--allow-dirty", "--no-verify"], {
-      cwd: repoDir,
-      encoding: "utf8",
-      timeout: o.cargoTimeoutMs ?? 120_000,
-      env: {
-        ...(o.env === undefined ? process.env : { ...o.env }),
-        CARGO_TARGET_DIR: targetDir,
-      },
-    });
-    if (result.error !== undefined || result.status !== 0) {
-      throw new EngineRunError(
-        `cargo package failed (exit ${String(result.status)}) — nothing to gate: ${(result.stderr ?? "").trim().slice(0, 400)}`,
-        result.status,
-      );
+    let stageToolchain: string | undefined;
+    if (sandboxImage !== undefined) {
+      const cacheDir = join(repoDir, BORDER_STATE_DIR, "cache");
+      mkdirSync(cacheDir, { recursive: true });
+      const run = sandboxRun({
+        spec: { image: sandboxImage, docker: o.sandboxExec ?? realDockerExec() },
+        repoDir,
+        outDir: distDir,
+        laneProbes: ["cargo", "rustc"],
+        cargoCacheHostDir: cacheDir,
+        laneScript:
+          "cargo package --allow-dirty --no-verify\n"
+          + "find target/package -maxdepth 1 -name '*.crate' -exec cp {} /audit/out/ ;",
+      });
+      stageToolchain = run.toolchain;
+    } else {
+      const result = spawnSync(bin, ["package", "--allow-dirty", "--no-verify"], {
+        cwd: repoDir,
+        encoding: "utf8",
+        timeout: o.cargoTimeoutMs ?? 120_000,
+        env: {
+          ...(o.env === undefined ? process.env : { ...o.env }),
+          CARGO_TARGET_DIR: targetDir,
+        },
+      });
+      if (result.error !== undefined || result.status !== 0) {
+        throw new EngineRunError(
+          `cargo package failed (exit ${String(result.status)}) — nothing to gate: ${(result.stderr ?? "").trim().slice(0, 400)}`,
+          result.status,
+        );
+      }
+      // cargo writes the crate to <target-dir>/package/<name>-<version>.crate
+      const packedDir = join(targetDir, "package");
+      const packed = join(packedDir, crateName);
+      if (!existsSync(packed)) {
+        throw new EngineRunError(`cargo package produced no ${crateName} in ${relative(repoDir, packedDir)} — failing closed`, null);
+      }
+      renameSync(packed, dist);
     }
-
-    // cargo writes the crate to <target-dir>/package/<name>-<version>.crate
-    const packedDir = join(targetDir, "package");
-    const packed = join(packedDir, crateName);
-    if (!existsSync(packed)) {
-      throw new EngineRunError(`cargo package produced no ${crateName} in ${relative(repoDir, packedDir)} — failing closed`, null);
+    if (!existsSync(dist)) {
+      throw new EngineRunError(`cargo package produced no ${crateName} in ${relative(repoDir, distDir)} — failing closed`, null);
     }
-    const dist = join(distDir, crateName);
-    renameSync(packed, dist);
 
     const bytes = readFileSync(dist);
     const sha256 = createHash("sha256").update(bytes).digest("hex");
@@ -234,6 +262,7 @@ export async function runCargoArtifactStage(o: CrateStageOptions): Promise<Crate
     return {
       findings,
       artifact: { file: `${BORDER_STATE_DIR}/dist/${crateName}`, sha256, bytes: bytes.length },
+      ...(stageToolchain !== undefined ? { toolchain: stageToolchain } : {}),
     };
   } finally {
     rmSync(targetDir, { recursive: true, force: true });

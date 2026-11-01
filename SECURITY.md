@@ -1,0 +1,118 @@
+# Security policy
+
+## Supported versions
+
+The latest published minor line (`0.8.x`) receives security fixes. Older lines
+are not maintained; upgrade to the latest release before reporting.
+
+## Reporting a vulnerability
+
+Use **GitHub private vulnerability reporting** on
+<https://github.com/TachikomaGundam/Border-Customs/security/advisories/new>.
+If that form is unavailable, contact the maintainer through their GitHub
+profile and ask for a private channel first.
+
+Do **not** open a public issue containing exploit details, live secrets, or a
+working bypass. A minimal public issue that only asks for a private channel is
+acceptable.
+
+Please include:
+
+- the border version (`border --version`) and Node/npm versions;
+- the command that triggers the problem;
+- the smallest repository or artifact that reproduces it;
+- what the gate reported and what it should have reported.
+
+We aim to acknowledge within 7 days. This is a single-maintainer project, so
+timelines are best effort.
+
+## Scope
+
+In scope:
+
+- a gate bypass (a check that should block returns PASS);
+- arbitrary code execution or data exfiltration caused by `border check`,
+  `border scan`, `border push`, or the OpenCode plugin;
+- disclosure of a secret value the gate is supposed to redact;
+- a finding that can be silently dropped by a crafted repository.
+
+Out of scope:
+
+- the documented boundary that border is **not** a malware sandbox
+  (README "What this is not");
+- vulnerabilities that require the operator to pass a hostile `BORDER_BIN`;
+- advisories in test-only dependencies with no runtime path.
+
+## Threat-model boundary
+
+border reads untrusted repositories. It must never execute the code it reads.
+A default `border check` is scan-only: no build toolchain spawns at all. The
+artifact build stages (npm pack, `python -m build --no-isolation`, `gem build`,
+`cargo package`) DO execute repo-supplied build code — a hostile repo can
+declare its own pypi/rubygems targets in its border.yaml and have its PEP 517
+backend or gemspec run — so they execute only on operator consent given from
+OUTSIDE the audited tree (`--allow-builds` or `BORDER_ALLOW_BUILDS=1`). A
+scan-only run records no artifact digests and can never back a registry
+publish. On top of the gate, the npm pack path probes the npm version before
+packing: on npm < 11, a package that declares `prepack`, `prepare`, or
+`postpack` is refused with a named error (exit 2), because npm 10 runs
+`prepare` even with `--ignore-scripts`. See `src/check/buildConsent.ts` and
+`src/artifacts/npmPackSafety.ts`.
+
+## Sandboxed builds (optional, 2026-10-23)
+
+`targets.<ch>.sandboxImage` runs consented builds inside a digest-pinned container: network
+disabled at the daemon-enforced argv (the in-container DNS + TCP probes are a fail-closed
+tripwire, not the enforcement), repo read-only, tmpfs
+build, no host env or credentials inside, capabilities dropped. `sandboxImage` and the
+`allowBuilds` consent are security-tier keys honored ONLY from the machine store or a
+`--config` outside the repo after fd-chain ownership/mode qualification; competing or
+unqualified declarations are named hard refusals (no silent ignore, no host fallback).
+Environment variables are never a consent source (a hostile `.envrc` owns the environment). This is **containment, not a
+VM**: kernel CVE escapes from docker remain in the threat model, and reports predicated on a
+full VM boundary are out of scope. A record's build-environment binding means check and push
+cannot silently certify bytes through different build environments; rotating the pinned image
+invalidates cached PASS records by design.
+
+## Known dependency advisories
+
+The **production** dependency graph currently measures zero advisories
+(`npm audit --omit=dev`, verified 2026-10-23). The former
+`@secretlint/secretlint-rule-pattern` chain (braces/micromatch — no upstream
+patch exists) left when border vendored the pattern rule
+(`src/engines/borderPatternRule.ts`, MIT attribution in its header); the
+`@opencode-ai/plugin` chain (effect beta → toml) left when its one runtime
+need turned out to be an identity function (`tool` vendored in
+`plugin/border.ts`; the package stays a devDependency for the live-host probe
+tests). CI now fails on any **high-or-worse** production advisory, so this
+state cannot rot silently; the full `npm audit` report is archived on every
+run. The dev-only `verdaccio` chain is test infrastructure and is never
+shipped.
+
+## Supply-chain hygiene
+
+`engines.node` is `>=22.22.2` because the transitive `ini@7` declares that
+floor. Dependabot checks npm and GitHub Actions weekly; version bumps still go
+through the same review and release gate as any other change.
+
+## Residual gaps (named, not hidden)
+
+- **G-SBX-2 — image identity at first use.** A digest-pinned `sandboxImage` is only as
+  trustworthy as the registry that served those bytes; the check record binds the digest,
+  not a signed provenance chain for the image contents. Closing this needs signed release
+  receipts for toolchain images (deferred by the Q1 decision layer — sibyl runs
+  20261023T170602Z-c5e7 through 20261023T173850Z-f9dc, confirm ballot
+  20261023T184627Z-1b47; revisit when Sigstore-style receipts exist for base images).
+- **G-SBX-3 — bind-mounted or user-namespace tmpfs.** The fd-chain qualification rejects
+  the tmp-root closed set (`/tmp`, `/var/tmp`, `/dev/shm`) by realpath component. A
+  tmpfs the attacker mounted at an arbitrary path (which requires CAP_SYS_ADMIN or a
+  user-namespace boundary — i.e. root-equivalent or already-escaped positions) would
+  present attacker-chosen ownership/mode bytes, so fd-chain checks are NOT claimed as
+  the defense there; the honest bound is: once a hostile actor can mount filesystems as
+  you or inside your namespace, config qualification is out of model. Border's
+  contribution is keeping every lesser position fail-closed.
+- **C1 sanitizer over-rejection.** Lines containing raw 0x80–0x9F bytes or ANY 0x1B
+  (ESC, position-free — including ESC alone at line/stream end) are rejected rather
+  than stripped, because strip-based cleaning reassembles split escape sequences.
+  Legitimate non-ASCII output on the probe channel is rare and gets a named rejection;
+  over-reject is the declared safe direction.

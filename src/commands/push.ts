@@ -243,6 +243,7 @@ async function executeYesPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExi
       // the SAME allow entries the certifying check honored — one standard
       // across faces (2026-10-04 incident fix; see push/landing.ts doctrine).
       allow: loaded.config.allow,
+      allowAliases: loaded.config.rules.aliases,
       out: ctx.stdout,
       err: ctx.stderr,
     });

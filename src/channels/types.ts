@@ -18,6 +18,7 @@ import type { BorderExit } from "../cli/exit.ts";
 import type { BorderConfig } from "../config.ts";
 import type { Finding } from "../findings.ts";
 import type { LedgerArtifact } from "../ledger/records.ts";
+import type { DockerExec } from "../roundtrip/docker.ts";
 import type { PushConfirmedVia } from "../ledger/records.ts";
 import type { PublishInput } from "../push/core.ts";
 import type { TextSanitizer } from "../redact.ts";
@@ -73,6 +74,10 @@ export type ChannelStageOptions = {
    *  whose engine failed its probe. */
   readonly skipGitleaks?: boolean;
   readonly skipSecretlint?: boolean;
+  /** W4 sandbox seam: docker runner override (tests script the argv; the
+   *  production default spawns the real binary). Only consulted when the
+   *  channel's targets.<ch>.sandboxImage is configured. */
+  readonly sandboxExec?: DockerExec;
 };
 
 /** Unified stage output: findings plus the ledger-certified artifact digests
@@ -80,6 +85,9 @@ export type ChannelStageOptions = {
 export type ChannelStageResult = {
   readonly findings: readonly Finding[];
   readonly artifacts: readonly LedgerArtifact[];
+  /** Observed toolchain versions when the build ran sandboxed (record binding);
+   *  undefined ⇒ host build. */
+  readonly toolchain?: string;
 };
 
 /**

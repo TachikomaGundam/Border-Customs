@@ -30,6 +30,10 @@ import { requireGitleaks } from "./helpers/require-engines.ts";
 import { gitAddCommit, gitInit, makeFixtureDir, removeDir, writeRel } from "./helpers/fixtures.ts";
 import { startRegistryStub, type RegistryStub } from "./helpers/registry-stub.ts";
 
+import type { BuildConsent } from "../src/check/buildConsent.ts";
+
+const CONSENT: BuildConsent = { allowed: true, source: "flag" };
+
 requireGitleaks();
 
 const roots: string[] = [];
@@ -163,7 +167,7 @@ function cfg(extra: readonly string[]): BorderConfig {
 }
 
 async function runCheck(repoDir: string, config: BorderConfig): Promise<CheckOutcome> {
-  return executeCheck({ repoDir, cfg: config, configDigest: "d".repeat(64), effectiveTargets: ["git", "npm"] });
+  return executeCheck({ consent: CONSENT, repoDir, cfg: config, configDigest: "d".repeat(64), effectiveTargets: ["git", "npm"] });
 }
 
 const proofRows = (o: CheckOutcome): Finding[] => o.report.findings.filter((f) => f.rule.startsWith("roundtrip-proof"));

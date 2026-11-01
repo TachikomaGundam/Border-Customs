@@ -13,6 +13,9 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { CheckContext } from "./check/context.ts";
+import { engineBuild } from "./buildInfo.ts";
+import type { DockerExec } from "./roundtrip/docker.ts";
+import type { PublishChannelId } from "./channels/registry.ts";
 import { gatherContext } from "./check/context.ts";
 import { computeCheckKey, computeCheckRulesHash, stableStringify } from "./check/rulesHash.ts";
 import type { BorderConfig } from "./config.ts";
@@ -90,6 +93,16 @@ export type SkipQuery = {
   readonly configDigest: string;
   readonly effectiveTargets: readonly string[];
   readonly llm: boolean;
+  /** Operator build consent (src/check/buildConsent.ts): a skip honoring
+   *  repack-asserted channels re-executes packers, so without consent the
+   *  record is not fresh and the full (scan-only) pipeline runs instead. */
+  readonly allowBuilds: boolean;
+  /** W4 parity string: config-resolved sandbox image join for THIS run
+   *  (src/check.ts configuredSandboxImages + sandboxBindingJoin). A record
+   *  bound to a different build environment is never fresh. */
+  readonly buildEnvRef?: string;
+  /** W4 sandbox seam for the skip-path re-packs (tests script docker). */
+  readonly sandboxExec?: DockerExec;
   readonly env?: EngineOptions["env"];
   readonly requireOverride?: readonly string[];
 };
@@ -130,7 +143,19 @@ export async function consultSkipLedger(q: SkipQuery): Promise<SkipDecision> {
   const read: LedgerRead = readLedger(q.repoDir);
   const candidate = lookupSkipRecord(read.records, fp.key, q.llm);
   if (candidate === null) return { key: fp.key, skip: null, warnings: read.warnings };
-  const fresh = verifyArtifactFreshness(candidate, ctx, q.repoDir, q.env !== undefined ? { env: q.env } : {});
+  const sandboxImages: Partial<Record<PublishChannelId, string>> = {};
+  const targets = q.cfg.targets as unknown as Record<string, { sandboxImage?: string } | undefined>;
+  for (const ch of ["npm", "crates", "rubygems"] as const) {
+    const img = targets[ch]?.sandboxImage;
+    if (img !== undefined) sandboxImages[ch] = img;
+  }
+  const fresh = verifyArtifactFreshness(candidate, ctx, q.repoDir, {
+    ...(q.env !== undefined ? { env: q.env } : {}),
+    allowBuilds: q.allowBuilds,
+    ...(q.buildEnvRef !== undefined ? { buildEnvRef: q.buildEnvRef } : {}),
+    ...(q.sandboxExec !== undefined ? { sandboxExec: q.sandboxExec } : {}),
+    sandboxImages,
+  });
   return { key: fp.key, skip: fresh ? candidate : null, warnings: read.warnings };
 }
 
@@ -142,6 +167,11 @@ export type RecordInput = {
   readonly llm: boolean;
   /** sha256 of the packed/built .border/dist bytes THIS run scanned (CheckOutcome.artifacts). Omitted (non-check writers) ⇒ legacy PASS+clean+npm tmp-repack. */
   readonly artifacts?: readonly LedgerArtifact[] | null;
+  /** Operator build consent gate for the legacy clean-PASS npm repack fallback
+   *  below — an ungated writer can never make border execute pack code. */
+  readonly allowBuilds?: boolean;
+  /** W4 build-environment binding from CheckOutcome (sandboxed runs only). */
+  readonly buildEnv?: { readonly image: string; readonly toolchain: string };
   readonly env?: EngineOptions["env"];
 };
 
@@ -164,7 +194,7 @@ export function recordCheckRun(i: RecordInput): CheckRecord {
   const envOpt = i.env !== undefined ? { env: i.env } : {};
   const artifacts =
     i.artifacts ??
-    (i.report.verdict === "PASS" && !i.ctx.dirty && i.effectiveTargets.includes("npm")
+    (i.report.verdict === "PASS" && !i.ctx.dirty && i.effectiveTargets.includes("npm") && i.allowBuilds === true
       ? packNpmArtifacts(i.repoDir, envOpt)
       : null);
   const persisted: Report | (Report & { artifacts: readonly LedgerArtifact[] }) =
@@ -188,6 +218,8 @@ export function recordCheckRun(i: RecordInput): CheckRecord {
     counts: i.report.counts,
     reportPath: `.border/${relReport}`,
     degraded: false,
+    engineBuild: engineBuild(),
+    ...(i.buildEnv !== undefined ? { buildEnv: i.buildEnv } : {}),
     ts,
   };
   appendRecord(i.repoDir, record);

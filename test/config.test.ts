@@ -18,6 +18,7 @@ import {
   parseConfig,
   type BorderConfig,
 } from "../src/config.ts";
+import { canonicalRemoteUrl, machineStoreKey } from "../src/config/machineStore.ts";
 import { assembleHost } from "./helpers/fixtures.ts";
 
 // ---------------------------------------------------------------- fixtures
@@ -537,4 +538,54 @@ test("exposureSet: sanitized remotes + npm/pypi versions read at HEAD, not workt
   assert.ok(set.includes("npm:pkgname@1.2.3"), `npm HEAD version missing from ${JSON.stringify(set)}`);
   assert.ok(set.includes("pypi:widge@0.4.2"), `pypi HEAD version missing from ${JSON.stringify(set)}`);
   assert.deepEqual(set, [...set].sort(), "exposureSet must be sorted");
+});
+
+// ------------------------------------------------ machine-side config (decoupling wave 2026-10-23)
+
+test("$BORDER_CONFIG beats a repo border.yaml; set-but-empty and unreadable fail closed", (t) => {
+  const dir = makeRepo(t);
+  write(dir, "border.yaml", MINIMAL_YAML);
+  write(dir, "machine.yaml", MINIMAL_YAML.replace("widget.git", "bordercfg.git"));
+  const hit = loadConfig({ cwd: dir, env: { BORDER_CONFIG: join(dir, "machine.yaml") } });
+  assert.ok(hit.kind === "loaded", `expected loaded, got ${hit.kind}`);
+  if (hit.kind !== "loaded") return;
+  assert.match(hit.config.targets.git.remotes[0]?.url ?? "", /bordercfg/, "$BORDER_CONFIG must win over the repo file");
+  assert.throws(() => loadConfig({ cwd: dir, env: { BORDER_CONFIG: "" } }), (e: unknown) => e instanceof ConfigError && e.kind === "unreadable");
+  assert.throws(() => loadConfig({ cwd: dir, env: { BORDER_CONFIG: join(dir, "ghost.yaml") } }), (e: unknown) => e instanceof ConfigError && e.kind === "unreadable");
+});
+
+test("machine store is keyed by canonical remote, wins over the repo border.yaml, and is spelling-invariant", (t) => {
+  const dir = makeRepo(t);
+  git(dir, ["remote", "add", "origin", "git@github.com:acme/widget.git"]);
+  write(dir, "border.yaml", MINIMAL_YAML.replace("widget.git", "from-repo.git"));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "border-store-")));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  const store = join(home, "border", "machines");
+  mkdirSync(store, { recursive: true });
+  const key = machineStoreKey(canonicalRemoteUrl("https://github.com/acme/widget.git") ?? "");
+  assert.match(key, /^[0-9a-f]{16}$/, "store keys are sha256-16 of the canonical url");
+  write(home, `border/machines/${key}.yaml`, MINIMAL_YAML.replace("widget.git", "from-store.git"));
+  const res = loadConfig({ cwd: dir, env: { XDG_CONFIG_HOME: home } });
+  assert.ok(res.kind === "loaded", `expected loaded, got ${res.kind}`);
+  if (res.kind !== "loaded") return;
+  assert.match(res.config.targets.git.remotes[0]?.url ?? "", /from-store/, "machine store outranks the checked-in config");
+  assert.equal(res.warnings.length, 1, "the machine-store hit is echoed as a warning");
+  assert.match(res.warnings[0] ?? "", /machine-store config/);
+});
+
+test("canonicalRemoteUrl collapses transport spellings to host/path and rejects hostless strings", () => {
+  const want = "github.com/acme/rocket";
+  for (const spelling of [
+    "git@github.com:acme/rocket.git",
+    "https://github.com/acme/rocket.git",
+    "ssh://git@github.com/acme/rocket",
+    "https://token:x-oauth-basic@github.com/acme/rocket/",
+    "git://github.com/acme/rocket.git",
+  ]) {
+    assert.equal(canonicalRemoteUrl(spelling), want, spelling);
+  }
+  assert.equal(canonicalRemoteUrl("https://GitHub.com/acme/rocket.git"), "GitHub.com".toLowerCase() + "/acme/rocket", "host lowercases, path case survives");
+  assert.equal(canonicalRemoteUrl("file:///srv/bare/widget.git"), "file:/srv/bare/widget");
+  assert.equal(canonicalRemoteUrl("nonsense"), undefined);
+  assert.equal(canonicalRemoteUrl(""), undefined);
 });

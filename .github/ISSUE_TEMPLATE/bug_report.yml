@@ -1,0 +1,51 @@
+name: Bug report
+description: A gate result that is wrong, a crash, or a documented behavior that does not hold.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste live secrets, tokens, or exploit details. Security issues go
+        through the private channel in `SECURITY.md`.
+  - type: input
+    id: version
+    attributes:
+      label: border version
+      description: Output of `border --version`.
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Node and npm versions
+      description: Output of `node --version` and `npm --version`.
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command that triggered the problem
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Include the exit code and the relevant output with secrets removed.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Smallest repository or artifact that shows the problem.
+    validations:
+      required: false

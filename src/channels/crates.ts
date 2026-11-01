@@ -33,6 +33,8 @@ import { spawnSync } from "node:child_process";
 
 import { z } from "zod";
 
+import { sandboxImageSchema } from "../artifacts/sandbox.ts";
+
 import { runCargoArtifactStage } from "../artifacts/crates.ts";
 import { runGitChecked } from "../check/context.ts";
 import { ConfigError } from "./errors.ts";
@@ -96,6 +98,9 @@ export const CRATES_ARTIFACT_EXTENSIONS: readonly string[] = [".crate"];
  *  NO registry/host field exists: public crates.io only (plan guardrail). */
 export const cratesTargetSchema = z
   .object({
+    // W4 sandbox containment (sibyl ruling 2026-10-23): digest-pinned image —
+    // absence keeps today's host build; presence is a contract, never a hint.
+    sandboxImage: sandboxImageSchema.optional(),
     name: z.string().optional(),
   })
   .strict()
@@ -267,9 +272,10 @@ async function cratesStage(o: ChannelStageOptions): Promise<ChannelStageResult> 
     ...(o.sanitizer === undefined ? {} : { sanitizer: o.sanitizer }),
     ...(o.skipGitleaks === undefined ? {} : { skipGitleaks: o.skipGitleaks }),
     ...(o.skipSecretlint === undefined ? {} : { skipSecretlint: o.skipSecretlint }),
+    ...(o.sandboxExec === undefined ? {} : { sandboxExec: o.sandboxExec }),
   });
   const artifacts = stage.artifact === null ? [] : [{ file: stage.artifact.file, sha256: stage.artifact.sha256 }];
-  return { findings: stage.findings, artifacts };
+  return { findings: stage.findings, artifacts, ...(stage.toolchain !== undefined ? { toolchain: stage.toolchain } : {}) };
 }
 
 /** Exactly `cargo publish --allow-dirty --no-verify` per staged .crate. cargo

@@ -9,7 +9,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const dest = join(root, "dist", "assets");
+// Optional argv[2]: alternate dest (repo-relative) for private test builds —
+// a suite never restages the shared dist/assets while siblings read it.
+const destArg = process.argv[2];
+const dest = destArg === undefined ? join(root, "dist", "assets") : destArg.startsWith("/") ? destArg : join(root, destArg);
 rmSync(dest, { recursive: true, force: true });
 mkdirSync(dest, { recursive: true });
 cpSync(join(root, "assets"), dest, { recursive: true });
@@ -48,4 +51,4 @@ mkdirSync(exfilSrc, { recursive: true });
 for (const base of ["severity.ts", "rules.ts", "rulesPath.ts", "scan.ts"]) {
   copyFileSync(join(root, "src", "exfil", base), join(exfilSrc, base));
 }
-console.log("assets staged into dist/assets/");
+console.log(`assets staged into ${dest}/`);

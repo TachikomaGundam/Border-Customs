@@ -12,6 +12,7 @@ import { appendFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { ReportCounts } from "../findings.ts";
+import { engineBuild } from "../buildInfo.ts";
 import { sanitizeUrl } from "../redact.ts";
 import { BORDER_STATE_DIR, ensureStateDir } from "../check/lock.ts";
 
@@ -42,6 +43,13 @@ export type CheckRecord = {
   readonly reportPath: string;
   readonly degraded: false;
   readonly ts: string;
+  /** identity of the border build that decided (`<version>+<commit>[.dirty]`);
+   *  optional for records written before the provenance wave. */
+  readonly engineBuild?: string;
+  /** W4 sandbox binding: set when a sandboxed build produced these artifacts
+   *  (image set + observed toolchain lines). Freshness parity compares the
+   *  image set against the config-resolved join; absent ⇒ host-built bytes. */
+  readonly buildEnv?: { readonly image: string; readonly toolchain: string };
 };
 
 export const PUSH_CONFIRMED_VIA = ["ls-remote", "npm-view", "pypi-json", "crates-json", "rubygems-json"] as const;
@@ -58,6 +66,8 @@ export type PushRecord = {
   readonly remoteSha?: string;
   readonly version?: string;
   readonly confirmedVia: PushConfirmedVia;
+  /** identity of the border build that executed the push (provenance wave). */
+  readonly engineBuild?: string;
   readonly ts: string;
 };
 
@@ -139,6 +149,7 @@ export function buildPushRecord(i: {
     ...(i.remoteSha !== undefined ? { remoteSha: i.remoteSha } : {}),
     ...(i.version !== undefined ? { version: i.version } : {}),
     confirmedVia: i.confirmedVia,
+    engineBuild: engineBuild(),
     ts: i.ts ?? new Date().toISOString(),
   };
 }
@@ -208,6 +219,13 @@ function needString(o: Record<string, unknown>, field: string): string {
   return v as string;
 }
 
+function optionalString(o: Record<string, unknown>, field: string): string | undefined {
+  const v = o[field];
+  if (v === undefined) return undefined;
+  if (typeof v !== "string" || v === "") bad(`${field} must be a non-empty string when present`);
+  return v as string;
+}
+
 function needHex(o: Record<string, unknown>, field: string, re: RegExp): string {
   const v = needString(o, field);
   if (!re.test(v)) bad(`${field} is not hex-shaped`);
@@ -253,6 +271,16 @@ export function parseLedgerRecord(value: unknown): LedgerRecord {
     if (verdict !== "PASS" && verdict !== "FAIL") bad(`verdict must be PASS or FAIL, got '${verdict}'`);
     if (o.degraded !== false) bad("degraded must be false — degraded runs are never ledgered");
     if (typeof o.llm !== "boolean") bad("llm must be a boolean");
+    const checkEngineBuild = optionalString(o, "engineBuild");
+    let checkBuildEnv: { image: string; toolchain: string } | undefined;
+    if (o.buildEnv !== undefined) {
+      const b: unknown = o.buildEnv;
+      if (typeof b !== "object" || b === null) bad("buildEnv must be an object {image, toolchain}");
+      const image = (b as { image?: unknown }).image;
+      const toolchain = (b as { toolchain?: unknown }).toolchain;
+      if (typeof image !== "string" || typeof toolchain !== "string") bad("buildEnv.image/toolchain must be strings");
+      checkBuildEnv = { image, toolchain };
+    }
     return {
       t: "check",
       key,
@@ -270,6 +298,8 @@ export function parseLedgerRecord(value: unknown): LedgerRecord {
       reportPath: needString(o, "reportPath"),
       degraded: false,
       ts: needString(o, "ts"),
+      ...(checkEngineBuild === undefined ? {} : { engineBuild: checkEngineBuild }),
+      ...(checkBuildEnv === undefined ? {} : { buildEnv: checkBuildEnv }),
     };
   }
   if (t === "push") {
@@ -282,6 +312,7 @@ export function parseLedgerRecord(value: unknown): LedgerRecord {
     if (remoteSha === undefined && version === undefined) bad("push record needs remoteSha or version");
     if (remoteSha !== undefined && typeof remoteSha !== "string") bad("remoteSha must be a string");
     if (version !== undefined && typeof version !== "string") bad("version must be a string");
+    const pushEngineBuild = optionalString(o, "engineBuild");
     return {
       t: "push",
       key: needHex(o, "key", HEX64),
@@ -292,6 +323,7 @@ export function parseLedgerRecord(value: unknown): LedgerRecord {
       ...(remoteSha !== undefined ? { remoteSha } : {}),
       ...(version !== undefined ? { version } : {}),
       confirmedVia: confirmedVia as PushConfirmedVia,
+      ...(pushEngineBuild === undefined ? {} : { engineBuild: pushEngineBuild }),
       ts: needString(o, "ts"),
     };
   }

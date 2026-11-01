@@ -528,7 +528,7 @@ test("freshness: crates repacks via the shared REPACKERS lookup; pypi is never a
     exposureSet: [], effectiveTargets: ["crates"], rulesHash: HEX64, artifacts, llm: false, verdict: "PASS",
     counts: emptyCounts(), reportPath: ".border/runs/x/report.json", degraded: false, ts: new Date().toISOString(),
   };
-  assert.equal(verifyArtifactFreshness(record, ctx, repo, {}), true, "digest-identical repack must prove freshness");
+  assert.equal(verifyArtifactFreshness(record, ctx, repo, { allowBuilds: true }), true, "digest-identical repack must prove freshness");
   assert.ok(REPACKERS["npm"] === packNpmArtifacts, "npm moves through the same lookup as crates (one site, no parallel if)");
   assert.ok(REPACKERS["crates"] === packCrateArtifacts, "crates is registered in the shared lookup");
   assert.equal(REPACKERS["pypi"], undefined, "pypi's key-match proof is the whole strategy — never repacked");

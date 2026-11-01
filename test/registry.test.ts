@@ -33,6 +33,10 @@ import { requireGitleaks } from "./helpers/require-engines.ts";
 import { gitAddCommit, gitInit, makeFixtureDir, removeDir, writeRel } from "./helpers/fixtures.ts";
 import { PACKUMENT_WIDGETS_100, refusedEndpoint, startHangingStub, startRegistryStub, type RegistryStub } from "./helpers/registry-stub.ts";
 
+import type { BuildConsent } from "../src/check/buildConsent.ts";
+
+const CONSENT: BuildConsent = { allowed: true, source: "flag" };
+
 const openStubs: RegistryStub[] = [];
 const fixtureRoots: string[] = [];
 
@@ -348,6 +352,7 @@ test("executeCheck: npm target configured ⇒ probes join the report; present ve
   const dir = trackedRepo("pipeline", { "package.json": PKG_JSON, "border.yaml": cliYaml(s.url) });
   const cfg = cfgFor({ npmRegistry: s.url, emails: ["alice@self.example"] });
   const { report } = await executeCheck({
+    consent: CONSENT,
     repoDir: dir,
     cfg,
     configDigest: "0".repeat(64),

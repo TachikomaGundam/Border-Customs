@@ -30,7 +30,7 @@ import { fileURLToPath } from "node:url";
 import { lintSource } from "@secretlint/core";
 import { creator as noDotenvCreator } from "@secretlint/secretlint-rule-no-dotenv";
 import { creator as noHomedirCreator } from "@secretlint/secretlint-rule-no-homedir";
-import { creator as patternCreator, type PatternType } from "@secretlint/secretlint-rule-pattern";
+import { creator as patternCreator, type PatternType } from "./borderPatternRule.ts";
 import { creator as presetRecommendCreator } from "@secretlint/secretlint-rule-preset-recommend";
 import type { SecretLintCoreConfig, SecretLintCoreResultMessage } from "@secretlint/types";
 
@@ -96,8 +96,10 @@ export const DEFAULT_PATH_PATTERNS: readonly string[] = [
   "/home/[a-z]+/",
   "/Users/[a-z]+/",
   String.raw`C:\\Users\\\w+`, // C:\Users\<name>
-  String.raw`[A-Za-z]:\\`, // <drive>:\ roots
-  String.raw`\\\\[^\\]+\\`, // UNC \\server\
+  // Negative lookbehind: `raw-repoPath:\n` (a JS escape in prose) must not
+  // read as drive `<letter>:\`; a real drive root follows space/quote/start.
+  String.raw`(?<![A-Za-z0-9_])[A-Za-z]:\\`, // <drive>:\ roots
+  String.raw`\\\\[^\\\r\n]+\\`, // UNC \\server\ (never spans a line)
 ];
 
 function escapeRegex(s: string): string {

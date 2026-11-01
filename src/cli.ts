@@ -8,6 +8,7 @@
 // flag is a tool error: exit 2 + usage, never a silent ignore.
 import { parseArgs } from "node:util";
 
+import { engineBuild } from "./buildInfo.ts";
 import { handlers } from "./commands/index.ts";
 import { EXIT_ERROR, EXIT_PASS, translateError, UnknownArgError } from "./cli/exit.ts";
 import { SUBCOMMANDS, type CommandHandler, type Ctx, type Flags, type Subcommand, type Writer } from "./cli/types.ts";
@@ -37,9 +38,12 @@ export function usage(): string {
     "  roundtrip      install+uninstall a package (registry spec or local artifact file) in a throwaway container, report uninstall residue",
     "  opencode       install|status|uninstall|inspect the official opencode plugin adapter (files under $XDG_CONFIG_HOME/opencode; inspect = read-only V1 load-surface audit)",
     "  exfil          read-only exfil-lens scan of <ref|url> [ref...]: tip tree + tag notes (--deep adds reachable-history blobs + commit messages)",
+    "  sandbox        init|pin|status|unpin — manage sandboxImage in the MACHINE store only (opt-in per sibyl ruling; never writes into the repo)",
     "",
     "flags:",
-    "  --config <path>             config file (default: ./border.yaml, then git-remote fallback)",
+    "  --config <path>             config file (default chain: $BORDER_CONFIG > machine store",
+    "                              ($BORDER_CONFIG_DIR | $XDG_CONFIG_HOME/border/machines, keyed",
+    "                              by canonical remote URL) > ./border.yaml > git-remote fallback)",
     "  --targets <" + VALID_TARGETS.join(",") + ">    comma-separated subset restricting this run's scope",
     "  --force                     ignore the skip-ledger, re-run the full check",
     "  --yes                       execute mutations; a bare `border push` is always DRY-RUN",
@@ -48,6 +52,8 @@ export function usage(): string {
     "  --json                      machine-readable report on stdout",
     "  --record / --no-record      `border roundtrip` records a ledger proof by default; --no-record opts out",
     "  --deep                      `border exfil`: also scan reachable-history blobs and the `:message` commit-message facet",
+    "  --allow-builds              operator consent: run artifact build stages (they execute audited code); or allowBuilds: true in the machine store",
+    "  --version, -V               border build id (version+commit[.dirty]) — the identity check/push records carry",
     "  --help, -h                  this table",
     "",
     "exit codes: 0 pass (MEDIUM/INFO/LOW allowed) | 1 gate-blocked (CRITICAL/HIGH) or partial push | 2 config/tool error",
@@ -81,10 +87,13 @@ function parseFlags(argv: readonly string[]): { flags: Flags; positionals: reado
       allowPositionals: true,
       options: {
         config: { type: "string" },
+        lane: { type: "string" },
+        image: { type: "string" },
         targets: { type: "string" },
         force: { type: "boolean" },
         yes: { type: "boolean" },
         "require-engine": { type: "string" },
+        "allow-builds": { type: "boolean" },
         llm: { type: "boolean" },
         json: { type: "boolean" },
         record: { type: "boolean" },
@@ -93,13 +102,15 @@ function parseFlags(argv: readonly string[]): { flags: Flags; positionals: reado
         help: { type: "boolean" },
       },
     });
-    const { config, targets, force, yes, llm, json } = values;
+    const { config, targets, force, yes, llm, json, lane, image } = values;
     if (values.record === true && values["no-record"] === true) {
       throw new UnknownArgError("--record and --no-record contradict each other");
     }
     const requireEngine = values["require-engine"];
     const flags: Flags = {
       ...(config !== undefined ? { config } : {}),
+      ...(lane !== undefined ? { lane } : {}),
+      ...(image !== undefined ? { image } : {}),
       ...(targets !== undefined
         ? { targets: splitList(targets, { flag: "--targets", item: "target", allowed: VALID_TARGETS }) }
         : {}),
@@ -112,6 +123,7 @@ function parseFlags(argv: readonly string[]): { flags: Flags; positionals: reado
       json: json === true,
       ...(values["no-record"] === true ? { record: false } : values.record === true ? { record: true } : {}),
       ...(values.deep === true ? { deep: true } : {}),
+      ...(values["allow-builds"] === true ? { allowBuilds: true } : {}),
     };
     return { flags, positionals, help: values.help === true };
   } catch (err) {
@@ -162,6 +174,10 @@ export function run(
   const first = argv[0];
   if (first === "--help" || first === "-h" || first === "help") {
     stdout(usage());
+    return EXIT_PASS;
+  }
+  if (first === "--version" || first === "-V") {
+    stdout(`border ${engineBuild()}`);
     return EXIT_PASS;
   }
   if (first === undefined || !isSubcommand(first)) {

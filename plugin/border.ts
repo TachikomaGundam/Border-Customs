@@ -1,4 +1,4 @@
-// border-opencode-plugin v0.8.1
+// border-opencode-plugin v0.8.2
 // Official opencode plugin adapter for the border fail-closed push gate.
 // Registers ONE agent tool, `border`, that drives the border CLI — argv-only
 // (node:child_process execFile, never a shell), top-level commands restricted
@@ -20,13 +20,16 @@
 // This file ships as-is (package.json "files") and reaches a session by two
 // routes, neither compiling it through border's tsc:
 // (A) copied into <CONFIG>/plugins/ by `border opencode install`, which also
-//     drops commands/border.md; "@opencode-ai/plugin" then resolves in
-//     opencode's config-directory node_modules.
+//     drops commands/border.md.
 // (B) served as the package's "./server" export when the npm package name is
-//     listed in opencode.jsonc "plugin" — opencode's arborist install places
-//     @opencode-ai/plugin (its runtime dependency) next to the package in the
-//     cache, so the same import resolves there too. With no commands/border.md
-//     on disk, the config hook below self-registers the slash command instead.
+//     listed in opencode.jsonc "plugin". With no commands/border.md on disk,
+//     the config hook below self-registers the slash command instead.
+// Since 2026-10-23 NEITHER route resolves "@opencode-ai/plugin" at runtime:
+// the `tool` helper is vendored (identity function, see below) and Config is a
+// type-only import, so the host's loader strips them. The package remains a
+// devDependency for live-host probe tests; upstream's runtime chain
+// (effect@beta, toml) — advisory-flagged and pointless for an identity call —
+// left border's production install graph.
 //     On this route the CLI is spawned FROM THE PACKAGE ITSELF (../dist/index.js
 //     lives inside the same tarball), so no global install or PATH entry is
 //     needed — that is what makes Route B genuinely install-free.
@@ -45,7 +48,21 @@
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { tool, type Config } from "@opencode-ai/plugin";
+import { z } from "zod";
+
+import type { Config } from "@opencode-ai/plugin";
+
+// Vendored from @opencode-ai/plugin's tool.js (MIT, (c) 2025 opencode):
+// upstream's body is literally `return input` (typing pass-through). Owning
+// the identity keeps a security tool's production dependency graph free of
+// the package's runtime chain; the live-host probe (test/opencode.probe.test.ts)
+// is the standing proof that stripped-import loading still activates.
+function tool<T>(input: T): T {
+  return input;
+}
+// upstream attaches the zod namespace here (tool.schema = z) and hosts read
+// it for arg-schema rendering — border's own zod dependency fills the slot.
+tool.schema = z;
 
 /** Spawn cap: a CLI call that outlives this is killed and reported, never awaited forever. */
 const TIMEOUT_MS = 300_000;
@@ -423,7 +440,14 @@ export default {
             .describe("remaining argv tokens, e.g. ['--force']"),
         },
         // V1 edge: gate → V1-only metadata → shared substance (see gateArgv).
-        execute: async (args, context) => {
+        // The arg/context surface is declared locally (mirrors the args schema
+        // above and the host's metadata hook — the vendored tool() no longer
+        // injects upstream's inference); test/opencode.probe.test.ts runs the
+        // real host call, so a drifted host contract fails the live probe.
+        execute: async (
+          args: { command: string; extra?: string[] },
+          context: { metadata(o: { title: string }): void },
+        ) => {
           const argv: readonly string[] = [args.command.trim(), ...(args.extra ?? [])];
           const refusal = gateArgv(argv);
           if (refusal !== null) return refusal;

@@ -3,14 +3,15 @@
 //   ${VAR} env-expand fields, hasTargets and exposure items now flow from the channel
 //   descriptors in src/channels/ — behavior byte-identical)
 //
-// border.yaml: zod-strict schema, discovery (--config > ./border.yaml > git
-// toplevel), private `.border/config.local.yaml` overlay (deep-merged, G15),
+// border.yaml: zod-strict schema, discovery (--config > $BORDER_CONFIG >
+//   machine store keyed by canonical remote > ./border.yaml > git toplevel),
+//   private `.border/config.local.yaml` overlay (deep-merged, G15),
 // git-remote inference fallback, NO-OP verdict (G24) and the sanitized
 // exposure set used by the fingerprint ledger (todo 14).
 // Library contract: never calls process.exit — throws typed ConfigError
 // (exitCode 2) which the CLI layer maps onto the process exit code.
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { parse as parseYaml, YAMLParseError } from "yaml";
 import { z } from "zod";
@@ -18,6 +19,15 @@ import { z } from "zod";
 import { sanitizeUrl } from "./redact.ts";
 
 import { cratesChannel, npmChannel, pypiChannel, rubygemsChannel, publishChannels } from "./channels/registry.ts";
+import { findMachineConfig, resolveMachineStoreDir } from "./config/machineStore.ts";
+import {
+  assertSecurityKey,
+  canonicalStoreRoot,
+  honorSecurityKey,
+  qualifyDir,
+  qualifyRead,
+  type SecurityDecl,
+} from "./tier.ts";
 
 export const DEFAULT_MAX_FILE_KB = 500;
 export const DEFAULT_ENGINES = ["gitleaks", "secretlint"];
@@ -94,12 +104,28 @@ function buildBorderConfigSchema() {
           ips: z.array(z.string()),
           pathPatterns: z.array(z.string()),
           maxFileKB: z.number().int().positive().default(DEFAULT_MAX_FILE_KB),
+          // Rule-rename migration (HR 次级伤 4.2): allow entries keep matching a
+          // renamed rule via `{oldName: currentName}` — renames must not silently
+          // redden (or silently strand waivers of) already-correct repos.
+          // optional (not default): an unused key must not materialize into the
+          // whole-object configDigest and rotate every unrelated ledger.
+          aliases: z.record(z.string().min(1), z.string().min(1)).optional(),
         })
         .strict(),
       allow: z
         .array(
           z
-            .object({ rule: z.string().min(1), match: z.string().min(1), file: z.string().min(1).optional() })
+            .object({
+              rule: z.string().min(1),
+              match: z.string().min(1).optional(),
+              file: z.string().min(1).optional(),
+              // Path-domain waiver (HR decoupling 2026-10-23): one entry, many pins.
+              // Digests are of the secret VALUE, so formatter churn cannot break
+              // them; a NEW value not in the list stays red — the safety floor.
+              values: z.array(z.string().regex(/^[0-9a-f]{64}$/, "allow values entries must be 64-hex value digests")).min(1).optional(),
+              // UTC sunset `YYYY-MM-DD`: after this date the entry never suppresses.
+              until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "allow until must be YYYY-MM-DD (UTC expiry date)").optional(),
+            })
             .strict()
             // G14: the plan's Must-NOT bans the blanket `allow: [{rule:"*"}]`
             // SHAPE — an entry that suppresses by wildcard with NO scoping at
@@ -111,6 +137,9 @@ function buildBorderConfigSchema() {
             // path — a typo posing as a rule — so it fails typed at LOAD too
             // (kind invalid-value ⇒ exit 2) instead of silently no-op'ing.
             .superRefine((entry, ctx) => {
+              if (entry.match === undefined && entry.values === undefined) {
+                ctx.addIssue({ code: "custom", message: "allow entry needs at least one of match/values — an entry that matches nothing suppresses nothing and only hides intent" });
+              }
               if (entry.file === undefined && entry.rule === "*" && entry.match === "*") {
                 ctx.addIssue({ code: "custom", message: "blanket allow entry: '{rule:\"*\",match:\"*\"}' without a file scope is rejected — wildcards need a concrete file glob to bound them" });
               }
@@ -123,6 +152,10 @@ function buildBorderConfigSchema() {
             }),
         )
         .default([]),
+      // Operator build consent (§3⁗): collectible ONLY from the machine
+      // store or an explicit --config outside the repo; the load-time
+      // security evaluation strips it from every other source.
+      allowBuilds: z.boolean().optional(),
       engines: z
         .object({
           require: z.array(z.string()).default(DEFAULT_ENGINES),
@@ -362,14 +395,26 @@ function hasTargets(cfg: BorderConfig): boolean {
 // ---------------------------------------------------------------- discovery
 
 export type LoadResult =
-  | { kind: "loaded"; config: BorderConfig; warnings: readonly string[]; source: string }
+  | {
+      kind: "loaded";
+      config: BorderConfig;
+      warnings: readonly string[];
+      source: string;
+      /** §3⁗ resolved security-tier outcomes (honored values only; refusal
+       *  states threw ConfigError before this returns). */
+      security: SecurityResolution;
+    }
   // `explicit` distinguishes the two no-op causes: undefined ⇒ NOTHING was
   // discovered (todo-2 loud no-op stays exit 0 with no run); defined ⇒ a real
   // border.yaml/overlay was loaded but declares zero targets — the check flow
   // (commands/check.ts, todo 19) promotes that into a full repo-local run with
   // an empty exposureSet, because an authored config is intent, not an
   // absence. loadConfig's own contract (kind:'no-op') is unchanged.
-  | { kind: "no-op"; warnings: readonly string[]; explicit?: { config: BorderConfig; source: string } };
+  | {
+      kind: "no-op";
+      warnings: readonly string[];
+      explicit?: { config: BorderConfig; source: string; security: SecurityResolution };
+    };
 
 function readFileOrUndefined(path: string): string | undefined {
   return existsSync(path) ? readFileSync(path, "utf8") : undefined;
@@ -396,6 +441,10 @@ export function loadConfig(
     configPath?: string;
     cwd?: string;
     env?: Record<string, string | undefined>;
+    /** Test seam for the security-tier predicates (defaults: the real
+     *  fd-chain qualification from src/tier.ts). */
+    securityQualify?: (p: string) => { readonly ok: boolean };
+    securityQualifyDir?: (p: string) => { readonly ok: boolean };
   } = {},
 ): LoadResult {
   const cwd = resolve(options.cwd ?? process.cwd());
@@ -405,18 +454,35 @@ export function loadConfig(
 
   let basePath: string | undefined;
   let baseText: string | undefined;
+  const remotes = toplevel === undefined ? [] : parseRemoteV(runGit(toplevel, ["remote", "-v"]).stdout);
   if (options.configPath !== undefined) {
     basePath = resolve(cwd, options.configPath);
     baseText = readFileOrUndefined(basePath);
     if (baseText === undefined) {
       throw new ConfigError("unreadable", `config file not found: ${basePath}`);
     }
+  } else if (env.BORDER_CONFIG !== undefined) {
+    if (env.BORDER_CONFIG === "") {
+      throw new ConfigError("unreadable", "$BORDER_CONFIG is set but empty — pointing at nothing must never silently fall through");
+    }
+    basePath = resolve(cwd, env.BORDER_CONFIG);
+    baseText = readFileOrUndefined(basePath);
+    if (baseText === undefined) {
+      throw new ConfigError("unreadable", `$BORDER_CONFIG points to an unreadable file: ${basePath}`);
+    }
   } else {
-    for (const candidate of [join(cwd, "border.yaml"), toplevel === undefined ? "" : join(toplevel, "border.yaml")]) {
-      if (candidate !== "" && existsSync(candidate)) {
-        basePath = candidate;
-        baseText = readFileSync(candidate, "utf8");
-        break;
+    const machine = findMachineConfig(remotes, resolveMachineStoreDir(env));
+    if (machine !== undefined) {
+      basePath = machine.path;
+      baseText = readFileSync(basePath, "utf8");
+      warnings.push(`machine-store config ${machine.path} (${machine.canonical})`);
+    } else {
+      for (const candidate of [join(cwd, "border.yaml"), toplevel === undefined ? "" : join(toplevel, "border.yaml")]) {
+        if (candidate !== "" && existsSync(candidate)) {
+          basePath = candidate;
+          baseText = readFileSync(candidate, "utf8");
+          break;
+        }
       }
     }
   }
@@ -439,7 +505,6 @@ export function loadConfig(
   let config: BorderConfig;
   let source: string;
   if (basePath === undefined && overlay === undefined) {
-    const remotes = toplevel === undefined ? [] : parseRemoteV(runGit(toplevel, ["remote", "-v"]).stdout);
     if (remotes.length === 0) {
       return { kind: "no-op", warnings };
     }
@@ -455,10 +520,172 @@ export function loadConfig(
     source = basePath ?? overlay?.path ?? "<unknown>";
   }
 
+  const security = evaluateSecurity(config, {
+    cwd,
+    toplevel,
+    env,
+    configPath: options.configPath,
+    basePath,
+    warnings,
+    ...(options.securityQualify !== undefined ? { qualify: options.securityQualify } : {}),
+    ...(options.securityQualifyDir !== undefined ? { qualifyDirFn: options.securityQualifyDir } : {}),
+  });
+  config = applySecurity(config, security);
   if (!hasTargets(config)) {
-    return { kind: "no-op", warnings, explicit: { config, source } };
+    return { kind: "no-op", warnings, explicit: { config, source, security } };
   }
-  return { kind: "loaded", config, warnings, source };
+  return { kind: "loaded", config, warnings, source, security };
+}
+
+// ---------------------------------------------------------------- security tier
+
+export const SANDBOX_LANES = ["npm", "pypi", "crates", "rubygems"] as const;
+export type SandboxLane = (typeof SANDBOX_LANES)[number];
+
+export type SecurityResolution = {
+  readonly sandbox: Partial<Record<SandboxLane, string>>;
+  readonly allowBuilds: boolean;
+};
+
+type SecEvalOpts = {
+  readonly cwd: string;
+  readonly toplevel: string | undefined;
+  readonly env: Record<string, string | undefined>;
+  readonly configPath: string | undefined;
+  readonly basePath: string | undefined;
+  readonly warnings: string[];
+  readonly qualify?: (p: string) => { readonly ok: boolean };
+  readonly qualifyDirFn?: (p: string) => { readonly ok: boolean };
+};
+
+/** Declarations harvested from one candidate file (raw parse; an unparseable
+ *  file that MENTIONS a security key still declares — presence, §3⁗). */
+function secDeclsOfFile(filePath: string, source: SecurityDecl["source"], warnOut: string[]): SecurityDecl[] {
+  let text: string;
+  try {
+    text = readFileSync(filePath, "utf8");
+  } catch {
+    return [];
+  }
+  let doc: unknown;
+  try {
+    doc = yamlToJson(text, filePath);
+  } catch {
+    if (/allowBuilds|sandboxImage/.test(text)) {
+      warnOut.push(`unparseable config ${filePath} mentions security keys — counted as declarations (sibyl §3⁗ presence)`);
+      return [{ key: "allowBuilds", value: true, source, path: filePath }];
+    }
+    return [];
+  }
+  if (typeof doc !== "object" || doc === null) return [];
+  const d = doc as Record<string, unknown>;
+  const out: SecurityDecl[] = [];
+  if (d["allowBuilds"] === true) out.push({ key: "allowBuilds", value: true, source, path: filePath });
+  const targets = d["targets"];
+  if (typeof targets === "object" && targets !== null) {
+    for (const lane of SANDBOX_LANES) {
+      const t = (targets as Record<string, unknown>)[lane];
+      if (typeof t === "object" && t !== null) {
+        const img = (t as Record<string, unknown>)["sandboxImage"];
+        if (typeof img === "string") out.push({ key: "sandboxImage", lane, value: img, source, path: filePath });
+      }
+    }
+  }
+  return out;
+}
+
+function insideRepo(p: string, cwd: string, toplevel: string | undefined): boolean {
+  return [cwd, ...(toplevel === undefined ? [] : [toplevel])].some((r) => p === r || p.startsWith(r + "/"));
+}
+
+/** All *.yaml under a machine store dir (per-remote key files, W2 naming). */
+function machineStoreCandidates(storeDir: string): string[] {
+  try {
+    return readdirSync(storeDir).filter((n) => n.endsWith(".yaml")).map((n) => join(storeDir, n));
+  } catch {
+    return [];
+  }
+}
+
+function evaluateSecurity(config: BorderConfig, o: SecEvalOpts): SecurityResolution {
+  const qualify = o.qualify ?? ((p: string) => ({ ok: qualifyRead(p).ok }));
+  const qualifyDirFn = o.qualifyDirFn ?? ((p: string) => ({ ok: qualifyDir(p).ok }));
+  const decls: SecurityDecl[] = [];
+  const seen = new Set<string>();
+  const addFile = (filePath: string, source: SecurityDecl["source"]): void => {
+    if (seen.has(filePath)) return;
+    seen.add(filePath);
+    // authorship rule: any file physically inside the repo is repo-tier, no
+    // matter which channel discovered it or how perfect its modes are.
+    const src: SecurityDecl["source"] = insideRepo(filePath, o.cwd, o.toplevel) ? "repo" : source;
+    decls.push(...secDeclsOfFile(filePath, src, o.warnings));
+  };
+  if (o.configPath !== undefined && o.basePath !== undefined) addFile(o.basePath, "argv");
+  else if (o.basePath !== undefined && o.env["BORDER_CONFIG"] !== undefined) addFile(o.basePath, "repo");
+  // the canonical machine root is ALWAYS probed for declarations — a
+  // --config/BORDER_CONFIG selection does not make machine declarations vanish
+  // (§3⁗ presence; it can only SHADOW or go AMBIGUOUS, never silently lose).
+  const canon = canonicalStoreRoot();
+  if (canon !== undefined) {
+    for (const c of machineStoreCandidates(canon)) addFile(c, "machine");
+  }
+  const xdg = o.env["XDG_CONFIG_HOME"];
+  const overrides: string[] = [];
+  if (xdg !== undefined && xdg !== "") {
+    const xdgRoot = `${xdg.replace(/\/+$/, "")}/border/machines`;
+    if (!qualifyDirFn(xdgRoot).ok) overrides.push(xdgRoot);
+    else if (canon === undefined || xdgRoot !== canon) for (const c of machineStoreCandidates(xdgRoot)) addFile(c, "machine");
+  }
+  if (o.basePath !== undefined) addFile(o.basePath, o.configPath !== undefined ? "argv" : "repo");
+  // unselected repo configs still DECLARE (§3⁗ presence): a border.yaml the
+  // selection ignored cannot silently carry sandbox keys into the future.
+  addFile(join(o.cwd, "border.yaml"), "repo");
+  if (o.toplevel !== undefined) addFile(join(o.toplevel, "border.yaml"), "repo");
+  addFile(join(o.cwd, ".border", "config.local.yaml"), "repo");
+  if (o.toplevel !== undefined) addFile(join(o.toplevel, ".border", "config.local.yaml"), "repo");
+
+  const sandbox: Partial<Record<SandboxLane, string>> = {};
+  for (const lane of SANDBOX_LANES) {
+    const laneDecls = decls.filter((d) => d.key === "sandboxImage" && d.lane === lane);
+    if (laneDecls.length === 0) continue;
+    const state = honorSecurityKey(laneDecls, overrides, qualify);
+    const honored = assertSecurityKey(state, `targets.${lane}.sandboxImage`, "refuse");
+    if (honored !== undefined) {
+      if (typeof honored.value !== "string") {
+        throw new ConfigError("invalid-value", `targets.${lane}.sandboxImage honored value must be a string`, { key: `targets.${lane}.sandboxImage` });
+      }
+      sandbox[lane] = honored.value;
+    }
+  }
+  const consentDecls = decls.filter((d) => d.key === "allowBuilds");
+  let allowBuilds = false;
+  if (consentDecls.length > 0) {
+    const state = honorSecurityKey(consentDecls, overrides, qualify);
+    const honored = assertSecurityKey(state, "allowBuilds", "withhold");
+    allowBuilds = honored !== undefined && honored.value === true;
+    if (state.kind === "present-unqualified") {
+      o.warnings.push("allowBuilds was declared only by unqualified sources — withheld (sibyl §3⁗ conservative)");
+    }
+  }
+  void config;
+  return { sandbox, allowBuilds };
+}
+
+/** Rewrite the config so every downstream consumer sees ONLY honored
+ *  security values (stage/freshness read targets.<lane>.sandboxImage). */
+function applySecurity(config: BorderConfig, sec: SecurityResolution): BorderConfig {
+  const targets: Record<string, unknown> = { ...config.targets };
+  for (const lane of SANDBOX_LANES) {
+    const t = targets[lane];
+    if (typeof t !== "object" || t === null) continue;
+    const img = sec.sandbox[lane];
+    const { sandboxImage: _drop, ...rest } = t as Record<string, unknown>;
+    targets[lane] = img === undefined ? rest : { ...rest, sandboxImage: img };
+  }
+  const { allowBuilds: _drop2, ...rest } = config as BorderConfig & { allowBuilds?: boolean };
+  // false stays ABSENT: an old border.yaml's canonical configDigest must not
+  // rotate because this wave learned a new key it never set.
+  return (sec.allowBuilds ? { ...rest, allowBuilds: true, targets } : { ...rest, targets }) as BorderConfig;
 }
 
 // ---------------------------------------------------------------- exposure set

@@ -10,7 +10,7 @@ cd /path/to/your/repo
 border check
 ```
 
-Requires Node >= 22 and the `gitleaks` binary on `PATH` (border vendors the rule config for
+Requires Node >= 22.22.2 (the transitive `ini@7` dependency sets that floor) and the `gitleaks` binary on `PATH` (border vendors the rule config for
 gitleaks 8.30.1; the binary itself is yours to install, same as `git`). secretlint runs
 in-process as a bundled dependency. Each registry leg additionally shells out to its platform's
 own publisher, which must be on `PATH` whenever that target is configured; a missing publisher
@@ -18,13 +18,28 @@ binary is exit 2, never a skipped leg:
 
 | Registry target | Publisher border runs | Version the same-bytes proofs were measured on |
 | --- | --- | --- |
-| `npm` | `npm` | (unchanged since 0.1.0) |
+| `npm` | `npm` | npm >= 11 for packages with pack-phase hooks (see below) |
 | `pypi` | `python3 -m build` / `python3 -m twine` | (unchanged since 0.1.0) |
 | `crates` | `cargo` | cargo 1.93.1 (rustup) |
 | `rubygems` | `gem` | RubyGems 3.6.7 on ruby 3.3.8 |
 
+**npm pack safety probe.** `npm pack --ignore-scripts` is not trustworthy on npm 10: measured
+on npm 10.9.7, the target package's `prepare` script still executes (npm 11.19.1 is clean).
+Before packing, border runs `npm --version`. On npm < 11 it refuses, with a named exit 2, any
+package that declares a `prepack`, `prepare`, or `postpack` script — border never executes the
+code it audits. A package with none of those hooks has nothing for npm to run and stays
+scannable on npm 10. Installing npm >= 11 removes the refusal.
+
 Other toolchain versions of `cargo` and `gem` are untested by those byte-determinism proofs.
 Optional engines are listed in [Configuration](#configuration).
+
+**Pinned consumption.** Install an exact version (`npm install -g border-customs@<version>`;
+`npx border-customs@<version> check` for a one-off) instead of running gate code out of a
+source checkout. Every check and push record carries `engineBuild` — the identity
+(`<version>+<commit>[.dirty]`) of the border build that produced the verdict, the same string
+`border --version` prints. A `.dirty` suffix means the verdict came from uncommitted code, and
+records from one repo carrying different `engineBuild` values mean the audit trail is mixed:
+both are findings an auditor should chase, which is exactly why the identity is on the record face.
 
 ## The problem it solves
 
@@ -207,7 +222,7 @@ an installer *does*, per tier — the split behind opencode-ai's in-tree `postin
 The pairing classes behind these rows (multi-channel PASS **C5** subset/ordering discipline;
 **C9** interpolated-and-indirected root spellings; **C10** comment/quote-boundary shapes that
 once silent-passed) are frozen with their evidence in
-[src/artifacts/RESIDUE-CONTRACT.md](src/artifacts/RESIDUE-CONTRACT.md).
+[src/artifacts/RESIDUE-CONTRACT.md](https://github.com/TachikomaGundam/Border-Customs/blob/main/src/artifacts/RESIDUE-CONTRACT.md).
 
 **Fail-closed:** a residue scan whose rule table or classifier sources cannot be read is exit 2,
 never a silent pass — and the classifier source bytes are part of the ledger `rulesHash`, so
@@ -222,10 +237,30 @@ clean residue scan is an absence of matched signatures, never a certificate of b
 The signature table is deliberately closed, and the list of shapes it **cannot see** —
 content-writes, handle-variants, dead spellings, interpolation-then-slash, span-quirk
 over-blocks, IO-instance writers, user-shadowed bare verbs — lives in
-[RESIDUE-CONTRACT.md §8](src/artifacts/RESIDUE-CONTRACT.md); this README points, it does not
+[RESIDUE-CONTRACT.md §8](https://github.com/TachikomaGundam/Border-Customs/blob/main/src/artifacts/RESIDUE-CONTRACT.md); this README points, it does not
 restate. The empirical roundtrip (install → snapshot → uninstall → rc-delta-zero) is the 0.4.0
-valve. **border is NOT a malware sandbox**: it never executes, intercepts, or sandboxes the
-code it reads; it matches text and blocks the push.
+valve. **border does not execute the code it audits.** Every scan leg (gitleaks, secretlint,
+the native rules, the exfil lens) is pure byte inspection; the cross-channel marker fixture
+(`test/build.execMarkers.test.ts`) pins that a consentless `border check` spawns ZERO build
+toolchains. Registry artifact builds (npm pack, `python -m build`, `gem build`, `cargo
+ package`) DO execute repo-supplied build code, so they run only on operator consent:
+`--allow-builds`, or `allowBuilds: true` in the machine store / an explicit `--config` file
+outside the repo (the environment is deliberately NOT a consent source — a hostile `.envrc`
+owns it). Both sources live OUTSIDE the audited tree, and a repo's own border.yaml can declare
+targets but can never enable building them. Without
+consent the run is scan-only: no artifact digests are recorded (visible as MEDIUM
+`build-stage-withheld` findings), and a scan-only PASS can never back a registry publish.
+Consented builds can additionally run inside a **pinned container** (`targets.<ch>.sandboxImage`,
+see Configuration): the container is launched with the network disabled — the `--network none`
+argv the daemon applies is the enforcement anchor, and an in-container probe re-checks DNS and
+TCP from inside as a tripwire — the repo mounted read-only and built from a tmpfs copy, host
+credentials never entering the container, and every ledger record bound to the exact image
+digest that certified its bytes. `sandboxImage` itself is a security-tier key: honored only
+from the machine store or a `--config` file outside the repo whose ownership and modes pass
+the fd-chain qualification, and any competing declaration (repo config, lax-mode file, hijacked
+`XDG_CONFIG_HOME`) is a hard refusal, never a silent fallback. Border is
+containment-by-consent plus optional container containment — it is not a malware sandbox and
+not a VM: a kernel-level escape from the container remains in the threat model.
 
 #### Proof valve: `residue.requireProof` (0.4.0)
 
@@ -267,7 +302,7 @@ lives inside. The exfil lens adds five rules over the surfaces about to become p
 | `exfil-machine-binding` | vendor inference-model ids pinned on portable surfaces next to model/default/provider context (L-MACHINE-LOCAL; born 2026-10-02) |
 
 The severity a reader **observes** is the (rule × facet × channel) matrix, and its single
-home is [src/exfil/severity.ts](src/exfil/severity.ts) — the check pipeline, the
+home is [src/exfil/severity.ts](https://github.com/TachikomaGundam/Border-Customs/blob/main/src/exfil/severity.ts) — the check pipeline, the
 `border exfil` CLI and this table all render that table, never re-decide it; the
 `EXFIL-DOC` guard test fails the build if a cell is restated wrong:
 
@@ -608,10 +643,59 @@ degraded run.
 
 ## Configuration
 
-Everything border can be told lives in `border.yaml` at the repo root. Unknown keys are
+Border is a property of the **checking machine**, not of the checked repo. Config resolves
+in this order, and the machine-side rungs exist so gate config (including waivers) never has
+to be committed into a product repo:
+
+1. `--config <path>` (explicit);
+2. `$BORDER_CONFIG` — fail-closed: set-but-empty or unreadable is exit 2, never a fall-through;
+3. the **machine store**: `$BORDER_CONFIG_DIR` (else `$XDG_CONFIG_HOME/border/machines`, else
+   `~/.config/border/machines`) holding `<sha256-16>.yaml` files keyed by the repo's canonical
+   remote URL (`host/path`, credentials/`.git`/scp-vs-https spellings collapsed);
+4. `./border.yaml` (cwd, then git toplevel) — kept for repos that *choose* to carry their config;
+5. git-remote inference (targets only, no waivers) when nothing above exists.
+
+Unknown keys are
 rejected at load (a typo in a gate config is a gate you did not ask for). `${VAR}`
 expansion applies only to remote URLs and registry/repository/host values, and an unset variable
 is a hard error, never an empty string.
+
+#### Sandboxed builds (`targets.<ch>.sandboxImage`)
+
+Configure pins with the helper instead of hand-editing the machine store:
+`border sandbox init --lane npm --image node@sha256:<64hex>` (writes only the
+0600 machine-store file under the §3-qualified root, refuses tmp/unowned dirs and
+tag refs); `border sandbox status` shows what the loader will actually honor;
+`unpin` removes keys. The helper never writes into the audited repo.
+
+When a lane declares `sandboxImage`, that lane's consented build runs inside `docker run`
+instead of on the host: `--network none` (the daemon-applied argv is the enforcement anchor;
+a DNS+TCP probe re-checks from *inside* as a tripwire that fails the build closed), read-only repo mount, build on a tmpfs snapshot, `--cap-drop ALL`,
+`no-new-privileges`, and a scrubbed env (image defaults + `HOME=/tmp` only). The image MUST be
+digest-pinned:
+
+```yaml
+targets:
+  npm:
+    sandboxImage: node@sha256:<64 hex>   # tags are rejected at load — a mutable tag
+                                          # would let check and push certify different bytes
+```
+
+`sandboxImage` is a **security-tier key**: it is honored only from the machine store or an
+explicit `--config` file outside the repo, and only after fd-chain qualification (every path
+component verified by open file descriptor: root-owned or euid-owned above your trust anchor,
+euid-owned `0700`-below files `0600` below it — symlink or mode violations fail closed).
+Any other declaration of the same key — the repo's own border.yaml, a lax-mode (group/world
+readable or writable) store file, an `XDG_CONFIG_HOME` override pointing somewhere
+unqualifiable — is a named hard refusal (`sandbox-config-shadowed` /
+`sandbox-config-unqualified`), never a silent ignore and never a host fallback.
+
+Freshness and push carry the same binding: a PASS certified inside image X is re-proved only
+inside X (config drift forces a full re-check), and docker being *absent* while an image is
+configured is exit 2 with the remedy named — never a silent host fallback. No `sandboxImage`
+means today's host build, unchanged. The crates lane keeps its registry cache in
+`.border/cache/` (the one writable bind); the pypi image must ship the build backend's
+dependencies (there is no network inside).
 
 Minimal, a git-only repo:
 
@@ -663,8 +747,15 @@ rules:
   ips: ["192.0.2.1"]
   pathPatterns: ["/Users/*", "*.pfx"]
   maxFileKB: 500                            # oversized-file threshold (default)
+  aliases:                                  # optional: rule-rename migration for allow pins
+    old-rule-name: current-rule-name        #   {renamed-from: current} — waivers survive renames
 allow:                                      # enumerated suppressions, never blanket
   - { rule: "junk-artifact", match: "*", file: "test/fixtures/**" }
+  - rule: "gitleaks:*"                      # fixture-set waiver: values pins the exact
+    file: "tests/fixtures/**"               #   value digests; ANY value outside stays red
+    values: ["<64hex>", "<64hex>"]
+    until: "2027-01-01"                     # optional UTC sunset; after it the entry is
+                                            #   inert and echoed as allow-entry-expired
 engines:
   require: [gitleaks, secretlint]           # trufflehog: true adds the third-party engine
 residue:
@@ -674,6 +765,15 @@ release:
 ```
 
 Notes that change behavior:
+
+- **Archive member addressing in `allow.file`:** findings inside archives are attributed
+  `archive!<inner>`. A plain `file` glob matches only the truncated OUTER path (`archive`),
+  so member-level pins need the escape form `archive\\!inner` (the `\!` switches the entry to
+  full-attribution matching). Members are addressable; forgetting the escape silently matches
+  the whole archive instead.
+- **Waiver floors:** a `values` entry suppresses only the listed value digests — a new value
+  under the same path/rule stays red; an `until` entry is inert after its UTC date and is
+  echoed as an INFO `allow-entry-expired` finding instead of quietly keeping work.
 
 - `targets.git.remotes: []` (explicit, empty) is a *deliberate* repo-local scope: all
   history/tree/identity/artifact legs still run, only the exposure set is empty. A
@@ -719,7 +819,10 @@ the hook must first pass. Drop `--force` to get sub-second skip-ledger replay in
 re-scan on every `git push`.
 
 **CI.** `border check --json` emits the stable report object; gate on the exit code, parse
-`verdict`/`counts` for dashboards. In CI you typically want `--force` on a cache-less
+`verdict`/`counts` for dashboards. Each finding is
+`{ rule, severity, target, path?, line?, commit?, engine, message, valueDigest, snippet }` —
+the file location is **`path`** (absent when the finding is commit-only, e.g. an identity
+finding); there is no `file` field. In CI you typically want `--force` on a cache-less
 runner, plus your `gitleaks` binary provisioned in the image (a degraded run exits 2, which
 most CI maps to red; that is the point).
 
@@ -736,7 +839,7 @@ plugin entry ships as `exports["./server"]`):
 ```jsonc
 {
   // pin the exact version — an @latest channel hits the registry on every cold start
-  "plugin": ["border-customs@0.8.1"]
+  "plugin": ["border-customs@0.8.2"]
 }
 ```
 
@@ -832,6 +935,10 @@ which is now a thin consumer of `inspect --json` with the rc contract unchanged
 - **Fail-closed doctrine.** "Silence never means absent" is applied mechanically: empty
   registry stdout, unparsed versions, non-translatable exit codes, unresolvable ownership,
   corrupt-but-present rules inputs, all become exit 2 or a CRITICAL, never a pass.
+- **Platform behaviour is probed, not assumed.** The npm stage reads `npm --version` before
+  packing. On npm < 11 a declared pack-phase hook is a named exit 2, because that npm line
+  executes `prepare` despite `--ignore-scripts` (reproduced on npm 10.9.7, 2026-10-19); a
+  missing or unparseable version is also exit 2.
 - **No telemetry, no callbacks.** `border check` touches the network only for the
   registry pre-flight, against the URLs the channels define: `registry.npmjs.org`,
   `pypi.org`, and `rubygems.org` are overridable (private indexes; `targets.rubygems.host`),
@@ -843,8 +950,81 @@ which is now a thin consumer of `inspect --json` with the rc contract unchanged
   it, and which every scan leg refuses to treat as a finding source or an allow-list
   target. A repo that *tracks* `.border/**` is itself a CRITICAL finding. A single-writer
   lock makes concurrent runs exit 2 instead of racing.
+- **Reports go through a private channel.** See [SECURITY.md](SECURITY.md) for the
+  reporting route and scope. Do not put exploit details or live secrets in a public issue.
+
+## Development
+
+Contributor setup, the exact external-engine list, subset test commands, and the version
+rotation procedure live in [CONTRIBUTING.md](CONTRIBUTING.md). In short:
+
+```bash
+npm ci
+npm run typecheck
+npm test
+```
+
+CI runs the full suite on Node 22 (npm 10) and Node 24 (npm 11) for every push to `main`
+and every pull request, plus version single-source, typecheck, build, and audit gates.
 
 ## Changelog
+
+### 0.8.2 (2026-11-01)
+- Production dependency graph now measures ZERO advisories (`npm audit --omit=dev`): the
+  pattern rule is vendored (`src/engines/borderPatternRule.ts`, MIT attribution; drops the
+  unpatchable braces/micromatch + fast-uri chain) and `tool` — an identity function — is
+  vendored in `plugin/border.ts`, moving `@opencode-ai/plugin` (and its effect-beta → toml
+  chain) to devDependencies; live-host probe tests keep the activation proof. The CI audit
+  gate tightens from critical to HIGH so this cannot rot.
+- `border sandbox init|pin|status|unpin` — the opt-in pin helper from the Q1 ruling
+  (machine store only, 0600 atomic writes, §3 self-verification with rollback of its own
+  writes; deliberately absent from the plugin's agent-reachable command set).
+- Security tier for execution-deciding keys (`src/tier.ts`, sibyl §3⁗/§3⁖/§3‡):
+  `sandboxImage`/`allowBuilds` honor only from fd-chain-qualified machine-store or out-of-repo
+  `--config` sources; repo declarations, lax-mode files, and hijacked `XDG_CONFIG_HOME` are
+  named refusals (`sandbox-config-shadowed`/`sandbox-config-unqualified`); the
+  `BORDER_ALLOW_BUILDS` environment channel is REMOVED (never released, so no migration);
+  passwd-derived canonical store root — `$HOME` spoofing cannot move it.
+- Sandboxed artifact builds: optional `targets.<ch>.sandboxImage` (digest-pinned, tags fail
+  closed at load) runs consented npm/pypi/crates/rubygems builds — and freshness re-packs —
+  inside `docker run` with `--network none` proved by an in-container DNS+TCP probe, a
+  read-only repo mount, tmpfs build, `--cap-drop ALL`, scrubbed env, and the ledger record
+  bound to the exact image digest (a rotated image invalidates cached PASS). Missing docker
+  with an image configured is a named exit 2, never a host fallback. New `test/sandbox.test.ts`
+  pins the docker argv contract token by token.
+- Hardened the npm pack-phase guard (sibyl must_fix): ALL package.json manifests in the tree
+  are scanned, not just the root (a workspaces child's `prepare` is now refused on npm < 11),
+  and unreadable manifests or a walk-cap hit count as a hook — unknown is never assumed safe.
+- Machine-side config (HR decoupling handoff 2026-10-23): resolution chain is now
+  `--config > $BORDER_CONFIG (fail-closed) > machine store (XDG/border/machines, keyed by
+  canonical remote URL) > ./border.yaml > git-remote inference`, so gate config and waiver
+  lists live on the checking machine and never need to be committed into a product repo.
+  Allow entries gained `values` (fixture-set waivers that never cover a new value), `until`
+  (UTC sunset, expired entries echoed never silently honored), `\!` archive-member escaping,
+  and `rules.aliases` (rule renames no longer strand waivers). Border state was already
+  porcelain-invisible (`.border/.gitignore` self-ignore; verified 2026-10-23).
+- Provenance: every check and push record carries `engineBuild`
+  (`<version>+<commit>[.dirty]`, the string `border --version` prints), so a verdict names
+  the exact border build that produced it. Motivated by a machine where every gate ran off
+  an unpinned worktree bundle and no record said so; worktree use is now visible on the
+  record face (see "Pinned consumption"). Bundles are stamped by `tools/build.mjs`.
+- Security (breaking): artifact build stages now require operator consent. A hostile clone can
+  ship its own border.yaml declaring pypi/rubygems targets, and `border check` built them —
+  PEP 517 backends and gemspecs ARE code (`python3 -m build --no-isolation` and `gem build`
+  markers reproduced 2026-10-23). Default runs are now scan-only (zero build spawns, pinned by
+  `test/build.execMarkers.test.ts`); consent comes only from outside the audited tree:
+  `--allow-builds` or `BORDER_ALLOW_BUILDS=1`. A scan-only PASS records no artifact digests and
+  therefore can never back a registry publish; `border scan` of third-party artifacts requires
+  the same consent (named exit 2 without it).
+- Security: refuse npm < 11 packages that declare `prepack`/`prepare`/`postpack` before
+  spawning `npm pack`. npm 10 executes `prepare` even with `--ignore-scripts` (reproduced on
+  10.9.7; npm 11.19.1 is clean), so the old defense could execute code from the audited repo.
+  The probe also runs before freshness re-packs. New regression tests pin the refusal and the
+  never-fires hook marker.
+- Fix: the Windows drive-letter path pattern no longer fires on JS escapes in prose
+  (`raw-repoPath:\n`); the UNC pattern no longer spans newlines.
+- Docs: the `--json` findings schema is stated explicitly (`path`, no `file` alias);
+  npm-target prerequisites now name the npm 11 boundary.
 
 ### 0.8.1 (2026-10-06)
 - Maintenance release: certificate-chain rebuild off the scrubbed lineage (INCIDENT-20261006

@@ -1,6 +1,6 @@
 {
   "name": "border-customs",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "//": "publint is a runtime dep (exact pin): the npm-stage engine is invoked via bin resolution against the installed layout, so consumers get the publint-fail leg out of the box; the dev suite resolves the same node_modules/.bin/publint — no devDependencies entry is needed for it to stay green.",
   "description": "Fail-closed git push gate: secret scanning + supply-chain checks before any remote leaves the machine",
   "type": "module",
@@ -18,7 +18,7 @@
     "index.ts"
   ],
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.22.2"
   },
   "license": "MIT",
   "private": false,
@@ -28,22 +28,25 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "esbuild src/index.ts --bundle --format=esm --platform=node --banner:js='import{createRequire as __borderRequire}from\"node:module\";const require=__borderRequire(import.meta.url);' --outfile=dist/index.js && node tools/copy-assets.mjs",
+    "build": "node tools/build.mjs",
     "pretest": "node -e \"const fs=require('node:fs');fs.rmSync('test/tmp',{recursive:true,force:true});fs.mkdirSync('test/tmp',{recursive:true})\"",
-    "test": "node --import ./tools/register-ts.mjs --test --test-reporter=tap test/*.test.ts"
+    "test": "node --import ./tools/register-ts.mjs --test --test-reporter=tap test/*.test.ts",
+    "version": "node tools/version-sync.mjs",
+    "version:check": "node tools/version-sync.mjs --check"
   },
   "dependencies": {
-    "@opencode-ai/plugin": "^1.17.4",
     "@secretlint/core": "13.0.5",
     "@secretlint/secretlint-rule-no-dotenv": "13.0.5",
     "@secretlint/secretlint-rule-no-homedir": "13.0.5",
-    "@secretlint/secretlint-rule-pattern": "13.0.5",
     "@secretlint/secretlint-rule-preset-recommend": "13.0.5",
+    "@textlint/regexp-string-matcher": "2.0.2",
     "publint": "0.3.24",
     "yaml": "2.9.0",
     "zod": "4.5.4"
   },
   "devDependencies": {
+    "@opencode-ai/plugin": "^1.19.4",
+    "@secretlint/secretlint-rule-pattern": "13.0.5",
     "@types/node": "22.19.0",
     "esbuild": "0.25.12",
     "secretlint": "13.0.5",

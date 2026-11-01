@@ -283,3 +283,68 @@ test("border.yaml self suppresses the todo-19b config-path findings, never anoth
     ],
   );
 });
+
+// ---------------------------------------------------------------- HR decoupling wave (2026-10-23)
+
+test("values list: one entry waives the fixture set; any value outside the list stays red (safety floor)", () => {
+  const { kept, allowHits } = applyAllowList(
+    [
+      finding({ rule: "gitleaks:aws", path: "tests/fixtures/aws1.txt" }),
+      finding({ rule: "gitleaks:github_pat", path: "tests/fixtures/gh2.txt", valueDigest: DIGEST_B }),
+      finding({ rule: "gitleaks:aws", path: "src/newly-added.txt", valueDigest: "c".repeat(64) }),
+    ],
+    [{ rule: "gitleaks:*", file: "tests/fixtures/**", values: [DIGEST_A, DIGEST_B] }],
+    "/repo",
+  );
+  assert.equal(allowHits.length, 1);
+  assert.equal((allowHits[0] as AllowHit).count, 2);
+  assert.deepEqual(kept.map((f) => f.path), ["src/newly-added.txt"], "a new value never rides a values waiver");
+});
+
+test("until: past expiry the entry is inert and enumerated; it cannot shadow a live entry behind it", () => {
+  const findings = [finding({ rule: "r", path: "a.txt" })];
+  const past = applyAllowList(findings, [{ rule: "r", match: DIGEST_A, until: "2020-01-01" }], "/repo");
+  assert.equal(past.kept.length, 1, "expired entry suppresses nothing");
+  assert.deepEqual(past.expiredEntries, [0]);
+  const pair = applyAllowList(
+    findings,
+    [
+      { rule: "r", match: DIGEST_A, until: "2020-01-01" },
+      { rule: "r", match: DIGEST_A, until: "2999-01-01" },
+    ],
+    "/repo",
+  );
+  assert.deepEqual(pair.kept, [], "the live entry still applies when an earlier one expired");
+  assert.equal((pair.allowHits[0] as AllowHit).entryIndex, 1);
+  assert.deepEqual(pair.expiredEntries, [0]);
+  const future = applyAllowList(findings, [{ rule: "r", match: DIGEST_A, until: "2999-01-01" }], "/repo");
+  assert.deepEqual(future.kept, []);
+  assert.deepEqual(future.expiredEntries, []);
+});
+
+test("\\! escape addresses an archive member; unescaped entries keep archive-outer semantics", () => {
+  const findings = [
+    finding({ rule: "gitleaks:aws", path: "dist/pkg.tgz!inner/other.env", valueDigest: DIGEST_B }),
+  ];
+  const unescaped = applyAllowList(findings, [{ rule: "*", match: DIGEST_B, file: "dist/pkg.tgz!inner/other.env" }], "/repo");
+  assert.equal(unescaped.kept.length, 1, "an unescaped pattern can never address a member (matches the truncated outer path only)");
+  const escaped = applyAllowList(findings, [{ rule: "*", match: DIGEST_B, file: "dist/*.tgz\\!inner/other.env" }], "/repo");
+  assert.deepEqual(escaped.kept, [], "\\! marks the pattern as full-attribution (member-addressable)");
+  const outer = applyAllowList(findings, [{ rule: "*", match: DIGEST_B, file: "dist/pkg.tgz" }], "/repo");
+  assert.deepEqual(outer.kept, [], "the archive-outer waiver keeps suppressing every member (existing semantics)");
+});
+
+test("rules.aliases carry a waiver across a rule rename (old name in entry, new name on the finding)", () => {
+  const findings = [finding({ rule: "path-pattern:drive-root", path: "a.txt" })];
+  const entry = [{ rule: "path-pattern:windows-root", match: DIGEST_A }];
+  assert.equal(applyAllowList(findings, entry, "/repo").kept.length, 1, "without the alias the renamed rule reddens");
+  const aliased = applyAllowList(findings, entry, "/repo", { "path-pattern:windows-root": "path-pattern:drive-root" });
+  assert.deepEqual(aliased.kept, [], "the alias maps entry-name → current rule so renames do not strand waivers");
+});
+
+test("config guards: entry needs match and/or values; values must be 64-hex; until must be a UTC date", () => {
+  assert.throws(() => parseWith(`  - {rule: "aws-access-token"}`), (e: unknown) => e instanceof ConfigError && e.kind === "invalid-value");
+  assert.throws(() => parseWith(`  - {rule: "aws-access-token", values: ["nothex"]}`), (e: unknown) => e instanceof ConfigError && e.kind === "invalid-value");
+  assert.throws(() => parseWith(`  - {rule: "aws-access-token", match: "${DIGEST_A}", until: "2027-1-1"}`), (e: unknown) => e instanceof ConfigError && e.kind === "invalid-value");
+  parseWith(`  - {rule: "aws-access-token", values: ["${DIGEST_A}"], until: "2027-01-01"}`);
+});

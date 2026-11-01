@@ -639,7 +639,7 @@ test("freshness: rubygems repacks via the shared REPACKERS lookup; ambiguous tre
     exposureSet: [], effectiveTargets: ["rubygems"], rulesHash: HEX64, artifacts: [artifact], llm: false, verdict: "PASS",
     counts: emptyCounts(), reportPath: ".border/runs/x/report.json", degraded: false, ts: new Date().toISOString(),
   };
-  assert.equal(verifyArtifactFreshness(record, ctx, repo, {}), true, "content-identical repack must prove freshness (W3.2 normalized .gem parity)");
+  assert.equal(verifyArtifactFreshness(record, ctx, repo, { allowBuilds: true }), true, "content-identical repack must prove freshness (W3.2 normalized .gem parity)");
   assert.ok(REPACKERS["npm"] === packNpmArtifacts, "npm moves through the same lookup as rubygems (one site, no parallel if)");
   assert.ok(REPACKERS["crates"] === packCrateArtifacts, "crates stays in the shared lookup");
   assert.ok(REPACKERS["rubygems"] === packRubygemsArtifacts, "rubygems is registered in the shared lookup");

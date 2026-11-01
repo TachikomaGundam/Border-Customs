@@ -11,6 +11,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, test } from "node:test";
 
+import { sanitizeSummary } from "../src/check.ts";
+import { engineBuild } from "../src/buildInfo.ts";
 import { gatherContext } from "../src/check/context.ts";
 import { renderReportJson, renderReportMd } from "../src/report.ts";
 import { recordCheckRun } from "../src/ledger.ts";
@@ -133,6 +135,21 @@ test("prompt-injection guard: hostile ledger-shaped strings render as escaped in
   assert.ok(!/\[https?:/.test(row ?? ""), "markdown link syntax stays plain text");
 });
 
+test("JSON findings keep `path` (the field text output prints); there is no `file` alias", () => {
+  const f = finding({
+    rule: "aws-access-token",
+    path: "src/a.ts",
+    line: 7,
+    commit: "c".repeat(40),
+  });
+  const r = report({ findings: [f] });
+  const parsed = JSON.parse(renderReportJson(r)) as { findings: Array<Record<string, unknown>> };
+  assert.equal(parsed.findings[0]?.path, "src/a.ts");
+  assert.equal("file" in (parsed.findings[0] ?? {}), false, "consumers read `path`; a `file` alias would fork the schema");
+  const text = sanitizeSummary(r, new TextSanitizer());
+  assert.ok(text.includes("src/a.ts"), "the text line and the JSON path must name the same file");
+});
+
 test("renderReportJson is byte-identical to the canonical JSON.stringify(report,null,2) contract", () => {
   const r = report({ findings: [finding({ rule: "x" })], allowHits: [{ rule: "x", count: 1, sample: "p", entryIndex: 0 }] });
   assert.equal(renderReportJson(r), JSON.stringify(r, null, 2));
@@ -153,4 +170,5 @@ test("recordCheckRun lands report.md beside report.json; json bytes keep the pre
   const md = readFileSync(mdPath, "utf8");
   assert.ok(md.includes("demo-rule"));
   assert.equal(rec.reportPath.endsWith("report.json"), true, "record still points at the canonical json");
+  assert.equal(rec.engineBuild, engineBuild(), "record names the border build that decided (provenance wave)");
 });

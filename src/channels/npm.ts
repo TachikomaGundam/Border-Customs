@@ -13,6 +13,8 @@ import { spawn } from "node:child_process";
 
 import { z } from "zod";
 
+import { sandboxImageSchema } from "../artifacts/sandbox.ts";
+
 import { attributeToTarball, runNpmArtifactStage } from "../artifacts/npm.ts";
 import { runGitChecked } from "../check/context.ts";
 import { ConfigError, isRecord } from "./errors.ts";
@@ -48,6 +50,9 @@ export const NPM_ARTIFACT_EXTENSIONS: readonly string[] = [".tgz"];
  *  npm config key is the same exit-2 unknown-key ConfigError as pre-C2). */
 export const npmTargetSchema = z
   .object({
+    // W4 sandbox containment (sibyl ruling 2026-10-23): digest-pinned image —
+    // absence keeps today's host build; presence is a contract, never a hint.
+    sandboxImage: sandboxImageSchema.optional(),
     name: z.string().optional(),
     registry: z.string().optional(),
   })
@@ -210,10 +215,11 @@ async function npmStage(o: ChannelStageOptions): Promise<ChannelStageResult> {
     ...(o.sanitizer === undefined ? {} : { sanitizer: o.sanitizer }),
     ...(o.skipGitleaks === undefined ? {} : { skipGitleaks: o.skipGitleaks }),
     ...(o.skipSecretlint === undefined ? {} : { skipSecretlint: o.skipSecretlint }),
+    ...(o.sandboxExec === undefined ? {} : { sandboxExec: o.sandboxExec }),
   });
   const findings = attributeToTarball(stage.findings, stage.artifact);
   const artifacts = stage.artifact === null ? [] : [{ file: stage.artifact.file, sha256: stage.artifact.sha256 }];
-  return { findings, artifacts };
+  return { findings, artifacts, ...(stage.toolchain !== undefined ? { toolchain: stage.toolchain } : {}) };
 }
 
 /** Exactly `npm publish <file.tgz> --registry <url?>` — --registry only when

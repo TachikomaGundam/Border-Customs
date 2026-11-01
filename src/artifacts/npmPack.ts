@@ -20,6 +20,9 @@ import {
   type EngineOptions,
 } from "../engines/support.ts";
 import { parsePackReport } from "./manifestDiff.ts";
+import { sandboxRun, type SandboxSpec } from "./sandbox.ts";
+import { npmPackSafety } from "./npmPackSafety.ts";
+import { readNpmPackScripts } from "./npmPackSafety.ts";
 
 export const NPM_PRIVATE_RULE = "npm-target-but-private";
 export const NPM_UNEXPECTED_RULE = "artifact-unexpected-file";
@@ -83,6 +86,11 @@ export type PackToolOptions = {
  * One `npm pack` into distDir — `--ignore-scripts` so the TARGET REPO's hooks
  * never execute (G33 defense-in-depth) and `--json` so the report's shasum/size
  * are cross-checked against the actual bytes before anything trusts them.
+ *
+ * The flag alone is not enough: npm 10 executes `prepare` despite it (see
+ * npmPackSafety.ts, reproduced 2026-10-19). The safety probe runs FIRST and
+ * refuses such repos before npm is spawned, so border keeps the README promise
+ * that it never executes the code it reads.
  */
 export function packOnce(o: PackToolOptions): PackOutcome {
   const opts: EngineOptions = {
@@ -92,6 +100,13 @@ export function packOnce(o: PackToolOptions): PackOutcome {
   };
   let result;
   try {
+    const safety = npmPackSafety({
+      repoDir: o.repoDir,
+      ...(o.env !== undefined ? { env: o.env } : {}),
+      ...(o.npmBinPath !== undefined ? { npmBinPath: o.npmBinPath } : {}),
+      ...(o.npmTimeoutMs !== undefined ? { timeoutMs: o.npmTimeoutMs } : {}),
+    });
+    if (!safety.ok) throw new EngineRunError(safety.reason, null);
     result = spawnEngine(
       binaryCandidates("npm", opts),
       ["pack", o.repoDir, "--ignore-scripts", "--json", "--pack-destination", o.distDir],
@@ -106,10 +121,16 @@ export function packOnce(o: PackToolOptions): PackOutcome {
   if (result.status !== 0) {
     throw new EngineRunError(`npm pack failed (exit ${String(result.status)}): ${tail(result.stderr)}`, result.status);
   }
-  const report = parsePackReport(result.stdout);
-  const tarballAbs = join(o.distDir, report.filename);
+  return verifyPackReport(o.distDir, result.stdout);
+}
+
+/** The report↔bytes cross-check shared by the host and sandboxed pack paths —
+ *  the --json report is trusted only after sha1+size match the landed tarball. */
+function verifyPackReport(distDir: string, stdout: string): PackOutcome {
+  const report = parsePackReport(stdout);
+  const tarballAbs = join(distDir, report.filename);
   if (!existsSync(tarballAbs)) {
-    throw new EngineRunError(`npm pack reported '${report.filename}' but no tarball landed in ${o.distDir}`, null);
+    throw new EngineRunError(`npm pack reported '${report.filename}' but no tarball landed in ${distDir}`, null);
   }
   const data = readFileSync(tarballAbs);
   const sha256 = createHash("sha256").update(data).digest("hex");
@@ -118,6 +139,29 @@ export function packOnce(o: PackToolOptions): PackOutcome {
     throw new EngineRunError(`npm pack report disagrees with the tarball bytes for ${report.filename} — corrupted or swapped artifact, failing closed`, null);
   }
   return { filename: report.filename, sha256, bytes: data.byteLength, tarballAbs };
+}
+
+/**
+ * Sandboxed twin of packOnce (sibyl W4): the pack runs inside the pinned image
+ * with the mechanical contract from src/artifacts/sandbox.ts. The host npm is
+ * never spawned here; the npm<11 hook guard lives IN the container script and
+ * is armed exactly when the host-side manifest scan found pack-phase hooks.
+ */
+export function sandboxPackOnce(o: {
+  repoDir: string;
+  distDir: string;
+  spec: SandboxSpec;
+}): { readonly outcome: PackOutcome; readonly toolchain: string } {
+  const hooks = readNpmPackScripts(o.repoDir).length > 0;
+  const run = sandboxRun({
+    spec: o.spec,
+    repoDir: o.repoDir,
+    outDir: o.distDir,
+    laneProbes: ["npm", "node"],
+    npmMajorGuard: hooks,
+    laneScript: "npm pack --ignore-scripts --json --pack-destination /audit/out",
+  });
+  return { outcome: verifyPackReport(o.distDir, run.stdout), toolchain: run.toolchain };
 }
 
 /** publint against the TARBALL itself (never the working tree). exit 0 clean, 1 ⇒ finding, else tool error. */

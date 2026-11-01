@@ -126,7 +126,7 @@ test("scan of a planted-residue npm package exits 1 with lifecycle-script + resi
   packLike(tgz, src);
 
   const { fetcher, requested } = npmStubBytes("eviltwin", "1.0.0", tgz);
-  const ctx = makeCtx(["eviltwin@1.0.0"]);
+  const ctx = makeCtx(["eviltwin@1.0.0"], { allowBuilds: true });
   const code = await runScanCore(ctx, { fetcher });
 
   assert.equal(code, EXIT_BLOCKED, "planted residue ⇒ exit 1");
@@ -148,7 +148,7 @@ test("scan --json prints exactly the Report contract (schemaVersion 1, counts, v
   const tgz = join(stage, "jsontwin-1.0.0.tgz");
   packLike(tgz, src);
   const { fetcher } = npmStubBytes("jsontwin", "1.0.0", tgz);
-  const ctx = makeCtx(["jsontwin@1.0.0"], { json: true });
+  const ctx = makeCtx(["jsontwin@1.0.0"], { json: true, allowBuilds: true });
   const code = await runScanCore(ctx, { fetcher });
   assert.equal(code, EXIT_BLOCKED);
   const report = JSON.parse(ctx.out.join("\n")) as Report;
@@ -171,7 +171,7 @@ test("benign package ⇒ verdict PASS, exit 0, never a fabricated finding", asyn
   const tgz = join(stage, "benignpkg-1.0.0.tgz");
   packLike(tgz, src);
   const { fetcher } = npmStubBytes("benignpkg", "1.0.0", tgz);
-  const ctx = makeCtx(["benignpkg@1.0.0"]);
+  const ctx = makeCtx(["benignpkg@1.0.0"], { allowBuilds: true });
   const code = await runScanCore(ctx, { fetcher });
   assert.equal(code, EXIT_PASS);
   assert.match(ctx.out.join("\n"), /border scan npm:benignpkg@1\.0\.0 PASS/);
@@ -224,7 +224,7 @@ test("`border scan` with zero/multiple positionals exits 2 with the actionable u
   for (const argv of [["scan"], ["scan", "a@1.0.0", "b@2.0.0"]]) {
     const out: string[] = [];
     const err: string[] = [];
-    const code = await run(argv, (l) => out.push(l), (l) => err.push(l), { env: { ...process.env } });
+    const code = await run([...argv, "--allow-builds"], (l) => out.push(l), (l) => err.push(l), { env: { ...process.env } });
     assert.equal(code, EXIT_ERROR, argv.join(" "));
     assert.match(err.join("\n"), /usage: border scan <\[ecosystem:\]name@version>/);
   }
@@ -272,7 +272,7 @@ test("E2E against the public npm registry (opt-in: BORDER_SCAN_NETWORK_E2E=1)", 
     t.skip("network E2E is opt-in — offline suite stays green");
     return;
   }
-  const ctx = makeCtx(["left-pad@1.3.0"]);
+  const ctx = makeCtx(["left-pad@1.3.0"], { allowBuilds: true });
   const code = await runScanCore(ctx);
   assert.ok(code === EXIT_PASS || code === EXIT_BLOCKED, `real registry scan must reach a verdict, got ${String(code)}`);
 });
@@ -282,7 +282,7 @@ test("E2E crates.io fetch reaches a verdict with the mandatory UA (opt-in: BORDE
     t.skip("network E2E is opt-in");
     return;
   }
-  const ctx = makeCtx(["crates:rand_core@0.6.4"]);
+  const ctx = makeCtx(["crates:rand_core@0.6.4"], { allowBuilds: true });
   const code = await runScanCore(ctx);
   assert.ok(code === EXIT_PASS || code === EXIT_BLOCKED, `crates.io scan must reach a verdict, got ${String(code)}`);
   const leaked = readdirSync(tmpdir()).filter((d) => d.startsWith("border-scan-"));

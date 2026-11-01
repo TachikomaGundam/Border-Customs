@@ -73,9 +73,9 @@ async function cli(dir: string, extra: readonly string[] = [], env?: Record<stri
   const out: string[] = [];
   const err: string[] = [];
   const t0 = performance.now();
-  const code = (await run(["check", ...extra], (l) => out.push(l), (l) => err.push(l), {
+  const code = (await run(["check", "--allow-builds", ...extra], (l) => out.push(l), (l) => err.push(l), {
     cwd: dir,
-    ...(env === undefined ? {} : { env: { ...process.env, ...env } }),
+    env: { ...process.env, ...(env ?? {}) },
   })) as number;
   return { code, out, err, ms: performance.now() - t0 };
 }

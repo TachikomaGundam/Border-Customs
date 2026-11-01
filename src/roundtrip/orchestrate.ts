@@ -388,7 +388,7 @@ async function recordRoundtripProof(ctx: Ctx, artifactSha256: string, rows: numb
     });
     let effective: LoadedConfig | null = null;
     if (load.kind === "loaded") effective = load;
-    else if (load.explicit !== undefined) effective = { kind: "loaded", config: load.explicit.config, warnings: [], source: load.explicit.source };
+    else if (load.explicit !== undefined) effective = { kind: "loaded", config: load.explicit.config, warnings: [], source: load.explicit.source, security: load.explicit.security };
     if (effective === null) {
       notice("no border.yaml here — proof NOT recorded");
       return;

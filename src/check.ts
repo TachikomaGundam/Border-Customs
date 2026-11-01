@@ -28,6 +28,9 @@ import { scanAiArtifacts } from "./rules/aiArtifacts.ts";
 import { scanIdentity } from "./rules/identity.ts";
 import { gatherContext, runGitChecked, type CheckContext } from "./check/context.ts";
 import { applyAllowList } from "./check/allow.ts";
+import { BUILD_WITHHELD_RULE, type BuildConsent } from "./check/buildConsent.ts";
+import { sandboxBindingJoin } from "./artifacts/sandbox.ts";
+import type { DockerExec } from "./roundtrip/docker.ts";
 import { filterBorderStateFindings, suppressGateConfigPathPatterns } from "./check/exclusions.ts";
 import { acquireLock, BORDER_STATE_DIR, releaseLock } from "./check/lock.ts";
 import { scanExfilTree } from "./check/exfilTreeScan.ts";
@@ -55,6 +58,12 @@ export type CheckPipelineOptions = {
    *  of the path-pattern family; see check/exclusions.ts). Undefined ⇒ no file
    *  was used (git-remote fallback) and nothing is exempt. */
   readonly configSource?: string;
+  /** Operator build consent resolved ONCE at the CLI seam (flag + env,
+   *  src/check/buildConsent.ts). Stages that execute audited code run ONLY
+   *  when allowed; the withheld reason rides into the audit-visible finding. */
+  readonly consent: BuildConsent;
+  /** W4 sandbox seam (tests script docker; production default real). */
+  readonly sandboxExec?: DockerExec;
 };
 
 export type CheckOutcome = {
@@ -66,7 +75,22 @@ export type CheckOutcome = {
   readonly lockWarning: string | null;
   /** GAP B: sha256 of the packed/built .border/dist bytes this run scanned (null ⇒ no artifact legs). */
   readonly artifacts: readonly LedgerArtifact[] | null;
+  /** W4 build-environment binding: set ONLY when a sandboxed build produced
+   *  artifacts (image join + observed toolchains). Freshness parity compares
+   *  against the config-resolved join; host builds keep it undefined. */
+  readonly buildEnv?: { readonly image: string; readonly toolchain: string };
 };
+
+/** Canonical set of sandbox images the CURRENT config declares (all four
+ *  lanes, regardless of this run's targets — BOTH the record writer and the
+ *  freshness verifier compute this same string, so a config edit to any lane
+ *  rotates parity, which is exactly the honest behavior). */
+export function configuredSandboxImages(cfg: BorderConfig): readonly string[] {
+  const t = cfg.targets as unknown as Record<string, { sandboxImage?: string } | undefined>;
+  return ["npm", "pypi", "crates", "rubygems"]
+    .map((ch) => t[ch]?.sandboxImage)
+    .filter((x): x is string => x !== undefined && x !== "");
+}
 
 /**
  * Round-5 B-R5-1: border's own state must never be committed. git tracks it ⇒
@@ -215,11 +239,30 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
   // verdict; the digests certify exactly these bytes to the ledger (todo 14) and to
   // publish's same-bytes chain (todo 17). Degraded engines inherit the skip flags.
   const ledgerArtifacts: LedgerArtifact[] = [];
+  const buildToolchains: string[] = [];
+  // BUILD-STAGE CONSENT (ruling 2026-10-23): stages that EXECUTE audited-tree
+  // code (npm pack, python -m build, gem build, cargo package) run only on
+  // operator-side consent — a hostile repo's own border.yaml declares targets
+  // but can never enable their build. Withheld channels stay visible as
+  // MEDIUM findings and record no digests, so a scan-only PASS can never back
+  // a registry publish (src/push/core.ts re-hash fails closed on absence).
   // Per-channel artifact stage (todo C2): each configured∩requested publish
   // channel builds/scans its own bytes (npm pack / pypi build) and returns
   // {findings, artifacts} — the ledger digests certify exactly these bytes.
   for (const channel of publishChannels()) {
     if (!o.effectiveTargets.includes(channel.id) || !channel.configured(o.cfg)) continue;
+    if (!o.consent.allowed) {
+      findings.push({
+        rule: BUILD_WITHHELD_RULE,
+        severity: "MEDIUM",
+        target: channel.id,
+        engine: "native",
+        message: o.consent.reason,
+        valueDigest: createHash("sha256").update(`build-stage-withheld:${channel.id}:${o.consent.reason}`).digest("hex"),
+        snippet: BUILD_WITHHELD_RULE,
+      });
+      continue;
+    }
     const stage = await channel.stage({
       repoDir,
       cfg: o.cfg,
@@ -227,9 +270,11 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
       ...envOpt,
       skipGitleaks: broken.has("gitleaks"),
       skipSecretlint: broken.has("secretlint"),
+      ...(o.sandboxExec !== undefined ? { sandboxExec: o.sandboxExec } : {}),
     });
     findings.push(...stage.findings);
     ledgerArtifacts.push(...stage.artifacts);
+    if (stage.toolchain !== undefined) buildToolchains.push(`[${channel.id}] ${stage.toolchain}`);
   }
 
   // W4.1 release.twin (plan §127-138): the ONLY statically-enforceable cross-manager
@@ -306,7 +351,22 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
   // G14 post-filter (todo 19): last gate before the verdict. Suppressed
   // findings never count/never block, but every suppression is enumerated in
   // report.allowHits — exit 0 must never hide what it hid.
-  const allow = applyAllowList(findings, o.cfg.allow, repoDir);
+  const allow = applyAllowList(findings, o.cfg.allow, repoDir, o.cfg.rules.aliases ?? {});
+  const keptFindings =
+    allow.expiredEntries.length === 0
+      ? allow.kept
+      : [
+          ...allow.kept,
+          {
+            rule: "allow-entry-expired",
+            severity: "INFO" as const,
+            target: "config" as const,
+            engine: "native" as const,
+            message: `${String(allow.expiredEntries.length)} allow entr${allow.expiredEntries.length === 1 ? "y has" : "ies have"} passed their until date and no longer suppress anything (entry indices ${allow.expiredEntries.join(", ")}) — renew with a fresh until or delete`,
+            valueDigest: createHash("sha256").update(`allow-expired:${allow.expiredEntries.join(",")}`).digest("hex"),
+            snippet: "allow-entry-expired",
+          },
+        ];
   const report: Report = {
     schemaVersion: 1,
     key: computeCheckKey({
@@ -322,9 +382,9 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
     exposureSet: exposure,
     refSet: ctx.refSet,
     rulesHash,
-    verdict: computeVerdict(allow.kept),
-    counts: countFindings(allow.kept),
-    findings: allow.kept,
+    verdict: computeVerdict(keptFindings),
+    counts: countFindings(keptFindings),
+    findings: keptFindings,
     ...(allow.allowHits.length > 0 ? { allowHits: allow.allowHits } : {}),
     ts: new Date().toISOString(),
   };
@@ -335,6 +395,9 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
     sanitizedSummary: sanitizeSummary(report, sanitizer),
     lockWarning,
     artifacts: ledgerArtifacts.length > 0 ? ledgerArtifacts : null,
+    ...(buildToolchains.length > 0
+      ? { buildEnv: { image: sandboxBindingJoin(configuredSandboxImages(o.cfg)), toolchain: buildToolchains.join("\n").slice(0, 1600) } }
+      : {}),
   };
 }
 

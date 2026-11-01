@@ -90,7 +90,14 @@ const GOLDEN_PORCELAIN_DIGEST = "5782837b399a70eb135d2f1c2ac96ba010ff6e13f1800e1
 const GOLDEN_REFSET = ["refs/heads/main"];
 const GOLDEN_EFFECTIVE_TARGETS = ["git", "npm", "pypi"];
 // rotation 2026-10-02: +exfil-machine-binding rule (L-MACHINE-LOCAL gate, incident-born).
-const GOLDEN_RULES_HASH_NORMALIZED = "eea023723a1a6e5df22c6f0d2cb670987a626e0a50018bb9a2cf8ecb27e72df4";
+// rotation 2026-10-19: secretlint path-pattern fixes (drive-letter boundary + UNC
+// newline guard) and the vendored gitleaks TOML MIT notice. Both are rule-byte
+// changes, so the normalized hash moved deliberately; re-captured with
+// BORDER_GOLDEN_RECENTRE=1 (gitleaks 8.30.1, secretlint 13.0.5).
+// rotation 2026-10-23: build-stage consent gate + allow-matcher rewrite + W4
+// sandbox schema/config plumbing — classifier and rule source bytes moved;
+// re-captured with BORDER_GOLDEN_RECENTRE=1 (gitleaks 8.30.1, secretlint 13.0.5).
+const GOLDEN_RULES_HASH_NORMALIZED = "9f601bd2d071d86e299ec079cda13beae3b3c25b397e741ab140c89b551de468";
 const GOLDEN_EXPOSURE = ["https://example.com/origin.git", "npm:widgets@1.0.0", "pypi:pushdemo@0.1.0"];
 const GOLDEN_DRYRUN_STDOUT = [
   "border DRY-RUN: no --yes, so nothing runs — this is the plan (m-R5-a) contract",

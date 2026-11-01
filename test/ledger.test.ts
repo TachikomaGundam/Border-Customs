@@ -11,6 +11,7 @@ import { join } from "node:path";
 import { after, test } from "node:test";
 
 import type { Report, ReportCounts } from "../src/findings.ts";
+import { engineBuild } from "../src/buildInfo.ts";
 import { gatherContext } from "../src/check/context.ts";
 import {
   appendRecord,
@@ -81,6 +82,7 @@ test("ledger: append + read roundtrips check and sanitized push records", () => 
   assert.equal(push.url, sanitizeUrl("https://oauth2:hunter2@git.example/x.git"));
   assert.ok(!push.url.includes("hunter2"), "credential must never reach the ledger (G20)");
   assert.equal(push.remoteSha, "2".repeat(40));
+  assert.equal(push.engineBuild, engineBuild(), "push record names the border build that executed (provenance wave)");
 });
 
 test("ledger: corrupt lines are skipped with WARNING, never crash (plan failure AC)", () => {
@@ -102,12 +104,22 @@ test("ledger: corrupt lines are skipped with WARNING, never crash (plan failure 
 
 test("ledger: hand-forced degraded:true line is rejected as unreadable, never skippable", () => {
   const dir = fixture("degraded");
-  const forged = { ...checkRecord({ key: KEY_A }), degraded: true };
-  mkdirSync(join(dir, ".border"), { recursive: true });
+  const forged = { ...checkRecord({ key: KEY_A }), degraded: true };  mkdirSync(join(dir, ".border"), { recursive: true });
   writeFileSync(ledgerPath(dir), JSON.stringify(forged) + "\n", { flag: "a" });
   const { records, warnings } = readLedger(dir);
   assert.equal(records.length, 0);
   assert.equal(warnings.length, 1);
+});
+
+test("ledger: a non-string engineBuild fails typed parse (line skipped, never trusted)", () => {
+  const dir = fixture("enginebuild");
+  const bad = { ...checkRecord({ key: KEY_A }), engineBuild: 42 };
+  mkdirSync(join(dir, ".border"), { recursive: true });
+  writeFileSync(ledgerPath(dir), JSON.stringify(bad) + "\n", { flag: "a" });
+  const { records, warnings } = readLedger(dir);
+  assert.equal(records.length, 0);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0] ?? "", /engineBuild/);
 });
 
 test("ledger: skip lookup needs newest PASS match, ignores FAIL/other keys/other llm mode", () => {
@@ -186,7 +198,7 @@ test("freshness: git-only runs skip without repack, even dirty", async () => {
   writeRel(dir, "a.txt", "clean\n");
   gitAddCommit(dir, "init");
   const ctx = await gatherContext(dir);
-  assert.equal(verifyArtifactFreshness(checkRecord({ key: KEY_A }), ctx, dir), true);
+  assert.equal(verifyArtifactFreshness(checkRecord({ key: KEY_A }), ctx, dir, { allowBuilds: true }), true);
 });
 
 test("freshness: npm runs need a clean tree + digest-identical repack (gitignored-but-packed hole)", async () => {
@@ -201,19 +213,48 @@ test("freshness: npm runs need a clean tree + digest-identical repack (gitignore
   assert.ok(artifacts !== null && artifacts.length === 1);
   const record = checkRecord({ key: KEY_A, effectiveTargets: ["git", "npm"], artifacts });
 
-  assert.equal(verifyArtifactFreshness(record, ctx, dir), true, "identical tarball digest ⇒ skip honored");
+  assert.equal(verifyArtifactFreshness(record, ctx, dir, { allowBuilds: true }), true, "identical tarball digest ⇒ skip honored");
+  assert.equal(verifyArtifactFreshness(record, ctx, dir, {}), false, "without build consent a repack-asserted record is never fresh (ruling 2026-10-23)");
 
   writeRel(dir, "dist/b.txt", "built artifact, gitignored but PACKED via files:[dist/]\n");
   const ctx2 = await gatherContext(dir); // still porcelain-clean: dist/b.txt is gitignored
   assert.equal(ctx2.dirty, false, "fixture must leave git blind to the packed change — that IS the M8 hole");
-  assert.equal(verifyArtifactFreshness(record, ctx2, dir), false, "repack digest mismatch ⇒ full re-check");
+  assert.equal(verifyArtifactFreshness(record, ctx2, dir, { allowBuilds: true }), false, "repack digest mismatch ⇒ full re-check");
 
   rmSync(join(dir, "dist", "b.txt"));
-  assert.equal(verifyArtifactFreshness(record, await gatherContext(dir), dir), true, "back to the certified payload");
+  assert.equal(verifyArtifactFreshness(record, await gatherContext(dir), dir, { allowBuilds: true }), true, "back to the certified payload");
 
   const dirtyRecord = checkRecord({ key: KEY_A, effectiveTargets: ["npm"], artifacts: null });
   writeRel(dir, "scratch.tmp", "dirt\n");
-  assert.equal(verifyArtifactFreshness(dirtyRecord, await gatherContext(dir), dir), false, "artifact runs never skip on a dirty tree");
+  assert.equal(verifyArtifactFreshness(dirtyRecord, await gatherContext(dir), dir, { allowBuilds: true }), false, "artifact runs never skip on a dirty tree");
+});
+
+test("freshness: W4 build-env parity — a bound record is fresh only against the same image join", async () => {
+  const dir = fixture("fresh-parity");
+  gitInit(dir);
+  writeRel(dir, "package.json", JSON.stringify({ name: "widgets", version: "1.0.0", files: ["dist/"] }) + "\n");
+  writeRel(dir, "dist/a.js", "export const a = 1;\n");
+  gitAddCommit(dir, "init");
+  const ctx = await gatherContext(dir);
+  const artifacts = packNpmArtifacts(dir);
+  assert.ok(artifacts !== null && artifacts.length === 1);
+  const record = checkRecord({ key: KEY_A, effectiveTargets: ["git", "npm"], artifacts });
+  const IMG = "node@sha256:" + "a".repeat(64);
+
+  // host-era record (no binding) vs a sandbox config: parity fails closed.
+  assert.equal(verifyArtifactFreshness(record, ctx, dir, { allowBuilds: true, buildEnvRef: IMG }), false,
+    "host-certified bytes cannot back a sandbox-configured run (ruling W4)");
+  // host-era record vs host config: unchanged behavior.
+  assert.equal(verifyArtifactFreshness(record, ctx, dir, { allowBuilds: true, buildEnvRef: "" }), true);
+  assert.equal(verifyArtifactFreshness(record, ctx, dir, { allowBuilds: true }), true, "legacy option shape unchanged");
+
+  // bound record vs the SAME join: parity passes (host repack here proves parity alone does not force sandbox re-packs when sandboxImages is absent).
+  const bound = { ...record, buildEnv: { image: IMG, toolchain: "npm 11.19.1" } };
+  assert.equal(verifyArtifactFreshness(bound, ctx, dir, { allowBuilds: true, buildEnvRef: IMG }), true);
+  // bound record vs a DIFFERENT join (image rotated): never fresh.
+  assert.equal(verifyArtifactFreshness(bound, ctx, dir, { allowBuilds: true, buildEnvRef: "node@sha256:" + "b".repeat(64) }), false);
+  // bound record vs host config: never fresh.
+  assert.equal(verifyArtifactFreshness(bound, ctx, dir, { allowBuilds: true, buildEnvRef: "" }), false);
 });
 
 test("freshness: pypi-only proof degrades to key match (non-reproducible builds, round-2 LOW)", async () => {

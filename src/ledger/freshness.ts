@@ -39,7 +39,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { gunzipSync } from "node:zlib";
 
 import type { CheckContext } from "../check/context.ts";
@@ -47,6 +47,10 @@ import type { EngineOptions } from "../engines/support.ts";
 import { BORDER_STATE_DIR } from "../check/lock.ts";
 import { publishChannels, type PublishChannelId } from "../channels/registry.ts";
 import { singleTreeGemspec } from "../artifacts/rubygems.ts";
+import { npmPackSafety, readNpmPackScripts } from "../artifacts/npmPackSafety.ts";
+import { sandboxRun, shQuote } from "../artifacts/sandbox.ts";
+import { realDockerExec } from "../roundtrip/docker.ts";
+import type { DockerExec } from "../roundtrip/docker.ts";
 import type { CheckRecord, LedgerArtifact } from "./records.ts";
 
 // Which targets carry packable artifacts — derived from the channel registry
@@ -58,7 +62,21 @@ function artifactTargets(): readonly string[] {
   return publishChannels().map((c) => c.id);
 }
 
-export type FreshnessOptions = { readonly env?: EngineOptions["env"] };
+export type FreshnessOptions = {
+  readonly env?: EngineOptions["env"];
+  /** Operator build consent (src/check/buildConsent.ts): every REPACKERS entry
+   *  spawns a toolchain over the working tree, so absent consent the skip path
+   *  cannot be honored — not fresh forces the full scan-only check. */
+  readonly allowBuilds?: boolean;
+  /** W4 parity: config-resolved sandbox-image join for the current run
+   *  ("" ⇒ host builds expected). Must equal the record's binding. */
+  readonly buildEnvRef?: string;
+  /** W4 sandbox seam for the skip-path re-packs (tests script docker). */
+  readonly sandboxExec?: DockerExec;
+  /** W4: the sandbox images the CURRENT config resolves (from cfg.targets).
+   *  A configured channel re-packs ONLY inside its pinned image. */
+  readonly sandboxImages?: Readonly<Partial<Record<PublishChannelId, string>>>;
+};
 
 function sha256File(path: string): string {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
@@ -189,6 +207,39 @@ export function packNpmArtifacts(repoDir: string, o: FreshnessOptions = {}): rea
   const dest = join(repoDir, BORDER_STATE_DIR, "tmp", `pack-${String(process.pid)}-${String(packSeq)}`);
   mkdirSync(dest, { recursive: true });
   try {
+    const image = o.sandboxImages?.npm;
+    if (image !== undefined) {
+      // Sandboxed re-pack: host npm is never spawned; the npm<11 hook guard
+      // runs inside the pinned image, armed by the host-side manifest scan.
+      try {
+        sandboxRun({
+          spec: { image, docker: o.sandboxExec ?? realDockerExec() },
+          repoDir,
+          outDir: dest,
+          laneProbes: ["npm", "node"],
+          npmMajorGuard: readNpmPackScripts(repoDir).length > 0,
+          laneScript: "npm pack --ignore-scripts --json --pack-destination /audit/out",
+        });
+      } catch {
+        return null;
+      }
+      const files = readdirSync(dest).filter((f) => f.endsWith(".tgz")).sort();
+      if (files.length === 0) return null;
+      return files.map((f) => ({ file: f, sha256: sha256File(join(dest, f)) }));
+    }
+    // Same npm 10 hole as packOnce (npmPackSafety.ts): a skip re-pack must not
+    // execute the audited repo's `prepare` hook either. Unsafe ⇒ null (no skip
+    // justification); the ensuing full check turns that into exit 2 with the
+    // named error.
+    try {
+      const safety = npmPackSafety({
+        repoDir,
+        ...(o.env !== undefined ? { env: o.env } : {}),
+      });
+      if (!safety.ok) return null;
+    } catch {
+      return null;
+    }
     const r = spawnSync("npm", ["pack", "--ignore-scripts", "--silent", `--pack-destination=${dest}`], {
       cwd: repoDir,
       encoding: "utf8",
@@ -212,6 +263,28 @@ export function packCrateArtifacts(repoDir: string, o: FreshnessOptions = {}): r
   const dest = join(repoDir, BORDER_STATE_DIR, "tmp", `cargo-pack-${String(process.pid)}-${String(packSeq)}`);
   mkdirSync(dest, { recursive: true });
   try {
+    const image = o.sandboxImages?.crates;
+    if (image !== undefined) {
+      const cacheDir = join(repoDir, BORDER_STATE_DIR, "cache");
+      mkdirSync(cacheDir, { recursive: true });
+      try {
+        sandboxRun({
+          spec: { image, docker: o.sandboxExec ?? realDockerExec() },
+          repoDir,
+          outDir: dest,
+          laneProbes: ["cargo", "rustc"],
+          cargoCacheHostDir: cacheDir,
+          laneScript:
+            "cargo package --allow-dirty --no-verify\n" +
+            "find target/package -maxdepth 1 -name '*.crate' -exec cp {} /audit/out/ ;",
+        });
+      } catch {
+        return null;
+      }
+      const files = readdirSync(dest).filter((f) => f.endsWith(".crate")).sort();
+      if (files.length === 0) return null;
+      return files.map((f) => ({ file: f, sha256: sha256File(join(dest, f)) }));
+    }
     const r = spawnSync("cargo", ["package", "--allow-dirty", "--no-verify"], {
       cwd: repoDir,
       encoding: "utf8",
@@ -247,6 +320,26 @@ export function packRubygemsArtifacts(repoDir: string, o: FreshnessOptions = {})
   mkdirSync(dest, { recursive: true });
   try {
     const gemName = `${ident.name}-${ident.version}.gem`;
+    const image = o.sandboxImages?.rubygems;
+    if (image !== undefined) {
+      try {
+        sandboxRun({
+          spec: { image, docker: o.sandboxExec ?? realDockerExec() },
+          repoDir,
+          outDir: dest,
+          laneProbes: ["gem", "ruby"],
+          laneScript: `gem build ${shQuote(relative(repoDir, ident.path))} -o ${shQuote("/audit/out/" + gemName)}`,
+        });
+      } catch {
+        return null;
+      }
+      const files = readdirSync(dest).filter((f) => f.endsWith(".gem")).sort();
+      if (files.length === 0) return null;
+      return files.map((f) => {
+        const raw = readFileSync(join(dest, f));
+        return { file: f, sha256: sha256Hex(raw), contentDigest: gemContentDigest(raw) };
+      });
+    }
     const r = spawnSync("gem", ["build", ident.path, "-o", join(dest, gemName)], {
       cwd: repoDir,
       encoding: "utf8",
@@ -342,6 +435,11 @@ export function verifyArtifactFreshness(
   if (ctx.dirty) return false;
   const needed = repackChannels().filter((t) => record.effectiveTargets.includes(t));
   if (needed.length === 0) return true;
+  if (o.allowBuilds !== true) return false;
+  // W4 build-environment parity: bytes certified inside image set X can only be
+  // re-proved inside the same set — a different (or absent) sandbox rebuilds
+  // different bytes, so the record is not fresh and a full re-check runs.
+  if ((record.buildEnv?.image ?? "") !== (o.buildEnvRef ?? "")) return false;
   if (record.artifacts === null) return false;
   const now: RepackArtifact[] = [];
   for (const id of needed) {

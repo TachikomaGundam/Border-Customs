@@ -50,6 +50,8 @@
 // leg, whose `cargo publish` repackages internally and needs the digest-assert.
 import { z } from "zod";
 
+import { sandboxImageSchema } from "../artifacts/sandbox.ts";
+
 import { runRubygemsArtifactStage } from "../artifacts/rubygems.ts";
 import { runGitChecked } from "../check/context.ts";
 import { ConfigError } from "./errors.ts";
@@ -85,6 +87,9 @@ export const RUBYGEMS_ARTIFACT_EXTENSIONS: readonly string[] = [".gem"];
  *  (${VAR}-expandable — the ONLY env-expand field rthis channel). */
 export const rubygemsTargetSchema = z
   .object({
+    // W4 sandbox containment (sibyl ruling 2026-10-23): digest-pinned image —
+    // absence keeps today's host build; presence is a contract, never a hint.
+    sandboxImage: sandboxImageSchema.optional(),
     name: z.string().optional(),
     host: z.string().optional(),
   })
@@ -258,9 +263,10 @@ async function rubygemsStage(o: ChannelStageOptions): Promise<ChannelStageResult
     ...(o.sanitizer === undefined ? {} : { sanitizer: o.sanitizer }),
     ...(o.skipGitleaks === undefined ? {} : { skipGitleaks: o.skipGitleaks }),
     ...(o.skipSecretlint === undefined ? {} : { skipSecretlint: o.skipSecretlint }),
+    ...(o.sandboxExec === undefined ? {} : { sandboxExec: o.sandboxExec }),
   });
   const artifacts = stage.artifact === null ? [] : [{ file: stage.artifact.file, sha256: stage.artifact.sha256 }];
-  return { findings: stage.findings, artifacts };
+  return { findings: stage.findings, artifacts, ...(stage.toolchain !== undefined ? { toolchain: stage.toolchain } : {}) };
 }
 
 /** Exactly `gem push <file.gem> [--host <host>]` per staged .gem (measured

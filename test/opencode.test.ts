@@ -33,6 +33,7 @@ interface PkgShape {
   version?: string;
   exports?: { [subpath: string]: unknown };
   dependencies?: { [name: string]: unknown };
+  devDependencies?: Record<string, string>;
   files?: unknown;
 }
 
@@ -83,7 +84,18 @@ test("hygiene: packaged assets carry the pinned markers and the plugin template 
   assert.equal(exportsMap["./server"], "./plugin/border.ts");
   assert.equal(typeof exportsMap["./package.json"], "string");
   const deps = pkg.dependencies ?? {};
-  assert.equal(typeof deps["@opencode-ai/plugin"], "string", "the plugin adapter dependency must be declared");
+  const devDeps = pkg.devDependencies ?? {};
+  // 2026-10-23: `tool` is vendored and Config is type-only, so NEITHER plugin
+  // route resolves @opencode-ai/plugin at runtime — a prod declaration would
+  // resurrect its advisory-flagged runtime chain (effect beta → toml) for an
+  // identity call. devDependency stays: the live-host probe tests need it.
+  assert.equal(deps["@opencode-ai/plugin"], undefined, "the plugin adapter must NOT ride the production dependency graph");
+  assert.equal(typeof devDeps["@opencode-ai/plugin"], "string", "the live-host probe tests need @opencode-ai/plugin as a devDependency");
+  const pluginSrcForDeps = readFileSync(PLUGIN_PATH, "utf8");
+  assert.ok(
+    !/^\s*import \{[^}]*\btool\b[^}]*\} from "@opencode-ai\/plugin"/m.test(pluginSrcForDeps),
+    "plugin/border.ts must not value-import @opencode-ai/plugin at runtime (vendored identity)",
+  );
   const files = pkg.files ?? [];
   assert.ok(Array.isArray(files) && files.includes("plugin"), 'package.json files must ship the "plugin" dir');
   assert.ok(Array.isArray(files) && files.includes("index.ts"), 'files must ship the root index.ts V2 directory-discovery shim');

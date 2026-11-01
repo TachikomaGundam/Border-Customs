@@ -16,6 +16,7 @@ import { join } from "node:path";
 import { removeSandbox } from "../artifacts/extract.ts";
 import { publishChannels } from "../channels/registry.ts";
 import { runGitChecked } from "../check/context.ts";
+import { resolveBuildConsent } from "../check/buildConsent.ts";
 import { exitCodeFromVerdict, UnknownArgError, type BorderExit } from "../cli/exit.ts";
 import type { Ctx } from "../cli/types.ts";
 import { EngineRunError } from "../engines/support.ts";
@@ -52,6 +53,15 @@ export async function runScanCore(ctx: Ctx, deps: ScanDeps = {}): Promise<Border
     const { bytes, filename } = await fetchArtifact(spec, { fetcher });
     const env: NodeJS.ProcessEnv = { ...ctx.env };
     const repoDir = materializePackage({ ecosystem: spec.ecosystem, bytes, filename, baseDir, env });
+    // The fetched artifact is THIRD-PARTY code by definition; staging it runs
+    // its build backend (pypi setup.py et al.). Same consent gate as check —
+    // a scan without consent is a named exit 2, never a silent downgrade.
+    // scan rebuilds THIRD-PARTY bytes: consent is the argv flag only — the
+// machine-store key speaks for THIS machine's repos, not fetched strangers.
+const consent = resolveBuildConsent({ allowBuildsFlag: ctx.flags.allowBuilds === true, machineAllowBuilds: false });
+    if (!consent.allowed) {
+      throw new EngineRunError(`border scan '${String(raw)}' would rebuild the fetched artifact — ${consent.reason}`, null);
+    }
     const stage = await channel.stage({ repoDir, cfg, env, sanitizer: new TextSanitizer() });
 
     const head = runGitChecked(repoDir, ["rev-parse", "HEAD"], { env }).trim();

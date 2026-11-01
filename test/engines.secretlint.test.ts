@@ -85,6 +85,48 @@ test("AC2: default Windows path-pattern catches C:\\Users\\bob (G40: no-homedir 
   assert.ok(hit, "expected a path-pattern finding for C:\\Users\\bob");
 });
 
+test("B3: a JS escape in prose (`raw-repoPath:\\n`) is not a drive-letter path", async () => {
+  const { findings } = await scanFixtureFiles("b3-drive", {
+    "stub.ts": "const marker = `raw-repoPath:\\n`;\n",
+  });
+  assert.deepEqual(
+    findings.filter((f) => f.rule.startsWith("path-pattern:")),
+    [],
+    "the drive-letter pattern must not fire on <word>:<backslash> inside a JS escape",
+  );
+});
+
+test("B3: a real drive root at a word boundary still fires", async () => {
+  const { findings } = await scanFixtureFiles("b3-real", {
+    "notes.txt": "copy to D:\\data\\x.txt before running\n",
+  });
+  const hit = findings.find(
+    (f) => f.rule.startsWith("path-pattern:") && f.valueDigest === digest("D:\\"),
+  );
+  assert.ok(hit, `expected drive-root finding for D:\\ among ${JSON.stringify(findings.map((f) => f.rule))}`);
+});
+
+test("B4: UNC pattern never spans a newline", async () => {
+  const { findings } = await scanFixtureFiles("b4-crossline", {
+    "stub.js": "const a = '\\\\';\nconst b = '\\\\';\n",
+  });
+  assert.deepEqual(
+    findings.filter((f) => f.rule.startsWith("path-pattern:")),
+    [],
+    "two backslashes on different lines are not one UNC path",
+  );
+});
+
+test("B4: a real UNC path on one line still fires", async () => {
+  const { findings } = await scanFixtureFiles("b4-real", {
+    "notes.txt": "share at \\\\fileserver\\public for the team\n",
+  });
+  const hit = findings.find(
+    (f) => f.rule.startsWith("path-pattern:") && f.valueDigest === digest("\\\\fileserver\\"),
+  );
+  assert.ok(hit, `expected UNC finding among ${JSON.stringify(findings.map((f) => f.rule))}`);
+});
+
 test("AC3: rules.hosts generates an internal-host pattern finding (corp.internal in source)", async () => {
   const { findings } = await scanFixtureFiles(
     "host",
