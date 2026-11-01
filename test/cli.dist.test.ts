@@ -20,13 +20,22 @@ import { BORDER_ROOT, removeDir, writeRel } from "./helpers/fixtures.ts";
 import { borderYaml, gitIn, makeRemoteFixture } from "./helpers/cli-fixtures.ts";
 import { requireGitleaks } from "./helpers/require-engines.ts";
 
-// child-process AC2 runs the freshly built dist bundle
+// child-process AC2 runs a PRIVATE build of the same sources. Rebuilding the
+// shared dist/ mid-suite was measured to race parallel test files that spawn
+// dist/index.js (ETXTBSY, full suite 2026-10-23): a test never mutates the
+// shared build artifact — it builds its own bundle under the pretest-wiped
+// test/tmp. Two levels deep (test/tmp/<file>) keeps src/assets.ts's
+// ../../assets candidate resolving to the repo assets/ dir, mirroring dist.
 before(() => {
-  execFileSync("npm", ["run", "build"], { cwd: BORDER_ROOT, stdio: "pipe" });
+  execFileSync(process.execPath, ["tools/build.mjs", "--outfile=test/tmp/cli-dist-cli.js"], {
+    cwd: BORDER_ROOT,
+    stdio: "pipe",
+  });
+  execFileSync(process.execPath, ["tools/copy-assets.mjs", "test/tmp/assets"], { cwd: BORDER_ROOT, stdio: "pipe" });
 });
 
 function distBin(): string {
-  return join(BORDER_ROOT, "dist", "index.js");
+  return join(BORDER_ROOT, "test", "tmp", "cli-dist-cli.js");
 }
 
 function runDist(args: readonly string[], cwd: string): { code: number | null; stdout: string; stderr: string } {
@@ -181,4 +190,11 @@ test("dist status runs informationally; wired llm commands exit 2 without touchi
   const ing = runDist(["llm-ingest"], BORDER_ROOT);
   assert.equal(ing.code, EXIT_ERROR);
   assert.match(ing.stderr, /usage: border llm-ingest/i);
+});
+
+test("dist --version prints the stamped build identity (version+commit[.dirty])", () => {
+  const r = runDist(["--version"], BORDER_ROOT);
+  assert.equal(r.code, EXIT_PASS, r.stderr);
+  const pkg = JSON.parse(readFileSync(join(BORDER_ROOT, "package.json"), "utf8")) as { version: string };
+  assert.match(r.stdout.trim(), new RegExp(`^border ${pkg.version}\\+[0-9a-f]{7,40}(\\.dirty)?$`));
 });

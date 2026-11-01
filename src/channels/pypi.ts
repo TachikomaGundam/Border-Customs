@@ -17,6 +17,8 @@ import { relative } from "node:path";
 
 import { z } from "zod";
 
+import { sandboxImageSchema } from "../artifacts/sandbox.ts";
+
 import { scanPyPiArtifacts } from "../artifacts/pypi.ts";
 import { runGitChecked } from "../check/context.ts";
 import { ConfigError } from "./errors.ts";
@@ -52,6 +54,9 @@ export const PYPI_ARTIFACT_EXTENSIONS: readonly string[] = [".whl", ".tar.gz"];
  *  pypi config key is the same exit-2 unknown-key ConfigError as pre-C2). */
 export const pypiTargetSchema = z
   .object({
+    // W4 sandbox containment (sibyl ruling 2026-10-23): digest-pinned image —
+    // absence keeps today's host build; presence is a contract, never a hint.
+    sandboxImage: sandboxImageSchema.optional(),
     name: z.string().optional(),
     repository: z.string().optional(),
   })
@@ -177,9 +182,11 @@ async function pypiStage(o: ChannelStageOptions): Promise<ChannelStageResult> {
     ...(o.sanitizer === undefined ? {} : { sanitizer: o.sanitizer }),
     ...(o.skipGitleaks === undefined ? {} : { skipGitleaks: o.skipGitleaks }),
     ...(o.skipSecretlint === undefined ? {} : { skipSecretlint: o.skipSecretlint }),
+    ...(o.cfg.targets.pypi?.sandboxImage !== undefined ? { sandboxImage: o.cfg.targets.pypi.sandboxImage } : {}),
+    ...(o.sandboxExec === undefined ? {} : { sandboxExec: o.sandboxExec }),
   });
   const artifacts = scan.artifacts.map((a) => ({ file: relative(o.repoDir, a.path), sha256: a.sha256 }));
-  return { findings: scan.findings, artifacts };
+  return { findings: scan.findings, artifacts, ...(scan.toolchain !== undefined ? { toolchain: scan.toolchain } : {}) };
 }
 
 type TwineCommand = { readonly bin: string; readonly prefix: readonly string[] };

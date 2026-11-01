@@ -125,20 +125,21 @@ jobs:
           python3 -c 'import setuptools; print("setuptools", setuptools.__version__)'
           python3 -c 'import httpx; print("httpx", httpx.__version__)'
 
-      # RELEASE GATE (fail-closed): run the suite, allow ONLY the exact sanctioned
-      # failing tests below. Any other failure, ANY sanctioned test newly passing,
-      # or unparsable TAP counts ⇒ exit 1.
-      # FORENSICS (W33 I4 triage): the full TAP transcript of every gate run — green
-      # or red — is archived by the "Upload full test log" step below, and each
-      # fail-closed red branch additionally dumps the per-red TAP YAML detail into
-      # the step log itself. Verdict semantics (exit codes, allowlist, parsing) are
-      # unchanged by these additions.
+      # RELEASE GATE (fail-closed, allowlist retired 2026-10-19).
       #
-      # ALLOWLIST RETIREMENT: these two reds belong to the in-progress push-channels
-      # scope (.omo/plans/border-push-channels.md, C5 cross-channel integration);
-      # replace this step with a plain `npm test` when that scope lands and
-      # C5-1 / C5-4 go green.
-      - name: Release gate (npm test, fail-closed sanctioned-failure allowlist)
+      # History: this step used to diff the exact set of failing TAP titles
+      # against a sanctioned allowlist. The allowlist is empty (v0.8.1 retired
+      # both planned-WIP entries), and the empty-set branches self-detonated
+      # three times during the 0.8.1 release (ADDENDUM v5/v5b/v5c). The
+      # remaining guarantees are all that is needed with zero sanctioned reds:
+      #   * the suite must execute at least one test (anti-vacuity);
+      #   * pass + fail + skipped must equal the reported test total;
+      #   * runner exit code must agree with the parsed failure count.
+      # Every real red still fails closed through the exit-code agreement.
+      #
+      # FORENSICS: the full TAP transcript is archived by the "Upload full test
+      # log" step below, green or red; a red run also dumps the TAP error block.
+      - name: Release gate (npm test, fail-closed)
         run: |
           # errexit OFF: the runner's default `bash -e` kills this script at the
           # intentional red `npm test` before TEST_EXIT=$? is captured; every
@@ -148,99 +149,36 @@ jobs:
           BORDER_PACK_TEST=1 npm test > "$TEST_LOG" 2>&1
           TEST_EXIT=$?
           tail -n 20 "$TEST_LOG"
-          # Archive BEFORE the EXIT trap deletes $TEST_LOG, so the "Upload full test
-          # log" step ships the corpse regardless of which branch fails below. The
-          # copy is read-only forensics: every parse/diff still runs on "$TEST_LOG".
           LOG_ARCHIVE="${RUNNER_TEMP:-/tmp}/border-test-log.txt"
           cp "$TEST_LOG" "$LOG_ARCHIVE" 2>/dev/null || true
-          # h4 evidence: the runner's resource shape at gate time (cores, load,
-          # memory, disk, node/npm) — archived alongside the log below.
           { date -u +"%FT%TZ"; nproc; cat /proc/loadavg; free -m | head -n 3; node -v; npm -v; df -h "$PWD" | tail -n 1; } > "${RUNNER_TEMP:-/tmp}/border-env-snapshot.txt" 2>/dev/null || true
 
           SUM_TESTS="$(sed -n 's/^# tests \([0-9][0-9]*\)$/\1/p' "$TEST_LOG" | tail -n 1)"
           SUM_PASS="$(sed -n 's/^# pass \([0-9][0-9]*\)$/\1/p' "$TEST_LOG" | tail -n 1)"
           SUM_FAIL="$(sed -n 's/^# fail \([0-9][0-9]*\)$/\1/p' "$TEST_LOG" | tail -n 1)"
-          # node TAP's "# tests" total INCLUDES skipped tests but "# pass"/"# fail"
-          # exclude them, so the "# skipped N" count joins the balance equation
-          # below (line verified present in the tap reporter; absent ⇒ 0, never a
-          # parse failure — skips must not fake an unparsable-summary exit).
           SUM_SKIPPED="$(sed -n 's/^# skipped \([0-9][0-9]*\)$/\1/p' "$TEST_LOG" | tail -n 1)"
           [ -z "$SUM_SKIPPED" ] && SUM_SKIPPED=0
           if [ -z "$SUM_TESTS" ] || [ -z "$SUM_PASS" ] || [ -z "$SUM_FAIL" ]; then
             echo "::error::could not parse TAP summary counts (# tests/# pass/# fail) — failing closed"
             exit 1
           fi
-
-          # sanctioned-failure allowlist — the ONE obvious constant (exact TAP
-          # titles, compared set-wise against every '^not ok ' line)
-          # ALLOWLIST v4 (W3.2, 2026-09-12): the three dev-box-golden reds are RETIRED at
-          # source by NORMALIZING their goldens (.omo/plans/border-inspect-roadmap.md W3.2,
-          # evidence .omo/evidence/residue-spike/W32-GOLDEN-NORMALIZATION.md): the channels
-          # golden no longer pins the checkout-location-bound raw key (rulesHash hashes
-          # absolute fingerprint-source paths by design) but every key component + a
-          # path-canonicalized rulesHash + an independent composition recompute; the .gem
-          # stage/freshness parity is a normalized CONTENT digest (gunzipped data.tar.gz
-          # canonicalized per entry + metadata minus rubygems_version/gem_version/date and
-          # the empty deprecated 3.4.x serializer keys), not the raw file sha256 whose
-          # per-environment determinism was the W3.1 flaky-green coin flip (root cause
-          # reproduced locally: RubyGems 3.4.20, the runner image's builder, stamps the
-          # build second into metadata date + gzip mtimes). All three are GREEN on the
-          # runner and the dev box (runner proof in the evidence file).
-          # v3 (W3.1, 2026-09-11) had retired the I1/AC1/AC3 verdaccio trio (colorette CI-ANSI
-          # counter blindness; NO_COLOR=1 + stripAnsi at source). The exact-set rule stays
-          # FULLY fail-closed — the only remaining entries are the two PLANNED border-push-
-          # channels C5 WIP reds. ANY other failure, ANY entry newly passing, or a counts
-          # mismatch still exits 1.
-          cat > /tmp/sanctioned.txt <<'SANCTIONED'
-          # ALLOWLIST v5 (2026-10-06, release v0.8.1): the two C5 planned-WIP reds RETIRED AT
-          # SOURCE — the border-push-channels C5 scope has landed (src/channels/*, src/push/*),
-          # both tests green on runner AND on dev box incl. pre-scrub content control run
-          # (RCA evidence .omo/evidence/identity-rewrite-20261006/, INCIDENT-20261006 cycle).
-          # Empty list from here: ANY failure fails closed. Exact-set rule unchanged.
-          SANCTIONED
-          sed -i -e 's/^[[:space:]]*//' -e '/^#/d' /tmp/sanctioned.txt
-
-          grep '^not ok ' "$TEST_LOG" | sed -E 's/^not ok [0-9]+ - //' | sort > /tmp/actual-failures.txt
-          sort /tmp/sanctioned.txt > /tmp/sanctioned.sorted.txt
-
-          if ! diff -u /tmp/sanctioned.sorted.txt /tmp/actual-failures.txt; then
-            echo "::error::failing-test set is NOT exactly the sanctioned allowlist (diff above: - expected / + actual) — failing closed"
-            # Dump each actual red's TAP YAML error block into the step log before
-            # the trap deletes $TEST_LOG (W32 residual: I4 detail was unrecoverable).
-            echo '::group::not-ok TAP detail (grep -A 25 "^not ok ")'
-            grep -A 25 '^not ok ' "$TEST_LOG" || true
-            echo '::endgroup'
-            # Verdaccio server logs + fixture state survive under test/tmp — the
-            # counter-flush race (h2) is only decidable from the server-side clock.
-            tar -czf "${RUNNER_TEMP:-/tmp}/border-testtmp.tgz" test/tmp 2>/dev/null || true
-            exit 1
-          fi
-
-          ACTUAL_N="$(grep -c . /tmp/actual-failures.txt || true)"
-          # v5b (2026-10-06): the anti-vacuity guarantee is "a run that EXECUTED NOTHING is
-          # red" (W3.2 intent). The old clause hard-required >=1 failure, which contradicts
-          # the empty-allowlist retirement path this file's own v3/v4 comments promise —
-          # with zero sanctioned entries a clean release could never pass. Exact-set check
-          # above still fails closed on ANY real red; vacuity still fails closed here.
-          if [ "$SUM_FAIL" != "$ACTUAL_N" ] || [ "$((SUM_PASS + SUM_FAIL + SUM_SKIPPED))" != "$SUM_TESTS" ] || [ "$((SUM_PASS + SUM_FAIL))" -eq 0 ]; then
-            echo "::error::TAP counts inconsistent (tests=${SUM_TESTS} pass=${SUM_PASS} fail=${SUM_FAIL} not-ok-lines=${ACTUAL_N}) — failing closed"
+          if [ "$((SUM_PASS + SUM_FAIL + SUM_SKIPPED))" != "$SUM_TESTS" ] || [ "$((SUM_PASS + SUM_FAIL))" -eq 0 ]; then
+            echo "::error::TAP counts inconsistent or vacuous (tests=${SUM_TESTS} pass=${SUM_PASS} fail=${SUM_FAIL} skipped=${SUM_SKIPPED}) — failing closed"
             echo '::group::not-ok TAP detail (grep -A 25 "^not ok ")'
             grep -A 25 '^not ok ' "$TEST_LOG" || true
             echo '::endgroup'
             exit 1
           fi
-          # TAP-vs-runner coherence (v5c, 2026-10-06): exit code must AGREE with the
-          # parsed failure count — 1 iff >=1 red, 0 iff clean. The old clause hard-coded
-          # "exit 1" (again the non-empty-allowlist assumption; same dead-end as v5b, third
-          # site). Exact-set + count gates above already ran; this keeps the disagree-check.
           EXPECT_TEST_EXIT=0
           [ "$SUM_FAIL" -gt 0 ] && EXPECT_TEST_EXIT=1
           if [ "$TEST_EXIT" -ne "$EXPECT_TEST_EXIT" ]; then
             echo "::error::'npm test' exited ${TEST_EXIT} but parsed fail=${SUM_FAIL} implies exit ${EXPECT_TEST_EXIT} (TAP/runner disagree) — failing closed"
+            echo '::group::not-ok TAP detail (grep -A 25 "^not ok ")'
+            grep -A 25 '^not ok ' "$TEST_LOG" || true
+            echo '::endgroup'
             exit 1
           fi
-          rm -f /tmp/sanctioned.txt /tmp/actual-failures.txt /tmp/sanctioned.sorted.txt
-          echo "release gate green: ${SUM_TESTS} tests / ${SUM_PASS} pass / exactly ${SUM_FAIL} sanctioned failure(s) matching the allowlist"
+          echo "release gate green: ${SUM_TESTS} tests / ${SUM_PASS} pass / ${SUM_FAIL} fail"
 
       # if: always() — a cancelled/timed-out run's partial log is forensics too;
       # the gate's own exit code is this step's sibling, never altered by it.

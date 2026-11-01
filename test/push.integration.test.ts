@@ -159,7 +159,25 @@ function verdaccioConfig(dir: string, port: number): string {
 const NO_COLOR_ENV: NodeJS.ProcessEnv = { ...process.env, NO_COLOR: "1" };
 const stripAnsi = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, "");
 
+// Verdaccio binds a port chosen by freePort(). Two test files run in parallel
+// (node --test spawns one process per file), so two processes can pick the same
+// ephemeral port before either binds. The loser's readiness fetch is answered
+// by the winner's server, which made the failure look like a publish error.
+// Retry on a fresh port and prove ownership: our child is alive and our own log
+// saw the readiness request.
 async function startVerdaccio(): Promise<LiveVerdaccio> {
+  let last: unknown;
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      return await startVerdaccioOnce();
+    } catch (e) {
+      last = e;
+    }
+  }
+  throw last instanceof Error ? last : new Error(String(last));
+}
+
+async function startVerdaccioOnce(): Promise<LiveVerdaccio> {
   const dir = scratch("i-server");
   const logPath = join(dir, "verdaccio.log");
   const port = await freePort();
@@ -183,6 +201,19 @@ async function startVerdaccio(): Promise<LiveVerdaccio> {
       if (Date.now() > readyDeadline) throw new Error(`verdaccio not ready in 20s: ${readFileSync(logPath, "utf8").slice(-400)}`);
       await new Promise((r) => setTimeout(r, 50));
     }
+  }
+  const logText = (): string => stripAnsi(readFileSync(logPath, "utf8"));
+  let owned = false;
+  const ownerDeadline = Date.now() + 2_000;
+  for (;;) {
+    if (child.exitCode !== null) break;
+    if (logText().includes("http <--")) { owned = true; break; }
+    if (Date.now() > ownerDeadline) break;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  if (!owned) {
+    if (child.exitCode === null) child.kill("SIGKILL");
+    throw new Error("verdaccio port ownership race: readiness was answered by another listener");
   }
   const logLines = (): string[] => stripAnsi(readFileSync(logPath, "utf8")).split("\n");
   let stopped = false;
@@ -318,7 +349,7 @@ function npmRepoFixture(top: string, v: LiveVerdaccio): Fixture {
 /** certify the repo (check --force) AND materialize the recorded bytes via the
  *  real todo-11 pack stage; returns the latest PASS record. */
 async function checkForceAndPack(f: Fixture): Promise<CheckRecord> {
-  const chk = await runBorder(["check", "--force", "--config", f.cfgPath], f.repo, f.env);
+  const chk = await runBorder(["check", "--force", "--allow-builds", "--config", f.cfgPath], f.repo, f.env);
   assert.equal(chk.code, EXIT_PASS, dump(chk));
   const records = readLedger(f.repo).records;
   const passes = records.filter((r): r is CheckRecord => r.t === "check" && r.verdict === "PASS");
@@ -442,7 +473,7 @@ test("I4 dry-run registry lines: no-record honesty, then missing-bytes exit 2, t
 
   // (a) no PASS record yet — honest cannot-list line (and the check seam still
   //     certifies the run: this dry-run's gate leg executes a full check ⇒ 0).
-  const a = await runBorder(["push", "--config", f.cfgPath], f.repo, f.env);
+  const a = await runBorder(["push", "--allow-builds", "--config", f.cfgPath], f.repo, f.env);
   assert.equal(a.code, EXIT_PASS, dump(a));
   assert.ok(
     a.out.some((l) => l.includes("npm registry leg") && l.includes("border check --force") && l.includes("dry-run cannot list artifacts")),
@@ -456,7 +487,7 @@ test("I4 dry-run registry lines: no-record honesty, then missing-bytes exit 2, t
   //     loss: crash, hand-cleaned state dir, tamper). The re-hash gate prints
   //     its message and its exit, no network.
   rmSync(join(f.repo, ".border", "dist", "widgets-1.0.0.tgz"));
-  const b = await runBorder(["push", "--config", f.cfgPath], f.repo, f.env);
+  const b = await runBorder(["push", "--allow-builds", "--config", f.cfgPath], f.repo, f.env);
   assert.equal(b.code, EXIT_ERROR, dump(b));
   assert.ok(b.err.some((l) => l.includes("artifact changed since check") && l.includes("missing")), `re-hash mismatch surfaced:\n${b.err.join("\n")}`);
 
@@ -469,7 +500,7 @@ test("I4 dry-run registry lines: no-record honesty, then missing-bytes exit 2, t
   // after hits0 would frame them as (c)'s dry-run traffic (v0.7.0 CI incident, 6 !== 2).
   await v.drain();
   const hits0 = v.requestCount();
-  const c = await runBorder(["push", "--config", f.cfgPath], f.repo, f.env);
+  const c = await runBorder(["push", "--allow-builds", "--config", f.cfgPath], f.repo, f.env);
   assert.equal(c.code, EXIT_PASS, dump(c));
   assert.ok(
     c.out.some((l) => l.includes(`npm publish .border/dist/${basename("widgets-1.0.0.tgz")} --registry ${v.url}/`)),

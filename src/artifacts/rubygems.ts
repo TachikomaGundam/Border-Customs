@@ -36,6 +36,8 @@ import { gemCoherenceFindings } from "../rules/releaseCoherence.ts";
 import { scanTree } from "../engines/gitleaks.ts";
 import { scanPaths, type SecretlintMode } from "../engines/secretlint.ts";
 import { EngineMissingError, EngineRunError, type EngineOptions } from "../engines/support.ts";
+import { sandboxRun, shQuote } from "./sandbox.ts";
+import { realDockerExec, type DockerExec } from "../roundtrip/docker.ts";
 import type { TextSanitizer } from "../redact.ts";
 import { ConfigError } from "../channels/errors.ts";
 import { selectGemspec } from "../channels/gemspec.ts";
@@ -63,6 +65,8 @@ export type GemStageOptions = {
   readonly secretlintMode?: SecretlintMode;
   /** Exact gem binary seam (tests / pinned toolchains); default "gem" on PATH. */
   readonly gemBinPath?: string;
+  /** W4 sandbox seam (only consulted when targets.rubygems.sandboxImage is set). */
+  readonly sandboxExec?: DockerExec;
   /** shared engine/extract timeout. */
   readonly timeoutMs?: number;
   readonly gemTimeoutMs?: number;
@@ -71,6 +75,8 @@ export type GemStageOptions = {
 export type GemStageResult = {
   readonly findings: readonly Finding[];
   readonly artifact: GemArtifactRecord | null;
+  /** Observed in-image toolchain versions (sandbox runs only) — record binding. */
+  readonly toolchain?: string;
 };
 
 function scopeFindingPath(f: Finding, extractDir: string): Finding {
@@ -157,15 +163,18 @@ export async function runRubygemsArtifactStage(o: GemStageOptions): Promise<GemS
   }
   const gemName = `${identity.name}-${identity.version}.gem`;
 
-  const versionCheck = spawnSync(bin, ["--version"], {
-    encoding: "utf8",
-    stdio: "ignore",
-    ...(o.env === undefined ? {} : { env: { ...o.env } }),
-  });
-  if (versionCheck.error !== undefined || versionCheck.status !== 0) {
-    throw new EngineMissingError(
-      `gem (RubyGems) is not available (\`${bin} --version\` failed) — install it (apt-get install ruby-full on Debian/Ubuntu, or via rbenv/rvm) or pass gemBinPath before running border check (border exit 2)`,
-    );
+  const sandboxImage = o.cfg.targets.rubygems.sandboxImage;
+  if (sandboxImage === undefined) {
+    const versionCheck = spawnSync(bin, ["--version"], {
+      encoding: "utf8",
+      stdio: "ignore",
+      ...(o.env === undefined ? {} : { env: { ...o.env } }),
+    });
+    if (versionCheck.error !== undefined || versionCheck.status !== 0) {
+      throw new EngineMissingError(
+        `gem (RubyGems) is not available (\`\${bin} --version\` failed) — install it (apt-get install ruby-full on Debian/Ubuntu, or via rbenv/rvm) or pass gemBinPath before running border check (border exit 2)`,
+      );
+    }
   }
 
   ensureStateDir(repoDir);
@@ -174,17 +183,30 @@ export async function runRubygemsArtifactStage(o: GemStageOptions): Promise<GemS
   mkdirSync(distDir, { recursive: true });
 
   const dist = join(distDir, gemName);
-  const result = spawnSync(bin, ["build", (candidates[0] as { path: string }).path, "-o", dist], {
-    cwd: repoDir,
-    encoding: "utf8",
-    timeout: o.gemTimeoutMs ?? 120_000,
-    ...(o.env === undefined ? {} : { env: { ...o.env } }),
-  });
-  if (result.error !== undefined || result.status !== 0) {
-    throw new EngineRunError(
-      `gem build failed (exit ${String(result.status)}) — nothing to gate: ${(result.stderr ?? "").trim().slice(0, 400)}`,
-      result.status,
-    );
+  let stageToolchain: string | undefined;
+  if (sandboxImage !== undefined) {
+    const relGemspec = relative(repoDir, (candidates[0] as { path: string }).path);
+    const run = sandboxRun({
+      spec: { image: sandboxImage, docker: o.sandboxExec ?? realDockerExec() },
+      repoDir,
+      outDir: distDir,
+      laneProbes: ["gem", "ruby"],
+      laneScript: `gem build ${shQuote(relGemspec)} -o ${shQuote("/audit/out/" + gemName)}`,
+    });
+    stageToolchain = run.toolchain;
+  } else {
+    const result = spawnSync(bin, ["build", (candidates[0] as { path: string }).path, "-o", dist], {
+      cwd: repoDir,
+      encoding: "utf8",
+      timeout: o.gemTimeoutMs ?? 120_000,
+      ...(o.env === undefined ? {} : { env: { ...o.env } }),
+    });
+    if (result.error !== undefined || result.status !== 0) {
+      throw new EngineRunError(
+        `gem build failed (exit ${String(result.status)}) — nothing to gate: ${(result.stderr ?? "").trim().slice(0, 400)}`,
+        result.status,
+      );
+    }
   }
   if (!existsSync(dist)) {
     throw new EngineRunError(`gem build produced no ${gemName} in ${relative(repoDir, distDir)} — failing closed (was the gemspec's literal name/version re-read?)`, null);
@@ -286,5 +308,6 @@ export async function runRubygemsArtifactStage(o: GemStageOptions): Promise<GemS
   return {
     findings,
     artifact: { file: `${BORDER_STATE_DIR}/dist/${gemName}`, sha256, bytes: bytes.length },
+    ...(stageToolchain !== undefined ? { toolchain: stageToolchain } : {}),
   };
 }

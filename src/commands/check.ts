@@ -15,9 +15,11 @@ import type { Ctx } from "../cli/types.ts";
 import { executeCheck, type CheckOutcome } from "../check.ts";
 import { BorderLockHeldError } from "../check/lock.ts";
 import { computeConfigDigest } from "../check/rulesHash.ts";
+import { resolveBuildConsent } from "../check/buildConsent.ts";
 import { renderReportJson } from "../report.ts";
 import { consultSkipLedger, formatSkipLine, recordCheckRun } from "../ledger.ts";
 import { resolveRepoDir, computeEffectiveTargets } from "../check/context.ts";
+import { sandboxBindingJoin } from "../artifacts/sandbox.ts";
 import { probeEngines } from "../engines/policy.ts";
 import type { EngineOptions } from "../engines/support.ts";
 
@@ -38,7 +40,7 @@ export async function runCheck(ctx: Ctx): Promise<BorderExit> {
   if (load.kind === "loaded") {
     effective = load;
   } else if (load.explicit !== undefined) {
-    effective = { kind: "loaded", config: load.explicit.config, warnings: [], source: load.explicit.source };
+    effective = { kind: "loaded", config: load.explicit.config, warnings: [], source: load.explicit.source, security: load.explicit.security };
   } else {
     // --require-engine upgrades the no-op into a health probe: an operator who
     // demanded a specific engine gets exit 2 when it is missing, even with zero
@@ -66,6 +68,14 @@ export async function runCheck(ctx: Ctx): Promise<BorderExit> {
   const repoDir = resolveRepoDir(ctx.cwd, { env });
   const effectiveTargets = computeEffectiveTargets(effective.config, ctx.flags.targets);
 
+  // Operator build consent, resolved ONCE here from operator-side sources
+  // (flag / host env — never the audited tree) and carried into every leg
+  // that can spawn a build: stages, skip-ledger repacks, ledger record fallback.
+  const consent = resolveBuildConsent({
+    allowBuildsFlag: ctx.flags.allowBuilds === true,
+    machineAllowBuilds: effective.security.allowBuilds,
+  });
+
   if (!ctx.flags.force) {
     const decision = await consultSkipLedger({
       repoDir,
@@ -73,6 +83,8 @@ export async function runCheck(ctx: Ctx): Promise<BorderExit> {
       configDigest,
       effectiveTargets,
       llm: ctx.flags.llm,
+      allowBuilds: consent.allowed,
+      buildEnvRef: sandboxBindingJoin(Object.values(effective.security.sandbox)),
       ...(env !== undefined ? { env } : {}),
       ...(ctx.flags.requireEngine !== undefined && ctx.flags.requireEngine.length > 0
         ? { requireOverride: ctx.flags.requireEngine }
@@ -92,6 +104,7 @@ export async function runCheck(ctx: Ctx): Promise<BorderExit> {
       cfg: effective.config,
       configDigest,
       effectiveTargets,
+      consent,
       ...(env !== undefined ? { env } : {}),
       ...(ctx.flags.requireEngine !== undefined && ctx.flags.requireEngine.length > 0
         ? { requireOverride: ctx.flags.requireEngine }
@@ -128,6 +141,8 @@ export async function runCheck(ctx: Ctx): Promise<BorderExit> {
     effectiveTargets,
     llm: ctx.flags.llm,
     artifacts: outcome.artifacts,
+    allowBuilds: consent.allowed,
+    ...(outcome.buildEnv !== undefined ? { buildEnv: outcome.buildEnv } : {}),
     ...(env !== undefined ? { env } : {}),
   });
   return exitCodeFromVerdict(outcome.report.verdict);

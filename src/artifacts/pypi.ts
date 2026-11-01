@@ -52,6 +52,8 @@ import {
   spawnEngine,
   type EngineOptions,
 } from "../engines/support.ts";
+import { sandboxRun } from "./sandbox.ts";
+import { realDockerExec, type DockerExec } from "../roundtrip/docker.ts";
 import { redact, type TextSanitizer } from "../redact.ts";
 
 /** Prerequisite failure — the CLI maps it to border exit 2 (library never process.exits). */
@@ -70,8 +72,12 @@ export type PypiInput = EngineOptions & {
   /** degraded-engine inheritance (todo 10 policy): the check pipeline skips the leg whose engine failed its probe. */
   readonly skipGitleaks?: boolean;
   readonly skipSecretlint?: boolean;
+  /** W4: digest-pinned image (from targets.pypi.sandboxImage); set ⇒ the
+   *  repo-chosen PEP 517 backend executes ONLY inside the container. */
+  readonly sandboxImage?: string;
+  readonly sandboxExec?: DockerExec;
 };
-export type PypiScanResult = { readonly artifacts: readonly PypiArtifact[]; readonly findings: readonly Finding[] };
+export type PypiScanResult = { readonly artifacts: readonly PypiArtifact[]; readonly findings: readonly Finding[]; readonly toolchain?: string };
 
 const ANSI_RE = /\u001B\[[0-9;]*m/g;
 /** Names setuptools emits into the sdist that no source declaration lists (whitelisted metadata). */
@@ -102,8 +108,8 @@ function requireModule(o: EngineOptions, module: "build" | "twine"): void {
 }
 
 /** build-once (G38): wipe stale dist, run `python3 -m build`, content-address every produced artifact. */
-export function buildPypiArtifacts(o: PypiInput): { readonly artifacts: readonly PypiArtifact[]; readonly distDir: string } {
-  requireModule(o, "build");
+export function buildPypiArtifacts(o: PypiInput): { readonly artifacts: readonly PypiArtifact[]; readonly distDir: string; readonly toolchain?: string } {
+  if (o.sandboxImage === undefined) requireModule(o, "build");
   const repoDir = resolve(o.repoDir);
   if (!existsSync(join(repoDir, "pyproject.toml"))) {
     throw new PypiPrerequisiteError(`no pyproject.toml in the repo root — the PyPI pipeline builds from pyproject's own [build-system]`);
@@ -121,9 +127,21 @@ export function buildPypiArtifacts(o: PypiInput): { readonly artifacts: readonly
   for (const name of readdirSync(distDir)) {
     if (name.endsWith(".tar.gz") || name.endsWith(".whl")) rmSync(join(distDir, name), { force: true });
   }
-  const out = spawnEngine(binaryCandidates("python3", o), ["-m", "build", "--no-isolation", "--outdir", distDir, repoDir], o);
-  if (out.status !== 0) {
-    throw new EngineRunError(`\`python3 -m build\` exited ${String(out.status)} — no artifacts to gate (border exit 2). stderr: ${tail(out.stderr)}`, out.status);
+  let sandboxToolchain: string | undefined;
+  if (o.sandboxImage !== undefined) {
+    const run = sandboxRun({
+      spec: { image: o.sandboxImage, docker: o.sandboxExec ?? realDockerExec() },
+      repoDir,
+      outDir: distDir,
+      laneProbes: ["python3"],
+      laneScript: "python3 -m build --no-isolation --outdir /audit/out .",
+    });
+    sandboxToolchain = run.toolchain;
+  } else {
+    const out = spawnEngine(binaryCandidates("python3", o), ["-m", "build", "--no-isolation", "--outdir", distDir, repoDir], o);
+    if (out.status !== 0) {
+      throw new EngineRunError(`\`python3 -m build\` exited ${String(out.status)} — no artifacts to gate (border exit 2). stderr: ${tail(out.stderr)}`, out.status);
+    }
   }
   const names = readdirSync(distDir).filter((n) => n.endsWith(".tar.gz") || n.endsWith(".whl")).sort();
   if (names.length === 0) {
@@ -133,7 +151,7 @@ export function buildPypiArtifacts(o: PypiInput): { readonly artifacts: readonly
     const path = join(distDir, name);
     return { path, kind: name.endsWith(".whl") ? "wheel" : "sdist", sha256: createHash("sha256").update(readFileSync(path)).digest("hex") };
   });
-  return { artifacts, distDir };
+  return { artifacts, distDir, ...(sandboxToolchain !== undefined ? { toolchain: sandboxToolchain } : {}) };
 }
 
 function walkFilesRel(root: string): string[] {
@@ -277,12 +295,14 @@ function twineCheck(o: PypiInput, artifacts: readonly PypiArtifact[], target: st
 
 /** Full todo-12 pipeline: prereqs → build → extract-scan (both artifacts, deduped) → manifest-diff → twine. */
 export async function scanPyPiArtifacts(o: PypiInput): Promise<PypiScanResult> {
-  requireModule(o, "build");
-  requireModule(o, "twine");
+  if (o.sandboxImage === undefined) {
+    requireModule(o, "build");
+    requireModule(o, "twine");
+  }
   const repoDir = resolve(o.repoDir);
   const stateDir = resolve(o.stateDir ?? join(repoDir, ".border"));
   const target = o.target ?? "artifact";
-  const { artifacts } = buildPypiArtifacts(o);
+  const { artifacts, toolchain: pypiToolchain } = buildPypiArtifacts(o);
   const tmpParent = join(stateDir, "tmp");
   mkdirSync(tmpParent, { recursive: true });
 
@@ -349,5 +369,5 @@ export async function scanPyPiArtifacts(o: PypiInput): Promise<PypiScanResult> {
       // non-empty ⇒ a concurrent run owns sandboxes here; leave for the .border/tmp GC
     }
   }
-  return { artifacts, findings: [...merged.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([, f]) => f) };
+  return { artifacts, findings: [...merged.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([, f]) => f), ...(pypiToolchain !== undefined ? { toolchain: pypiToolchain } : {}) };
 }

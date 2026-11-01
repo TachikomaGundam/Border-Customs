@@ -253,7 +253,25 @@ function verdaccioConfig(dir: string, port: number): string {
 const NO_COLOR_ENV: NodeJS.ProcessEnv = { ...process.env, NO_COLOR: "1" };
 const stripAnsi = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, "");
 
+// Verdaccio binds a port chosen by freePort(). Two test files run in parallel
+// (node --test spawns one process per file), so two processes can pick the same
+// ephemeral port before either binds. The loser's readiness fetch is answered
+// by the winner's server, which made the failure look like a publish error.
+// Retry on a fresh port and prove ownership: our child is alive and our own log
+// saw the readiness request.
 async function startVerdaccio(): Promise<LiveVerdaccio> {
+  let last: unknown;
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      return await startVerdaccioOnce();
+    } catch (e) {
+      last = e;
+    }
+  }
+  throw last instanceof Error ? last : new Error(String(last));
+}
+
+async function startVerdaccioOnce(): Promise<LiveVerdaccio> {
   const dir = scratchDir("v17-server");
   const logPath = join(dir, "verdaccio.log");
   const port = await freePort();
@@ -281,6 +299,19 @@ async function startVerdaccio(): Promise<LiveVerdaccio> {
       if (Date.now() > readyDeadline) throw new Error(`verdaccio not ready in 20s: ${readFileSync(logPath, "utf8").slice(-400)}`);
       await new Promise((r) => setTimeout(r, 50));
     }
+  }
+  const logText = (): string => stripAnsi(readFileSync(logPath, "utf8"));
+  let owned = false;
+  const ownerDeadline = Date.now() + 2_000;
+  for (;;) {
+    if (child.exitCode !== null) break;
+    if (logText().includes("http <--")) { owned = true; break; }
+    if (Date.now() > ownerDeadline) break;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  if (!owned) {
+    if (child.exitCode === null) child.kill("SIGKILL");
+    throw new Error("verdaccio port ownership race: readiness was answered by another listener");
   }
   const logLines = (): string[] => stripAnsi(readFileSync(logPath, "utf8")).split("\n");
   let stopped = false;

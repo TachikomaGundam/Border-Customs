@@ -13,13 +13,15 @@
 // gate-blocked⇒1, gate-unavailable⇒2. It must never print a misleading 0.
 import type { BorderExit } from "./exit.ts";
 
-export const SUBCOMMANDS = ["check", "push", "status", "llm-request", "llm-ingest", "scan", "roundtrip", "opencode", "exfil"] as const;
+export const SUBCOMMANDS = ["check", "push", "status", "llm-request", "llm-ingest", "scan", "roundtrip", "opencode", "exfil", "sandbox"] as const;
 
 export type Subcommand = (typeof SUBCOMMANDS)[number];
 
 /** Parsed form of the G9 flag table (cli.ts owns validation; handlers just read). */
 export type Flags = {
   readonly config?: string;
+  readonly lane?: string;
+  readonly image?: string;
   readonly targets?: readonly string[];
   readonly force: boolean;
   readonly yes: boolean;
@@ -30,6 +32,9 @@ export type Flags = {
   readonly record?: boolean;
   /** `border exfil --deep`: reachable-history blobs + commit messages on top of the default tip tree + tag notes. */
   readonly deep?: boolean;
+  /** Operator-side build consent (src/check/buildConsent.ts): true only via
+   *  --allow-builds; the env seam is read independently of the parser. */
+  readonly allowBuilds?: boolean;
 };
 
 export type Writer = (line: string) => void;

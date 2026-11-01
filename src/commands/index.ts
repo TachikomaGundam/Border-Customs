@@ -13,6 +13,7 @@ import { runLlmRequest } from "./llmRequest.ts";
 import { runOpencode } from "./opencode.ts";
 import { runPush } from "./push.ts";
 import { runRoundtrip } from "./roundtrip.ts";
+import { runSandbox } from "./sandbox.ts";
 import { runScan } from "./scan.ts";
 import { runStatus } from "./status.ts";
 
@@ -26,6 +27,7 @@ export const handlers: Record<Subcommand, CommandHandler> = {
   roundtrip: runRoundtrip,
   opencode: runOpencode,
   exfil: runExfil,
+  sandbox: runSandbox,
 };
 
 /** Test seam: replace one handler, get a restore closure back. */

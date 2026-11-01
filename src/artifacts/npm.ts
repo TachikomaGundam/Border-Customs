@@ -35,11 +35,13 @@ import {
   NPM_PRIVATE_RULE,
   NPM_TARGET_LABEL,
   NPM_UNEXPECTED_RULE,
-  packOnce,
+  packOnce, sandboxPackOnce,
   publintFinding,
   sanitizeOut,
   tail,
 } from "./npmPack.ts";
+import { realDockerExec } from "../roundtrip/docker.ts";
+import type { DockerExec } from "../roundtrip/docker.ts";
 
 export { NPM_LIFECYCLE_RULE, NPM_PUBLINT_RULE, NPM_PRIVATE_RULE, NPM_TARGET_LABEL, NPM_UNEXPECTED_RULE };
 
@@ -64,11 +66,15 @@ export type NpmStageOptions = {
   readonly timeoutMs?: number;
   readonly npmTimeoutMs?: number;
   readonly publintTimeoutMs?: number;
+  /** W4 sandbox seam (only consulted when targets.npm.sandboxImage is set). */
+  readonly sandboxExec?: DockerExec;
 };
 
 export type NpmStageResult = {
   readonly findings: readonly Finding[];
   readonly artifact: NpmArtifactRecord | null;
+  /** Observed in-image toolchain versions (sandbox runs only) — record binding. */
+  readonly toolchain?: string;
 };
 
 function nativeFinding(
@@ -169,13 +175,33 @@ export async function runNpmArtifactStage(o: NpmStageOptions): Promise<NpmStageR
   const stateDir = join(repoDir, BORDER_STATE_DIR);
   const distDir = join(stateDir, "dist");
   mkdirSync(distDir, { recursive: true });
-  const { filename, sha256, bytes, tarballAbs } = packOnce({
-    repoDir,
-    distDir,
-    ...(o.env !== undefined ? { env: o.env } : {}),
-    ...(o.npmBinPath !== undefined ? { npmBinPath: o.npmBinPath } : {}),
-    ...(o.npmTimeoutMs !== undefined ? { npmTimeoutMs: o.npmTimeoutMs } : {}),
-  });
+  // W4: sandboxImage configured ⇒ the pack runs in the pinned container and
+  // the host npm is never touched; otherwise the host path (npm-version guard
+  // inside packOnce) builds exactly the same bytes recipe.
+  const sandboxImage = o.cfg.targets.npm.sandboxImage;
+  let filename: string;
+  let sha256: string;
+  let bytes: number;
+  let tarballAbs: string;
+  let stageToolchain: string | undefined;
+  if (sandboxImage !== undefined) {
+    const run = sandboxPackOnce({
+      repoDir,
+      distDir,
+      spec: { image: sandboxImage, docker: o.sandboxExec ?? realDockerExec() },
+    });
+    ({ filename, sha256, bytes, tarballAbs } = run.outcome);
+    stageToolchain = run.toolchain;
+  } else {
+    const packed = packOnce({
+      repoDir,
+      distDir,
+      ...(o.env !== undefined ? { env: o.env } : {}),
+      ...(o.npmBinPath !== undefined ? { npmBinPath: o.npmBinPath } : {}),
+      ...(o.npmTimeoutMs !== undefined ? { npmTimeoutMs: o.npmTimeoutMs } : {}),
+    });
+    ({ filename, sha256, bytes, tarballAbs } = packed);
+  }
 
   const findings: Finding[] = [];
   const extractDir = join(stateDir, "tmp", sha256.slice(0, 8));
@@ -304,5 +330,6 @@ export async function runNpmArtifactStage(o: NpmStageOptions): Promise<NpmStageR
   return {
     findings,
     artifact: { file: `${BORDER_STATE_DIR}/dist/${filename}`, sha256, bytes },
+    ...(stageToolchain !== undefined ? { toolchain: stageToolchain } : {}),
   };
 }

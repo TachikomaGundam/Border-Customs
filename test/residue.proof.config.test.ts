@@ -35,7 +35,7 @@ function yaml(extra: readonly string[]): string {
 }
 
 function load(extra: readonly string[]): LoadedConfig {
-  return { kind: "loaded", config: parseConfig(yaml(extra)), warnings: [], source: "<inline>" };
+  return { kind: "loaded", config: parseConfig(yaml(extra)), warnings: [], source: "<inline>", security: { sandbox: {}, allowBuilds: false } };
 }
 
 test("W2.2-config: requireProof defaults FALSE and the key is optional (old literals construct)", () => {

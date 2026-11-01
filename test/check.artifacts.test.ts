@@ -43,7 +43,7 @@ async function cli(dir: string, extra: readonly string[] = []): Promise<Cli> {
   const out: string[] = [];
   const err: string[] = [];
   const t0 = performance.now();
-  const code = (await run(["check", ...extra], (l) => out.push(l), (l) => err.push(l), { cwd: dir })) as number;
+  const code = (await run(["check", "--allow-builds", ...extra], (l) => out.push(l), (l) => err.push(l), { cwd: dir, env: { ...process.env } })) as number;
   return { code, out, err, ms: performance.now() - t0 };
 }
 

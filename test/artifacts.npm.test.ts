@@ -187,21 +187,25 @@ test("private:true with npm target is one CRITICAL npm-target-but-private and no
 });
 
 // --------------------------------------------------------------- AC: lifecycle scripts
-test("install/prepare hooks in the packed manifest are CRITICAL lifecycle-script and never EXECUTE during pack", async () => {
+test("install-phase hooks in the packed manifest are CRITICAL lifecycle-script and never EXECUTE during pack", async () => {
   const repo = fixture("hooks");
   writeRel(repo, "package.json", JSON.stringify({
     name: "hookspkg",
     version: "1.0.0",
     files: ["src"],
     main: "src/index.js",
-    scripts: { prepare: "node -e \"require('fs').writeFileSync('PWNED','x')\"", postinstall: "echo hi" },
+    // `prepare` moved to test/artifacts.npmSafety.test.ts: on npm 10 the pack
+    // stage now refuses such a repo before spawning npm, so this fixture uses
+    // install-phase hooks (never run by `npm pack` on either npm line) to keep
+    // the report-side assertion deterministic across npm 10 and 11.
+    scripts: { install: "node -e \"require('fs').writeFileSync('PWNED','x')\"", postinstall: "echo hi" },
   }));
   writeRel(repo, "src/index.js", "module.exports = 1;\n");
   gitAddCommit(repo, "init");
 
   const r = await runNpmArtifactStage({ repoDir: repo, cfg: CFG });
   const lc = byRule(r.findings, NPM_LIFECYCLE_RULE);
-  assert.equal(lc.length, 2, "prepare and postinstall each get their own finding");
+  assert.equal(lc.length, 2, "install and postinstall each get their own finding");
   assert.ok(lc.every((f) => f.severity === "CRITICAL"));
   assert.equal(lc[0]?.path, "package/package.json");
   assert.ok(!existsSync(join(repo, "PWNED")), "npm pack must run with --ignore-scripts — the target repo's hooks never execute");

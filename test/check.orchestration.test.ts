@@ -32,6 +32,10 @@ import { requireGitleaks } from "./helpers/require-engines.ts";
 import { BORDER_ROOT, gitAddCommit, gitInit, makeFixtureDir, randAwsPair, removeDir, writeRel } from "./helpers/fixtures.ts";
 import type { BorderConfig } from "../src/config.ts";
 
+import type { BuildConsent } from "../src/check/buildConsent.ts";
+
+const CONSENT: BuildConsent = { allowed: true, source: "flag" };
+
 requireGitleaks();
 
 const fixtureRoots: string[] = [];
@@ -97,6 +101,7 @@ function cfgFor(repoDir: string): BorderConfig {
 
 function runPipeline(repoDir: string, overrides: { env?: NodeJS.ProcessEnv; requireOverride?: readonly string[] } = {}): Promise<CheckOutcome> {
   return executeCheck({
+    consent: CONSENT,
     repoDir,
     cfg: cfgFor(repoDir),
     configDigest: "f".repeat(64),
@@ -376,10 +381,10 @@ process.stdout.write(JSON.stringify({ code, lines: out }));
 test("stableStringify sorts nested keys; configDigest is deterministic per effective config", () => {
   assert.equal(stableStringify({ b: 1, a: { d: [3, 2], c: "x" } }), '{"a":{"c":"x","d":[3,2]},"b":1}');
   const cfg = cfgFor("/x");
-  const digest = computeConfigDigest({ kind: "loaded", config: cfg, warnings: [], source: "/nonexistent/border.yaml" });
-  assert.equal(digest, computeConfigDigest({ kind: "loaded", config: cfg, warnings: [], source: "/other/border.yaml" }), "canonical: source path itself must not leak into the digest");
+  const digest = computeConfigDigest({ kind: "loaded", config: cfg, warnings: [], source: "/nonexistent/border.yaml", security: { sandbox: {}, allowBuilds: false } });
+  assert.equal(digest, computeConfigDigest({ kind: "loaded", config: cfg, warnings: [], source: "/other/border.yaml", security: { sandbox: {}, allowBuilds: false } }), "canonical: source path itself must not leak into the digest");
   const tweaked: BorderConfig = { ...cfg, rules: { ...cfg.rules, maxFileKB: 400 } };
-  assert.notEqual(digest, computeConfigDigest({ kind: "loaded", config: tweaked, warnings: [], source: "/nonexistent/border.yaml" }));
+  assert.notEqual(digest, computeConfigDigest({ kind: "loaded", config: tweaked, warnings: [], source: "/nonexistent/border.yaml", security: { sandbox: {}, allowBuilds: false } }));
 });
 
 test("rulesHash changes with engine versions and config; key changes with refSet", async () => {

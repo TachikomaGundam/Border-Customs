@@ -19,6 +19,10 @@ import { EXFIL_HIGH_FAMILY } from "../src/exfil/severity.ts";
 import { requireGitleaks } from "./helpers/require-engines.ts";
 import { assembleHost, assembleOctet, gitAddCommit, gitInit, gitRevParseHead, makeFixtureDir, removeDir, writeRel } from "./helpers/fixtures.ts";
 
+import type { BuildConsent } from "../src/check/buildConsent.ts";
+
+const CONSENT: BuildConsent = { allowed: true, source: "flag" };
+
 requireGitleaks();
 
 const roots: string[] = [];
@@ -45,7 +49,7 @@ async function goldenCheck(name: string, files: Record<string, string>, message:
   gitInit(dir);
   for (const [rel, content] of Object.entries(files)) writeRel(dir, rel, content);
   gitAddCommit(dir, message);
-  const outcome = await executeCheck({ repoDir: dir, cfg: CFG, configDigest: "a".repeat(64), effectiveTargets: ["git"] });
+  const outcome = await executeCheck({ consent: CONSENT, repoDir: dir, cfg: CFG, configDigest: "a".repeat(64), effectiveTargets: ["git"] });
   assert.equal(outcome.degraded, false, `${name}: engines must be healthy for a golden assertion`);
   return outcome.report.findings;
 }

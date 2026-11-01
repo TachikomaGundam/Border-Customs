@@ -441,6 +441,7 @@ test("RC-HASH: release.twin config is digest-visible (pair edit rotates the fing
     config: parseConfig(baseYaml(releaseLines)),
     warnings: [],
     source: "<test>",
+    security: { sandbox: {}, allowBuilds: false },
   });
   const absent = computeConfigDigest(asLoad([]));
   const pairA = computeConfigDigest(asLoad(["release:", "  twin:", "    - pypi: a", "      npm: b"]));

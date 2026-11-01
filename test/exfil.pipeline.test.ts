@@ -35,6 +35,10 @@ import { GITLEAKS_VENDORED_CONFIG } from "../src/engines/gitleaks.ts";
 import { requireGitleaks } from "./helpers/require-engines.ts";
 import { BORDER_ROOT, assembleHost, assembleOctet, gitAddCommit, gitInit, makeFixtureDir, removeDir, writeRel } from "./helpers/fixtures.ts";
 
+import type { BuildConsent } from "../src/check/buildConsent.ts";
+
+const CONSENT: BuildConsent = { allowed: true, source: "flag" };
+
 requireGitleaks();
 
 const roots: string[] = [];
@@ -180,7 +184,7 @@ test("ENGINE-NOT-GATED: with gitleaks degraded, the native exfil tree leg AND th
     allow: [],
     engines: { require: ["gitleaks", "secretlint"], trufflehog: false },
   };
-  const outcome = await executeCheck({ repoDir: dir, cfg, configDigest: "e".repeat(64), effectiveTargets: ["git"], env: stubBrokenGitleaks() });
+  const outcome = await executeCheck({ consent: CONSENT, repoDir: dir, cfg, configDigest: "e".repeat(64), effectiveTargets: ["git"], env: stubBrokenGitleaks() });
   assert.equal(outcome.degraded, true, "the stub must have degraded the run — that is the point of the fixture");
   assert.ok(outcome.report.findings.some((f) => f.rule === "DEGRADED-ENGINE" && f.engine === "gitleaks"));
   const rules = new Set(outcome.report.findings.map((f) => f.rule));
@@ -284,7 +288,7 @@ test("F4-LEGIBILITY (end-to-end): a healthy executeCheck renders home-path lines
     allow: [],
     engines: { require: ["gitleaks", "secretlint"], trufflehog: false },
   };
-  const outcome = await executeCheck({ repoDir: dir, cfg, configDigest: "d".repeat(64), effectiveTargets: ["git"] });
+  const outcome = await executeCheck({ consent: CONSENT, repoDir: dir, cfg, configDigest: "d".repeat(64), effectiveTargets: ["git"] });
   assert.equal(outcome.degraded, false, "healthy-engine leg of the legibility proof");
   assert.match(outcome.sanitizedSummary, /MEDIUM exfil-home-path border-exfil notes\.txt Home-directory path/, "both location findings render as their own legible line");
   assert.match(outcome.sanitizedSummary, /MEDIUM exfil-cred-location border-exfil notes\.txt/);

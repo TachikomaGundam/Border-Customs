@@ -31,6 +31,10 @@ import { requireGitleaks } from "./helpers/require-engines.ts";
 import { BORDER_ROOT, gitAddCommit, gitInit, makeFixtureDir, removeDir, writeRel } from "./helpers/fixtures.ts";
 import { startRegistryStub, type RegistryStub } from "./helpers/registry-stub.ts";
 
+import type { BuildConsent } from "../src/check/buildConsent.ts";
+
+const CONSENT: BuildConsent = { allowed: true, source: "flag" };
+
 requireGitleaks();
 
 const roots: string[] = [];
@@ -89,6 +93,7 @@ function cfgWith(residueLines: readonly string[]): BorderConfig {
 
 function runCheck(repoDir: string, cfg: BorderConfig): Promise<CheckOutcome> {
   return executeCheck({
+    consent: CONSENT,
     repoDir,
     cfg,
     configDigest: "d".repeat(64),
@@ -101,9 +106,9 @@ type Cli = { readonly code: number; readonly out: readonly string[]; readonly er
 async function cli(dir: string, extra: readonly string[] = [], env?: Record<string, string>): Promise<Cli> {
   const out: string[] = [];
   const err: string[] = [];
-  const code = (await run(["check", ...extra], (l) => out.push(l), (l) => err.push(l), {
+  const code = (await run(["check", "--allow-builds", ...extra], (l) => out.push(l), (l) => err.push(l), {
     cwd: dir,
-    ...(env === undefined ? {} : { env: { ...process.env, ...env } }),
+    env: { ...process.env, ...(env ?? {}) },
   })) as number;
   return { code, out, err };
 }
@@ -245,6 +250,7 @@ test("R4-HASH: residue config value rides the digest via configDigest (toggle â‡
     config: parseConfig(baseYaml(residueLines)),
     warnings: [],
     source: "<test>",
+    security: { sandbox: {}, allowBuilds: false },
   });
   const on = computeConfigDigest(asLoad(["residue:", "  enabled: true"]));
   const off = computeConfigDigest(asLoad(["residue:", "  enabled: false"]));
@@ -357,8 +363,19 @@ test("R4-DOC: README names all seven residue rule ids with severities matching t
   assert.ok(readme.includes("RESIDUE-CONTRACT.md"), "fail-closed + named-invisible pointer to the contract (never restating the list)");
   assert.ok(readme.includes("0.4.0"), "roundtrip valve pointer = 0.4.0");
   assert.ok(readme.includes("### 0.3.0"), "Changelog 0.3.0 entry present");
+  // Derived from package.json, not a hand-rotated literal (audit 2026-10-17:
+  // seven manual version sites caused two real drift incidents). release
+  // coherence owns the byte-level pins; this row keeps the README/changelog
+  // pair honest at whatever version package.json names.
   const pkg = JSON.parse(readFileSync(join(BORDER_ROOT, "package.json"), "utf8")) as { version: string };
-  assert.equal(pkg.version, "0.8.1", "v0.8.1 supersedes the 0.8.0 pin: certificate-chain rebuild release off scrubbed lineage (INCIDENT-20261006), no functional change (package.json remains the single version source)");
+  assert.ok(
+    readme.includes(`### ${pkg.version}`),
+    `README changelog must carry a '### ${pkg.version}' entry for the current package.json version`,
+  );
+  assert.ok(
+    readme.includes(`"border-customs@${pkg.version}"`),
+    `README plugin install line must pin border-customs@${pkg.version} (package.json is the single version source)`,
+  );
 });
 
 // ---------------------------------------------------------------- 7. contract-doc secret-literal guard

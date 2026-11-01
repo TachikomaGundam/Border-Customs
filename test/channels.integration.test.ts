@@ -95,7 +95,8 @@ type RunResult = { readonly code: number; readonly out: string[]; readonly err: 
 async function runBorder(argv: readonly string[], f: Fixture, extraEnv: NodeJS.ProcessEnv = {}): Promise<RunResult> {
   const out: string[] = [];
   const err: string[] = [];
-  const code = await run(argv, (l) => out.push(String(l)), (l) => err.push(String(l)), { cwd: f.repo, env: { ...process.env, ...f.env, ...extraEnv } });
+  const argvC = argv[0] === "check" ? [...argv, "--allow-builds"] : argv;
+  const code = await run(argvC, (l) => out.push(String(l)), (l) => err.push(String(l)), { cwd: f.repo, env: { ...process.env, ...f.env, ...extraEnv } });
   return { code, out, err };
 }
 

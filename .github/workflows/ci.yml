@@ -1,0 +1,152 @@
+# Continuous integration — every push to main and every pull request.
+#
+# Why this file exists (2026-10-17 third-party audit): the only workflow was
+# publish.yml, which runs on a v* tag or manual dispatch. Regressions therefore
+# surfaced at release time (v0.7.0 never reached npm because its tag CI failed;
+# v0.8.1 needed four consecutive CI runs). This workflow moves the same
+# fail-closed test suite onto the review path and adds the static gates the
+# audit found missing: version single-source, typecheck, build, and an audit
+# signal.
+#
+# npm/Node matrix is deliberate: Node 22 ships npm 10, Node 24 ships npm 11.
+# The 2026-10-19 npm-pack defect (npm 10 executes a target's `prepare` hook
+# even with --ignore-scripts) is exactly the boundary the suite must prove on
+# both sides. Do not drop a leg without replacing that coverage.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    name: static gates (node 24)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Version literals are single-source
+        run: npm run version:check
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build
+        run: npm run build
+      - name: Built CLI answers
+        run: node dist/index.js --help > /dev/null
+      - name: Production dependency audit (block on high)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Full audit report (advisory)
+        run: |
+          set +e
+          npm audit --json > "$RUNNER_TEMP/npm-audit.json" 2>/dev/null
+          npm audit --omit=dev || true
+          echo "Full audit (including devDependencies) archived as an artifact;"
+          echo "only critical production advisories block this job."
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-audit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/npm-audit.json
+          if-no-files-found: warn
+
+  test:
+    name: tests (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+
+      # Same provisioning contract as publish.yml. The suite fails loudly when
+      # an engine is missing (test/helpers/require-engines.ts); it never skips.
+      - name: Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          cd "$(mktemp -d)"
+          curl -fsSLO https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          curl -fsSLO https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt
+          grep ' gitleaks_8.30.1_linux_x64.tar.gz$' gitleaks_8.30.1_checksums.txt | sha256sum -c -
+          tar -xzf gitleaks_8.30.1_linux_x64.tar.gz gitleaks
+          install -m 0755 gitleaks "$HOME/.local/bin/gitleaks"
+          "$HOME/.local/bin/gitleaks" --version
+          python3 -m pip install --user --break-system-packages \
+            build==1.6.0 twine==7.0.0 wheel==0.46.3 setuptools==78.1.1 httpx==0.28.1
+          python3 -m build --version
+          python3 -m twine --version
+
+      - name: Platform behavior probe (npm pack --ignore-scripts premise)
+        run: node tools/probe-npm-pack.mjs
+      - name: Full suite (fail-closed)
+        run: |
+          set -o pipefail
+          BORDER_PACK_TEST=1 npm test 2>&1 | tee "$RUNNER_TEMP/border-test-log.txt"
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log-node${{ matrix.node }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/border-test-log.txt
+          if-no-files-found: warn
+
+
+  # W8 clean-room self-audit: the PUBLISHED border (npm latest) audits this
+  # repo. Two truths it pins that no in-repo test can: (1) the package that
+  # users actually install still runs at all (provenance line must print),
+  # (2) this repo passes its own published gate — the dogfood contract, from
+  # outside the tree that defines the rules. A vanished/rotten npm release
+  # fails here loudly (registry-visibility tripwire).
+  clean-room:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Provision gitleaks 8.30.1 (required engine of the audit run)
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          cd "$(mktemp -d)"
+          curl -fsSLO https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          curl -fsSLO https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt
+          grep ' gitleaks_8.30.1_linux_x64.tar.gz$' gitleaks_8.30.1_checksums.txt | sha256sum -c -
+          tar -xzf gitleaks_8.30.1_linux_x64.tar.gz gitleaks
+          install -m 0755 gitleaks "$HOME/.local/bin/gitleaks"
+          "$HOME/.local/bin/gitleaks" --version
+      - name: Install published border (never this branch)
+        run: |
+          npm view border-customs version
+          npm install -g border-customs@latest
+      - name: Provenance line (version+commit of the installed build)
+        run: border --version
+      - name: Published gate audits this repo
+        # The repo's own tracked gate config (its self-exemptions are public) —
+        # the same contract a maintainer's machine enforces, run through the
+        # PUBLISHED binary instead of this branch's build. Verified locally
+        # with the current build: exit 0 (2026-10-23).
+        run: border check --config "$PWD/border.yaml"
+        continue-on-error: false

@@ -59,6 +59,8 @@ export type LandingOptions = {
    *  (rule+file+digest) are exempted AT BOTH FACES — the same entries the check verdict
    *  honored. Never silent: every suppression is echoed with rule+entry+count. */
   readonly allow?: readonly BorderConfig["allow"][number][];
+  /** rules.aliases from the same config the allow entries came from. */
+  readonly allowAliases?: NonNullable<BorderConfig["rules"]["aliases"]> | undefined;
   /** record sink (default: append to the ledger); tests inject a sink to assert exact rows. */
   readonly record?: (r: LandingRecord) => void;
 };
@@ -85,7 +87,7 @@ export async function runLandingVerification(o: LandingOptions): Promise<BorderE
       );
       return EXIT_ERROR;
     }
-    const allow = applyAllowList(findings, o.allow ?? [], o.repoDir);
+    const allow = applyAllowList(findings, o.allow ?? [], o.repoDir, o.allowAliases ?? {});
     findings = allow.kept;
     if (allow.allowHits.length > 0) {
       const hits = allow.allowHits.map((h) => `${h.rule}#entry${String(h.entryIndex)}:${String(h.count)}`).join(", ");
