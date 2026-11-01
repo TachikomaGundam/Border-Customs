@@ -56,7 +56,7 @@ jobs:
           npm audit --omit=dev || true
           echo "Full audit (including devDependencies) archived as an artifact;"
           echo "only critical production advisories block this job."
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: npm-audit-${{ github.run_id }}-${{ github.run_attempt }}
@@ -105,7 +105,7 @@ jobs:
           BORDER_PACK_TEST=1 npm test 2>&1 | tee "$RUNNER_TEMP/border-test-log.txt"
       - name: Upload test log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-log-node${{ matrix.node }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/border-test-log.txt
