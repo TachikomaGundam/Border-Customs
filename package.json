@@ -46,11 +46,11 @@
   },
   "devDependencies": {
     "@opencode-ai/plugin": "^1.19.4",
-    "@secretlint/secretlint-rule-pattern": "13.0.5",
-    "@types/node": "22.19.0",
-    "esbuild": "0.25.12",
-    "secretlint": "13.0.5",
-    "typescript": "5.9.3",
-    "verdaccio": "6.10.2"
+    "@secretlint/secretlint-rule-pattern": "13.1.0",
+    "@types/node": "26.6.6",
+    "esbuild": "0.28.2",
+    "secretlint": "13.1.0",
+    "typescript": "7.0.2",
+    "verdaccio": "7.0.2"
   }
 }
