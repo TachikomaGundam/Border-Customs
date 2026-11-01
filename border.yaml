@@ -15,6 +15,11 @@ targets:
     remotes: []
 
 rules:
+  # Rule renames (this session's regex false-positive fixes) must not strand
+  # waivers pinned under the old rule strings — HR secondary-wound 4.2 dogfooded:
+  # border's own renames resolved through border's own aliases mechanism (0.8.2).
+  aliases:
+    "path-pattern:[A-Za-z]:\\\\": "path-pattern:(?<![A-Za-z0-9_])[A-Za-z]:\\\\"
   authors:
     # Hardcoded from `git config user.email` == bot@gate-corp.com and
     # `git config user.name` == Wiki.js (captured 2026-09-04 in this repo).
@@ -164,6 +169,15 @@ allow:
   - { rule: "path-pattern:/home/[a-z]+/", match: "*", file: ".border-notes/check-tip-lens-2026-10-04.md" }
   - { rule: "@secretlint/secretlint-rule-no-homedir/HOMEDIR", match: "*", file: "docs/release/v0.8.0.md" }
   - { rule: "path-pattern:/home/[a-z]+/", match: "*", file: "docs/release/v0.8.0.md" }
+  # README displays the archive-member escape form verbatim (W3 docs); double-pinned
+  # value digest x README.md only (G14 family of the 0.8.1 display pins).
+  - { rule: "path-pattern:\\\\\\\\[^\\\\\\r\\n]+\\\\", match: "13683e7c37b7ab03ba78666725a39068e7ca2a42b23b1260153e829b3402d12e", file: "README.md" }
+  # Release receipts quote dev-box paths by nature (receipt index discipline);
+  # file-scoped wildcard family, mirroring the v0.8.0 precedent rows above.
+  - { rule: "@secretlint/secretlint-rule-no-homedir/HOMEDIR", match: "*", file: "docs/release/v0.8.1.md" }
+  - { rule: "path-pattern:/home/[a-z]+/", match: "*", file: "docs/release/v0.8.1.md" }
+  - { rule: "@secretlint/secretlint-rule-no-homedir/HOMEDIR", match: "*", file: "docs/release/v0.8.2.md" }
+  - { rule: "path-pattern:/home/[a-z]+/", match: "*", file: "docs/release/v0.8.2.md" }
 engines:
   require:
     - gitleaks

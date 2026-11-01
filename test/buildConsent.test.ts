@@ -36,14 +36,17 @@ test("RED-TEAM §3: the BORDER_ALLOW_BUILDS environment variable is DEAD — set
   }
 });
 
-test("anchor re-probe duty (§3⁗ breaking-change claim): the consent env never shipped in a release", () => {
+test("anchor re-probe duty (§3⁗ breaking-change claim): the consent ENV CHANNEL never shipped in a release", () => {
   const tags = execFileSync("git", ["tag", "--sort=-v:refname"], { encoding: "utf8" }).trim().split("\n");
   const newest = tags[0] ?? "";
-  let shipped = true;
+  let source: string | null = null;
   try {
-    execFileSync("git", ["show", `${newest}:src/check/buildConsent.ts`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    source = execFileSync("git", ["show", `${newest}:src/check/buildConsent.ts`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
   } catch {
-    shipped = false;
+    source = null; // module absent at that tag ⇒ the env channel certainly never shipped there
   }
-  assert.equal(shipped, false, `consent module must NOT exist at the newest tag ${newest} (it is unreleased-wave code)`);
+  if (source === null) return;
+  // Module present ⇒ the load-bearing invariant: the consent resolver must not read
+  // the environment. Re-pin this leg at every release against that tag's bytes.
+  assert.doesNotMatch(source, /process\.env\[?.BORDER_ALLOW_BUILDS/, `newest tag ${newest} must not consent from the environment (sibyl §3)`);
 });
