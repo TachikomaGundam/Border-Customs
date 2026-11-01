@@ -1,5 +1,5 @@
 // provenance: sibyl Q1 ruling chain through runs 1008 + f9dc (canonical text =
-// proposals v6/v7 under /home/lab/tmp/opencode/q1-sandbox-ruling-proposal-v*.md;
+// proposals v6/v7 (operator-local tmp workdir, q1-sandbox-ruling-proposal-v*.md);
 // the confirm-ballot for v7 runs after this wave lands — code and spec
 // co-evolve under the f9dc contract).
 //
