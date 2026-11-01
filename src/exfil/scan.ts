@@ -69,6 +69,12 @@ export type ExfilScanInput = {
   readonly source: string;
   /** operator's rules.hosts (config.ts:102) for the ssh-target predicate. */
   readonly hosts?: readonly string[];
+  /** source file path (tree facet) — threaded to predicates for the syntax-aware
+   *  credential-location guard; message facets keep it undefined (a commit message
+   *  is not JS source). */
+  readonly filePath?: string;
+  /** parse-failure diagnostic sink for the tree leg. */
+  readonly onNote?: (line: string) => void;
   /**
    * Ingest hook mirroring the redact.ts adapter contract ("every adapter
    * registers every value it ingests"): the check pipeline passes
@@ -111,7 +117,12 @@ const PREDICATES: Readonly<Record<ExfilRuleId, (text: string, o: RuleOptions) =>
  */
 function scanFacet(input: ExfilScanInput, facet: Extract<ExfilFacet, "tree" | "message">): ExfilFinding[] {
   const channel: ExfilChannel = "native";
-  const options: RuleOptions = { facet, ...(input.hosts !== undefined ? { hosts: input.hosts } : {}) };
+  const options: RuleOptions = {
+    facet,
+    ...(input.hosts !== undefined ? { hosts: input.hosts } : {}),
+    ...(input.filePath !== undefined ? { filePath: input.filePath } : {}),
+    ...(input.onNote !== undefined ? { onNote: input.onNote } : {}),
+  };
   const findings: ExfilFinding[] = [];
   for (const rule of emitRulesFor(facet, channel)) {
     const severity = observedSeverity(rule, facet, channel);

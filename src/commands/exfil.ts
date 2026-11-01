@@ -62,7 +62,7 @@ function scanBlobsNative(git: CliGit, blobs: readonly BlobRef[]): Finding[] {
   for (const b of blobs) {
     const text = texts.get(b.sha);
     if (text === undefined) continue;
-    for (const f of scanTreeText({ text, source: b.path })) findings.push(toTreeFinding(f));
+    for (const f of scanTreeText({ text, source: b.path, filePath: b.path })) findings.push(toTreeFinding(f));
   }
   return findings;
 }
@@ -89,6 +89,7 @@ export async function scanTipTree(
     for (const f of scanTreeText({
       text,
       source: b.path,
+      filePath: b.path,
       ...(opts?.sanitizer !== undefined
         ? { onMatch: (rawValue: string, valueDigest: string): void => opts.sanitizer?.register(valueDigest, rawValue) }
         : {}),

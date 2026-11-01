@@ -100,6 +100,7 @@ const EXFIL_FINGERPRINT_SOURCES: ReadonlyArray<{ readonly dir: "exfil"; readonly
   { dir: "exfil", base: "severity.ts" },
   { dir: "exfil", base: "rules.ts" },
   { dir: "exfil", base: "rulesPath.ts" },
+  { dir: "exfil", base: "tsSpans.ts" },
   { dir: "exfil", base: "scan.ts" },
 ];
 

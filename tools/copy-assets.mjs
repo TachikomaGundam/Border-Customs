@@ -48,7 +48,12 @@ copyFileSync(join(root, "src", "rules", "releaseCoherence.ts"), join(releaseSrc,
 // CLOSED at check time (MissingRulesInputError ⇒ exit 2), never a silent pass.
 const exfilSrc = join(dest, "exfil-src");
 mkdirSync(exfilSrc, { recursive: true });
-for (const base of ["severity.ts", "rules.ts", "rulesPath.ts", "scan.ts"]) {
+// DERIVE, never mirror (L-SINGLE-SOURCE; second drift incident of the hand-copied-list
+// class): read EXFIL_FINGERPRINT_SOURCES straight out of the product source.
+const rulesHashSrc = readFileSync(join(root, "src", "check", "rulesHash.ts"), "utf8");
+const bases = [...rulesHashSrc.matchAll(/\{\s*dir:\s*"exfil",\s*base:\s*"([^"]+)"\s*\}/g)].map((m) => m[1]);
+if (bases.length < 5) throw new Error(`copy-assets: parsed only ${String(bases.length)} exfil fingerprint bases from rulesHash.ts — refusing to stage a partial set`);
+for (const base of bases) {
   copyFileSync(join(root, "src", "exfil", base), join(exfilSrc, base));
 }
 console.log(`assets staged into ${dest}/`);

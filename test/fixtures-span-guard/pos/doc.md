@@ -1,0 +1,1 @@
+rotate secrets.env nightly
