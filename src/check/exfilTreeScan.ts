@@ -31,6 +31,8 @@ export type ExfilTreeScanOptions = {
   readonly hosts?: readonly string[];
   readonly env?: Readonly<Record<string, string | undefined>>;
   readonly sanitizer?: TextSanitizer;
+  /** parse-failure diagnostics sink; default writes one WARNING line to stderr. */
+  readonly warn?: (line: string) => void;
 };
 
 function toFinding(f: ExfilFinding, target: string): Finding {
@@ -48,6 +50,7 @@ function toFinding(f: ExfilFinding, target: string): Finding {
 }
 
 export function scanExfilTree(o: ExfilTreeScanOptions): Finding[] {
+  const warn = o.warn ?? ((line: string): void => { process.stderr.write(`border: WARNING ${line}\n`); });
   const repoDir = resolve(o.repoDir);
   const gitOpts = { ...(o.env !== undefined ? { env: o.env } : {}) };
   const files = runGitChecked(repoDir, ["ls-files", "-z"], gitOpts)
@@ -73,6 +76,8 @@ export function scanExfilTree(o: ExfilTreeScanOptions): Finding[] {
     for (const f of scanTreeText({
       text,
       source: rel,
+      filePath: rel,
+      onNote: warn,
       ...(o.hosts !== undefined ? { hosts: o.hosts } : {}),
       ...(o.sanitizer !== undefined ? { onMatch: (raw: string, digest: string): void => o.sanitizer?.register(digest, raw) } : {}),
     })) {

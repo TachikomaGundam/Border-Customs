@@ -31,6 +31,11 @@ export type RuleOptions = {
   readonly hosts?: readonly string[];
   /** exemption-band override (production default DEFAULT_EXEMPT_BANDS; [] forces in-range arms red in unit tests). */
   readonly exemptBands?: readonly string[];
+  /** source path (tree facet only) — drives the syntax-aware credential-location
+   *  guard (handoff b61b42a): JS/TS sources classify .env tokens by literal spans. */
+  readonly filePath?: string;
+  /** one-shot diagnostic sink (parse-failure notes; wired to stderr by the tree leg). */
+  readonly onNote?: (line: string) => void;
 };
 
 // ---------------------------------------------------------------- IPv4 machinery

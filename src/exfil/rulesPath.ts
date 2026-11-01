@@ -4,6 +4,7 @@
 // Self-stealth: no absolute workspace paths and no dotted quads in this file
 // (see rules.ts header for the 0.5.1 dogfood lesson this obeys).
 import type { RuleHit, RuleOptions } from "./rules.ts";
+import { inSpan, isJsTsPath, literalSpans, type LiteralSpan } from "./tsSpans.ts";
 
 // ---------------------------------------------------------------- exfil-home-path
 
@@ -52,20 +53,48 @@ function envTokenIsLocation(tok: string): boolean {
  * prefix, or has a real file-stem receiver (≥3 chars, never the process/os
  * API names); the JS optional-chain read `x?.env` never counts.
  */
-export function matchCredLocation(text: string, _o: RuleOptions): RuleHit[] {
+export function matchCredLocation(text: string, o: RuleOptions): RuleHit[] {
   const hits: RuleHit[] = [];
   const push = (matched: string, line: number): void => {
     hits.push({ rule: "exfil-cred-location", matched, line, message: "Reference to a credential-bearing location (env file / pypirc / SSHPASS); the location itself, value not required to fire." });
   };
-  text.split("\n").forEach((body, idx) => {
-    for (const m of body.matchAll(PYPIRC_RE)) push(m[0] ?? "", idx + 1);
-    for (const m of body.matchAll(SSHPASS_RE)) push(m[0] ?? "", idx + 1);
+  // Syntax-aware guard (handoff b61b42a §3): in JS/TS sources a .env token is a
+  // path candidate ONLY inside a string-like literal span. Property accesses
+  // (opts.env), short receivers and comment text are syntactically not paths —
+  // no lexical rule over receiver names can tell them apart (read-aloud proof
+  // in the handoff). Parse failure ⇒ old behavior + one stderr note, exit code
+  // untouched. pypirc/SSHPASS tokens are untouched by the guard, in any file.
+  const filePath = o.filePath ?? "";
+  let spans: LiteralSpan[] | null | undefined;
+  const spansFor = (): LiteralSpan[] | null => {
+    if (spans === undefined) {
+      spans = literalSpans(filePath, text);
+      if (spans === null) o.onNote?.(`${filePath}: JS/TS parse unavailable — credential-location matches reported by the pre-0.8.3 text rule for this file`);
+    }
+    return spans;
+  };
+  const guarded = isJsTsPath(filePath);
+  let lineOffset = 0;
+  for (const [idx, body] of text.split("\n").entries()) {
+    const line = idx + 1;
+    for (const m of body.matchAll(PYPIRC_RE)) push(m[0] ?? "", line);
+    for (const m of body.matchAll(SSHPASS_RE)) push(m[0] ?? "", line);
     for (const m of body.matchAll(ENVFILE_RE)) {
       const tok = m[0] ?? "";
       if ((body[(m.index ?? 0) - 1] ?? "") === "?") continue;
-      if (envTokenIsLocation(tok)) push(tok, idx + 1);
+      if (!envTokenIsLocation(tok)) continue;
+      if (guarded) {
+        const sp = spansFor();
+        // token starts one char past the match (leading '.'); comment and
+        // identifier positions sit outside every literal span.
+        const offset = lineOffset + (m.index ?? 0) + 1;
+        if (sp === null) { /* parse-failure fallback: report (old behavior) */ }
+        else if (!inSpan(sp, offset)) continue;
+      }
+      push(tok, line);
     }
-  });
+    lineOffset += body.length + 1;
+  }
   return hits;
 }
 

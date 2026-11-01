@@ -969,6 +969,15 @@ and every pull request, plus version single-source, typecheck, build, and audit 
 
 ## Changelog
 
+### Unreleased
+- Fix: `exfil-cred-location` is now syntax-aware in JS/TS sources (handoff b61b42a) —
+  `.env` tokens count only inside string-literal spans (TypeScript compiler API, shipped
+  as a runtime dependency, bundle stays external-pinned); member accesses (`opts.env`),
+  short receivers and comment text are no longer reported. Markdown/text keep the
+  bare-mention behavior; every other rule is untouched. All tree faces (check, history,
+  tip lens) share the guard; parse failure ⇒ old behavior + one stderr note, exit codes
+  unchanged. Rules fingerprint rotated (cached PASSes re-verify once).
+
 ### 0.8.2 (2026-11-01)
 - Production dependency graph now measures ZERO advisories (`npm audit --omit=dev`): the
   pattern rule is vendored (`src/engines/borderPatternRule.ts`, MIT attribution; drops the

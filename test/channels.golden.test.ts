@@ -97,7 +97,9 @@ const GOLDEN_EFFECTIVE_TARGETS = ["git", "npm", "pypi"];
 // rotation 2026-10-23: build-stage consent gate + allow-matcher rewrite + W4
 // sandbox schema/config plumbing — classifier and rule source bytes moved;
 // re-captured with BORDER_GOLDEN_RECENTRE=1 (gitleaks 8.30.1, secretlint 13.0.5).
-const GOLDEN_RULES_HASH_NORMALIZED = "9f601bd2d071d86e299ec079cda13beae3b3c25b397e741ab140c89b551de468";
+// rotation 2026-11-02: span-guard wave — tsSpans.ts registered as an exfil fingerprint
+// source (rule semantics moved: credential-location is now syntax-aware in JS/TS).
+const GOLDEN_RULES_HASH_NORMALIZED = "9103a457ba35311d19c2652ed89e5c53f38353fd08c74ead572dfde101e26b59";
 const GOLDEN_EXPOSURE = ["https://example.com/origin.git", "npm:widgets@1.0.0", "pypi:pushdemo@0.1.0"];
 const GOLDEN_DRYRUN_STDOUT = [
   "border DRY-RUN: no --yes, so nothing runs — this is the plan (m-R5-a) contract",

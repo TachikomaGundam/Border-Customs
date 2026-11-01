@@ -45,6 +45,7 @@ await esbuild.build({
   bundle: true,
   format: "esm",
   platform: "node",
+  external: ["typescript"],
   banner: {
     js: 'import{createRequire as __borderRequire}from"node:module";const require=__borderRequire(import.meta.url);',
   },
