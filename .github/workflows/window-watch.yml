@@ -29,7 +29,8 @@ jobs:
               g=rs[0]
               nff=any(r["type"]=="non_fast_forward" for r in g["rules"])
               bypass=[a.get("actor_id") for a in g.get("bypass_actors",[])]
-              print(("OK" if (g["enforcement"]=="active" and nff and bypass==[296048333]) else "DEVIATION") + f" enforcement={g[\"enforcement\"]} nff={nff} bypass={bypass}")
+              enf=g["enforcement"]
+              print(("OK" if (enf=="active" and nff and bypass==[296048333]) else "DEVIATION") + " enforcement="+enf+" nff="+str(nff)+" bypass="+str(bypass))
           except Exception as e:
               print("UNREADABLE")')
           REFS=$(gh api "repos/$R/git/ref/heads/main" --jq '.object.sha' 2>/dev/null || echo ERROR)
