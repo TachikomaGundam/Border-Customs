@@ -362,15 +362,18 @@ test("R4-DOC: README names all seven residue rule ids with severities matching t
   assert.ok(lower.includes("sandbox"), "explicit NOT-a-malware-sandbox disclaimer");
   assert.ok(readme.includes("RESIDUE-CONTRACT.md"), "fail-closed + named-invisible pointer to the contract (never restating the list)");
   assert.ok(readme.includes("0.4.0"), "roundtrip valve pointer = 0.4.0");
-  assert.ok(readme.includes("### 0.3.0"), "Changelog 0.3.0 entry present");
+  // Changelog moved to CHANGELOG.md (2026-11 page-governance split): same assertion,
+  // new authority file — the ledger exists, just not inside the README anymore.
+  const changelog = readFileSync(join(BORDER_ROOT, "CHANGELOG.md"), "utf8");
+  assert.ok(changelog.includes("### 0.3.0"), "Changelog 0.3.0 entry present in CHANGELOG.md");
   // Derived from package.json, not a hand-rotated literal (audit 2026-10-17:
   // seven manual version sites caused two real drift incidents). release
   // coherence owns the byte-level pins; this row keeps the README/changelog
   // pair honest at whatever version package.json names.
   const pkg = JSON.parse(readFileSync(join(BORDER_ROOT, "package.json"), "utf8")) as { version: string };
   assert.ok(
-    readme.includes(`### ${pkg.version}`),
-    `README changelog must carry a '### ${pkg.version}' entry for the current package.json version`,
+    changelog.includes(`### ${pkg.version}`),
+    `CHANGELOG.md must carry a '### ${pkg.version}' entry for the current package.json version`,
   );
   assert.ok(
     readme.includes(`"border-customs@${pkg.version}"`),
