@@ -44,12 +44,13 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s' "${{ steps.d.outputs.sha }}" > digest.txt
-          sigstore sign --bundle bundle.json --digest ${{ steps.d.outputs.sha }} \
-            --content-file digest.txt --output-signature sig --output-certificate cert 2>/dev/null || \
-          sigstore sign digest.txt --bundle bundle.json
-          UUID=$(python3 -c "import json;print(json.load(open('bundle.json'))['merkle_entries'][0][' inclusion_log_proof']['log_index'] if False else json.load(open('bundle.json'))['tlog_entries'][0]['log_index'])")
-          echo "REKOR_INDEX=$UUID" | tee -a "$GITHUB_STEP_SUMMARY"
-          curl -s "https://rekor.sigstore.dev/api/v1/log/entries/${UUID}" -o rekor-readback.json || true
-          test -s rekor-readback.json   # readback proof: fails the job if entry not publicly visible
+          sigstore sign digest.txt --bundle bundle.json 2>&1 | tee sign.log
+          IDX=$(python3 -c "import json;b=json.load(open('bundle.json'));print(b['verification_material']['tlog_entries'][0]['log_index'])")
+          echo "REKOR_LOG_INDEX=$IDX" | tee -a "$GITHUB_STEP_SUMMARY"
+          # readback proof via public retrieve endpoint (fails job if not publicly visible)
+          curl -sf -X POST "https://rekor.sigstore.dev/api/v1/log/entries/retrieve" \
+            -H "Content-Type: application/json" -d "{\"logIndexes\":[$IDX]}" -o rekor-readback.json
+          test -s rekor-readback.json
+          echo "REKOR_READBACK_SHA=$(sha256sum rekor-readback.json | awk '{print $1}')" | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with: { name: rekor-bundle, path: bundle.json }

@@ -1,0 +1,17 @@
+name: notarize-preflight
+# P1 pre-flight witness: proves notarize end-to-end (dispatch => call => readback)
+# before any operation depends on it. Safe on any tip; no release coupling.
+on:
+  workflow_dispatch:
+    inputs:
+      mode: { required: false, type: string, default: "tip" }
+permissions:
+  contents: read
+jobs:
+  call:
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/notarize.yml
+    with:
+      mode: ${{ inputs.mode }}
