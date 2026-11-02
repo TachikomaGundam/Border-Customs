@@ -839,7 +839,7 @@ plugin entry ships as `exports["./server"]`):
 ```jsonc
 {
   // pin the exact version — an @latest channel hits the registry on every cold start
-  "plugin": ["border-customs@0.8.2"]
+  "plugin": ["border-customs@0.8.3"]
 }
 ```
 
@@ -969,7 +969,7 @@ and every pull request, plus version single-source, typecheck, build, and audit 
 
 ## Changelog
 
-### Unreleased
+### 0.8.3 (2026-11-02)
 - Fix: `exfil-cred-location` is now syntax-aware in JS/TS sources (handoff b61b42a) —
   `.env` tokens count only inside string-literal spans (TypeScript compiler API, shipped
   as a runtime dependency, bundle stays external-pinned); member accesses (`opts.env`),
