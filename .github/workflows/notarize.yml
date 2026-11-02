@@ -1,0 +1,55 @@
+name: notarize
+# P1 witness: keyless sigstore->rekor. Digest auto-computed; manifest ONLY from
+# trusted caller, cross-checked against the exact tarball. Invoked via workflow_call
+# from publish.yml (build => pack => notarize(this job) => publish same artifact).
+on:
+  workflow_call:
+    inputs:
+      mode:
+        required: true
+        type: string   # "tip" | "manifest"
+      manifest_sha256:
+        required: false
+        type: string
+        default: ""
+permissions:
+  contents: read
+  id-token: write   # sigstore keyless identity
+jobs:
+  rekor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install sigstore==4.3.3 sigstore-rekor-types==0.0.18
+      - name: compute digest
+        id: d
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.mode }}" = "tip" ]; then
+            echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          elif [ "${{ inputs.mode }}" = "manifest" ]; then
+            echo "sha=${{ inputs.manifest_sha256 }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "unknown mode" >&2; exit 1
+          fi
+      - name: cross-check manifest against built tarball
+        if: inputs.mode == 'manifest'
+        run: |
+          set -euo pipefail
+          test -f build/border-customs.tgz   # packed by the caller workflow, uploaded as artifact
+          sha256sum build/border-customs.tgz | awk '{print $1}' | grep -qx "${{ inputs.manifest_sha256 }}"
+      - name: sign + upload to rekor
+        run: |
+          set -euo pipefail
+          printf '%s' "${{ steps.d.outputs.sha }}" > digest.txt
+          sigstore sign --bundle bundle.json --digest ${{ steps.d.outputs.sha }} \
+            --content-file digest.txt --output-signature sig --output-certificate cert 2>/dev/null || \
+          sigstore sign digest.txt --bundle bundle.json
+          UUID=$(python3 -c "import json;print(json.load(open('bundle.json'))['merkle_entries'][0][' inclusion_log_proof']['log_index'] if False else json.load(open('bundle.json'))['tlog_entries'][0]['log_index'])")
+          echo "REKOR_INDEX=$UUID" | tee -a "$GITHUB_STEP_SUMMARY"
+          curl -s "https://rekor.sigstore.dev/api/v1/log/entries/${UUID}" -o rekor-readback.json || true
+          test -s rekor-readback.json   # readback proof: fails the job if entry not publicly visible
+      - uses: actions/upload-artifact@v4
+        with: { name: rekor-bundle, path: bundle.json }

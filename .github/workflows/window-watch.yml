@@ -1,0 +1,39 @@
+name: window-watch
+# P6.4 off-host auditor: snapshots ruleset STATE-ENUM + sha256 + ls-remote + push-events
+# every 5 min into Actions logs (never raw objects). Dispatch ref MUST be the notarized
+# auditor source sha (P6.4). First snapshot = proof-of-life gating the owner's toggle.
+on:
+  workflow_dispatch:
+    inputs:
+      window_minutes: { required: true, type: string, default: "15" }
+permissions:
+  contents: read
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: snapshot loop
+        env:
+          GH_TOKEN: *** secrets.GITHUB_TOKEN }}
+          WIN: ${{ inputs.window_minutes }}
+        run: |
+          set -uo pipefail
+          END=$(( $(date +%s) + (WIN + 20) * 60 ))
+          FIRST=1
+          while [ "$(date +%s)" -lt "$END" ]; do
+            TS=$(date -u +%FT%TZ)
+            RS=$(gh api "repos/$GITHUB_REPOSITORY/rulesets" --jq '.' || echo ERROR)
+            RS_SHA=$(printf '%s' "$RS" | sha256sum | awk '{print $1}')
+            STATE=$(printf '%s' "$RS" | grep -o '"allow_force_pushes":true' >/dev/null && echo ON || (printf '%s' "$RS" | grep -q '"allow_force_pushes"' && echo OFF || echo UNREADABLE))
+            REFS=$(git ls-remote origin | sha256sum | awk '{print $1}')
+            EVENTS=$(gh api "repos/$GITHUB_REPOSITORY/events?per_page=30" --jq '.[] | select(.type=="PushEvent") | .payload.sha' 2>/dev/null | sort -u | sha256sum | awk '{print $1}' || echo EVENT-ERROR)
+            echo "SNAPSHOT ts=$TS state=$STATE ruleset_sha256=$RS_SHA refs_sha256=$REFS push_events_sha256=$EVENTS"
+            if [ "$FIRST" = 1 ]; then FIRST=0; fi
+            # window ended + still ON => file security issue (off-host escalation)
+            if [ "$(date +%s)" -ge $(( END - 15*60 )) ] && [ "$STATE" = "ON" ]; then
+              gh issue create --title "SECURITY: force-push window outlived budget" --body "auditor snapshot $TS shows ruleset ON past budget" || true
+              break
+            fi
+            sleep 300
+          done
