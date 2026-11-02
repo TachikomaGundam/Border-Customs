@@ -40,7 +40,7 @@
     "@secretlint/secretlint-rule-no-homedir": "13.0.5",
     "@secretlint/secretlint-rule-preset-recommend": "13.0.5",
     "@textlint/regexp-string-matcher": "2.0.2",
-    "publint": "0.3.24",
+    "publint": "0.3.25",
     "typescript": "5.9.3",
     "yaml": "2.9.0",
     "zod": "4.6.7"
