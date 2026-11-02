@@ -45,20 +45,7 @@ jobs:
           set -euo pipefail
           printf '%s' "${{ steps.d.outputs.sha }}" > digest.txt
           sigstore sign digest.txt --bundle bundle.json 2>&1 | tee sign.log
-          IDX=$(python3 <<PYEOF
-import json
-def f(o):
-    if isinstance(o, dict):
-        vs = [v for k, v in o.items() if k in ("log_index", "logIndex")]
-        return vs + sum((f(x) for x in o.values()), [])
-    if isinstance(o, list):
-        return sum((f(x) for x in o), [])
-    return []
-hits = f(json.load(open("bundle.json")))
-assert hits, "no log_index in bundle"
-print(hits[0])
-PYEOF
-)
+          IDX=$(grep -oE '"log_?[iI]ndex"?:[[:space:]]*[0-9]+' bundle.json | grep -oE "[0-9]+$" | head -1); test -n "$IDX" || { echo "no log_index in bundle" >&2; exit 1; }
           echo "REKOR_LOG_INDEX=$IDX" | tee -a "$GITHUB_STEP_SUMMARY"
           # readback proof via public retrieve endpoint (fails job if not publicly visible)
           curl -sf -X POST "https://rekor.sigstore.dev/api/v1/log/entries/retrieve" \
