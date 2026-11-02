@@ -45,12 +45,17 @@ jobs:
           set -euo pipefail
           printf '%s' "${{ steps.d.outputs.sha }}" > digest.txt
           sigstore sign digest.txt --bundle bundle.json 2>&1 | tee sign.log || { echo "SIGN FAILED" >&2; exit 1; }
+          set +e
           IDX=$(grep -a 'at index:' sign.log | head -1 | grep -oE '[0-9]{5,}' | head -1)
           if [ -z "$IDX" ]; then IDX=$(grep -A1 'at index:' sign.log | tail -1 | grep -oE '[0-9]+' | head -1); fi
+          echo "MARKER IDX=[$IDX]"; echo "MARKER GREP-A-HITS=$(grep -ac 'at index' sign.log)"
+          set -e
           test -n "$IDX" || { echo "index not found" >&2; tail -30 sign.log >&2; exit 1; }
           echo "REKOR_LOG_INDEX=$IDX" | tee -a "$GITHUB_STEP_SUMMARY"
-          curl -sf -X POST "https://rekor.sigstore.dev/api/v1/log/entries/retrieve" \
+          set +e
+          curl -s -w 'MARKER CURL=%{http_code}\n' -X POST "https://rekor.sigstore.dev/api/v1/log/entries/retrieve" \
             -H "Content-Type: application/json" -d "{\"logIndexes\":[$IDX]}" -o rekor-readback.json
+          echo "MARKER RB-SIZE=$(wc -c < rekor-readback.json)"; set -e
           test -s rekor-readback.json
           echo "REKOR_READBACK_SHA=$(sha256sum rekor-readback.json | awk '{print $1}')" | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
