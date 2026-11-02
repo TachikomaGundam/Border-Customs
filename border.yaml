@@ -178,6 +178,8 @@ allow:
   - { rule: "path-pattern:/home/[a-z]+/", match: "*", file: "docs/release/v0.8.1.md" }
   - { rule: "@secretlint/secretlint-rule-no-homedir/HOMEDIR", match: "*", file: "docs/release/v0.8.2.md" }
   - { rule: "path-pattern:/home/[a-z]+/", match: "*", file: "docs/release/v0.8.2.md" }
+  - { rule: "@secretlint/secretlint-rule-no-homedir/HOMEDIR", match: "*", file: "docs/release/v0.8.3.md" }
+  - { rule: "path-pattern:/home/[a-z]+/", match: "*", file: "docs/release/v0.8.3.md" }
 engines:
   require:
     - gitleaks
