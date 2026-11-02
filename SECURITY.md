@@ -116,3 +116,34 @@ through the same review and release gate as any other change.
   than stripped, because strip-based cleaning reassembles split escape sequences.
   Legitimate non-ASCII output on the probe channel is rare and gets a named rejection;
   over-reject is the declared safe direction.
+
+
+## History scrub disclosure — row 1 (append-only; corrections only via new rows)
+
+**Status: ORDERED** (owner ruling 2026-11-02, executed under council-reviewed ticket
+sha256 8a5aaad60a8e06b8e6fb725b646c7f319d8254a36249d75a014784fcb418dabe; 14 adversarial
+ballot rounds on record). This row is committed BEFORE the rewrite completes; it asserts
+intent and method only. Completion facts (execution timestamp, before/after tip shas,
+obliteration ticket, 404 probes, byte-compare) arrive in row 1a after the window closes —
+until then this document makes no completion claim.
+
+**Method (registered, grow-only)**: removal of process-artifact directories (433-path
+full-history inventory; digest inside notarized coverage); templating of machine path
+prefix in 12 registered product files and in commit messages; detector rule vocabulary
+(pattern strings and their tests) is legitimate engine vocabulary and is NOT scrubbed.
+Zero-hit identity gate covers every blob, tree entry name, commit message, note,
+submodule URL and identity field of the rewritten history; an independent detector
+(hostname / machine-id / word-token / entropy) runs with disjoint logic.
+
+**Already notarized witnesses precede this row**: sigstore/rekor entries 3638319407 and
+3638340214 (keyless Actions-OIDC identity), full-history secret scan verdict (83
+findings, all planted fixtures or documented examples — no real credential required
+rotation; per-finding classifications re-audited off-chain), npm 0.8.2/0.8.3 tarball
+cleanliness (no machine paths; shas on record).
+
+**Limits we do not hide**: forks and clones retain pre-scrub content permanently and
+cannot be recalled; published registry tarballs are immutable (verified clean); a
+maintainer-local unencrypted pre-scrub archive exists under owner-only permissions for
+chain resolution; identifier classes from past machines outside the scanned token
+universe could evade blocklists — the independent detector found nothing; absence is
+not proof.
