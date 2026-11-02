@@ -44,10 +44,10 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s' "${{ steps.d.outputs.sha }}" > digest.txt
-          sigstore sign digest.txt --bundle bundle.json 2>&1 | tee sign.log
-          IDX=$(grep -oE '"log_?[iI]ndex"?:[[:space:]]*[0-9]+' bundle.json | grep -oE "[0-9]+$" | head -1); test -n "$IDX" || { echo "no log_index in bundle" >&2; exit 1; }
+          SIGOUT=$(sigstore sign digest.txt --bundle bundle.json 2>&1 | tee sign.log)
+          IDX=$(printf '%s' "$SIGOUT" | grep -oE 'index: *[0-9]+' | grep -oE '[0-9]+' | head -1)
+          test -n "$IDX" || { echo "cannot locate tlog index in sigstore output" >&2; exit 1; }
           echo "REKOR_LOG_INDEX=$IDX" | tee -a "$GITHUB_STEP_SUMMARY"
-          # readback proof via public retrieve endpoint (fails job if not publicly visible)
           curl -sf -X POST "https://rekor.sigstore.dev/api/v1/log/entries/retrieve" \
             -H "Content-Type: application/json" -d "{\"logIndexes\":[$IDX]}" -o rekor-readback.json
           test -s rekor-readback.json
