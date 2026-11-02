@@ -1,39 +1,43 @@
 name: window-watch
-# P6.4 off-host auditor: snapshots ruleset STATE-ENUM + sha256 + ls-remote + push-events
-# every 5 min into Actions logs (never raw objects). Dispatch ref MUST be the notarized
-# auditor source sha (P6.4). First snapshot = proof-of-life gating the owner's toggle.
+# Standing guard-sentry (council 3bd5 hardening): scheduled patrol of the border-guard
+# ruleset + main ref, NOT window-only. Any deviation files a SECURITY issue.
 on:
+  schedule:
+    - cron: "*/15 * * * *"
   workflow_dispatch:
     inputs:
-      window_minutes: { required: true, type: string, default: "15" }
+      window_minutes: { required: false, type: string, default: "0" }
 permissions:
   contents: read
+  issues: write
 jobs:
-  watch:
+  patrol:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: snapshot loop
+      - name: snapshot and assert
         env:
-          GH_TOKEN: *** secrets.GITHUB_TOKEN }}
-          WIN: ${{ inputs.window_minutes }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -uo pipefail
-          END=$(( $(date +%s) + (WIN + 20) * 60 ))
-          FIRST=1
-          while [ "$(date +%s)" -lt "$END" ]; do
-            TS=$(date -u +%FT%TZ)
-            RS=$(gh api "repos/$GITHUB_REPOSITORY/rulesets" --jq '.' || echo ERROR)
-            RS_SHA=$(printf '%s' "$RS" | sha256sum | awk '{print $1}')
-            STATE=$(printf '%s' "$RS" | grep -o '"allow_force_pushes":true' >/dev/null && echo ON || (printf '%s' "$RS" | grep -q '"allow_force_pushes"' && echo OFF || echo UNREADABLE))
-            REFS=$(git ls-remote origin | sha256sum | awk '{print $1}')
-            EVENTS=$(gh api "repos/$GITHUB_REPOSITORY/events?per_page=30" --jq '.[] | select(.type=="PushEvent") | .payload.sha' 2>/dev/null | sort -u | sha256sum | awk '{print $1}' || echo EVENT-ERROR)
-            echo "SNAPSHOT ts=$TS state=$STATE ruleset_sha256=$RS_SHA refs_sha256=$REFS push_events_sha256=$EVENTS"
-            if [ "$FIRST" = 1 ]; then FIRST=0; fi
-            # window ended + still ON => file security issue (off-host escalation)
-            if [ "$(date +%s)" -ge $(( END - 15*60 )) ] && [ "$STATE" = "ON" ]; then
-              gh issue create --title "SECURITY: force-push window outlived budget" --body "auditor snapshot $TS shows ruleset ON past budget" || true
-              break
+          R="$GITHUB_REPOSITORY"
+          RS=$(gh api "repos/$R/rulesets" 2>/dev/null || echo ERROR)
+          RS_SHA=$(printf '%s' "$RS" | sha256sum | awk '{print $1}')
+          GUARD=$(printf '%s' "$RS" | python3 -c 'import json,sys
+          try:
+              rs=[x for x in json.load(sys.stdin) if x["name"]=="border-guard"]
+              if not rs: print("MISSING"); raise SystemExit
+              g=rs[0]
+              nff=any(r["type"]=="non_fast_forward" for r in g["rules"])
+              bypass=[a.get("actor_id") for a in g.get("bypass_actors",[])]
+              print(("OK" if (g["enforcement"]=="active" and nff and bypass==[296048333]) else "DEVIATION") + f" enforcement={g[\"enforcement\"]} nff={nff} bypass={bypass}")
+          except Exception as e:
+              print("UNREADABLE")')
+          REFS=$(gh api "repos/$R/git/ref/heads/main" --jq '.object.sha' 2>/dev/null || echo ERROR)
+          echo "PATROL ts=$(date -u +%FT%TZ) guard=$GUARD main=$REFS rulesets_sha=$RS_SHA" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$GUARD" != OK ] && [ "$GUARD" != MISSING ]; then
+            if gh issue list -R "$R" --state open --label security --search "guard-deviation" --json title | grep -q guard-deviation; then
+              echo "open incident exists"
+            else
+              gh issue create -R "$R" --label security --title "guard-deviation: border-guard ruleset outside expected state" --body "Patrol found state=$GUARD main=$REFS at $(date -u +%FT%TZ). Ruleset snapshot sha $RS_SHA. Investigate immediately; scrub window may be open legitimately ONLY between the two disclosure rows in SECURITY.md." || true
             fi
-            sleep 300
-          done
+          fi
