@@ -35,7 +35,7 @@
     "version:check": "node tools/version-sync.mjs --check"
   },
   "dependencies": {
-    "@secretlint/core": "13.0.5",
+    "@secretlint/core": "13.1.0",
     "@secretlint/secretlint-rule-no-dotenv": "13.0.5",
     "@secretlint/secretlint-rule-no-homedir": "13.0.5",
     "@secretlint/secretlint-rule-preset-recommend": "13.0.5",
