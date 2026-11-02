@@ -5,6 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       mode: { required: false, type: string, default: "tip" }
+      tip_sha: { required: false, type: string, default: "" }
 permissions:
   contents: read
 jobs:
@@ -15,3 +16,4 @@ jobs:
     uses: ./.github/workflows/notarize.yml
     with:
       mode: ${{ inputs.mode }}
+      tip_sha: ${{ inputs.tip_sha }}
