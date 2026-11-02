@@ -12,6 +12,10 @@ on:
         required: false
         type: string
         default: ""
+      tip_sha:
+        required: false
+        type: string
+        default: ""
 permissions:
   contents: read
   id-token: write   # sigstore keyless identity
@@ -28,7 +32,9 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ inputs.mode }}" = "tip" ]; then
-            echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            T="${{ inputs.tip_sha }}"; [ -n "$T" ] || T=$(git rev-parse HEAD)
+            case "$T" in (*[!0-9a-fA-F]*|*..*|"") echo "tip_sha must be hex" >&2; exit 1;; esac
+            echo "sha=$T" >> "$GITHUB_OUTPUT"
           elif [ "${{ inputs.mode }}" = "manifest" ]; then
             echo "sha=${{ inputs.manifest_sha256 }}" >> "$GITHUB_OUTPUT"
           else
