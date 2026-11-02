@@ -135,8 +135,9 @@ Zero-hit identity gate covers every blob, tree entry name, commit message, note,
 submodule URL and identity field of the rewritten history; an independent detector
 (hostname / machine-id / word-token / entropy) runs with disjoint logic.
 
-**Already notarized witnesses precede this row**: sigstore/rekor entries 3638319407 and
-3638340214 (keyless Actions-OIDC identity), full-history secret scan verdict (83
+**Already notarized witnesses precede this row**: pre-scrub tip `c4232397…11ae` and
+final pre-scrub tip `5f96e5ef…276e`; landing candidate `30d90d09…eb62`; sigstore/rekor
+entries 3638319407 and 3638340214 (public-API read back, byte-verified) (keyless Actions-OIDC identity), full-history secret scan verdict (83
 findings, all planted fixtures or documented examples — no real credential required
 rotation; per-finding classifications re-audited off-chain), npm 0.8.2/0.8.3 tarball
 cleanliness (no machine paths; shas on record).
