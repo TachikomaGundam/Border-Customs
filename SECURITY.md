@@ -162,3 +162,29 @@ the maintainer login can non-fast-forward this branch. Server-side obliteration 
 the pushed-away objects was requested from GitHub Support (ticket id appended as a
 further row when submitted); per-item 404 probes will arrive as a further row.
 This row does not amend row 1; scrub is not retraction — see row 1 limits.
+
+
+## History scrub disclosure — row 1b (server-side closure unavailable; corrections)
+
+**Channel**: GitHub's sensitive-data-removal intake is not reachable from this
+account (free plan; no security intake rendered as of 2026-11-04, portal consolidated
+under help.github.com). With no ticket submitted, the row 1a phrase "requested from
+GitHub Support" describes an attempt that could not be completed — corrected here per
+the append-only rule. **Named permanent residual**: the pushed-away pre-scrub objects
+remain retrievable from the platform (SHA-direct/API views verified HTTP 200 on
+2026-11-04) and through nine read-only pull-request head refs, until the platform's
+own maintenance removes them, if ever; content class per independent audit: paths,
+hostnames, LAN addresses, session transcripts — no credentials. Forks: none.
+
+**Correction to row 1 limits**: the maintainer-local pre-scrub archive's old objects
+were removed during post-landing hygiene (`git gc --prune=now`); the disclosure's
+"archive exists for chain resolution" no longer holds. The private evidence store
+(off-tree, owner-only) retains the raw scan outputs needed for audit; nothing
+public-facing depends on the removed objects.
+
+**Local surface attestation (2026-11-04, machine probes)**: rewritten-history blobs
+with banned identifier classes: 0 (full rewrite gate, double-run); main clone and
+archive clone cannot resolve any pre-scrub tip (cat-file fatal, post reflog-expire +
+gc-prune); all rewrite instrument clones destroyed; repository working tree contains
+zero files with banned literals; npm tarballs of all published versions verified free
+of machine paths; sentry workflow asserts the branch guard every 15 minutes.
