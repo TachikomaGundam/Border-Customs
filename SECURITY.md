@@ -148,3 +148,17 @@ maintainer-local unencrypted pre-scrub archive exists under owner-only permissio
 chain resolution; identifier classes from past machines outside the scanned token
 universe could evade blocklists — the independent detector found nothing; absence is
 not proof.
+
+
+## History scrub disclosure — row 1a (completion facts; row 1 remains as written)
+
+**Executed**: the landing push ran on the maintainer's own terminal on 2026-11-03,
+`--force-with-lease` pinned to the disclosed pre-scrub tip; origin main moved
+byte-exactly to the disclosed candidate `1443a0fe8029a34221d6601472d1bcf8610f7218`.
+Tags v0.8.2 and v0.8.3 were deleted on origin (their names now exist only on forks;
+the npm versions get deprecation notices separately). The ruleset bypass was revoked
+in the same session (bypass count 0, guard rules active): after that moment not even
+the maintainer login can non-fast-forward this branch. Server-side obliteration of
+the pushed-away objects was requested from GitHub Support (ticket id appended as a
+further row when submitted); per-item 404 probes will arrive as a further row.
+This row does not amend row 1; scrub is not retraction — see row 1 limits.
