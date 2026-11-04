@@ -4,6 +4,12 @@ Per-version history with the motivating incident for each release.
 The README carries the current contract; this file carries the history.
 
 
+### 0.8.4 (2026-11-04)
+
+Same code as 0.8.3; documentation and disclosure updates only (history scrub —
+see SECURITY.md rows 1/1a/1b). 0.8.2/0.8.3 deprecated on the registry pointing
+here. Version rotation via tools/version-sync (single-source).
+
 ### 0.8.3 (2026-11-02)
 - Fix: `exfil-cred-location` is now syntax-aware in JS/TS sources (handoff b61b42a) —
   `.env` tokens count only inside string-literal spans (TypeScript compiler API, shipped

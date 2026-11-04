@@ -811,7 +811,7 @@ plugin entry ships as `exports["./server"]`):
 ```jsonc
 {
   // pin the exact version — an @latest channel hits the registry on every cold start
-  "plugin": ["border-customs@0.8.3"]
+  "plugin": ["border-customs@0.8.4"]
 }
 ```
 
