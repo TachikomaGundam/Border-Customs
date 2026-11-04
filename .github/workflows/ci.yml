@@ -1,1 +1,162 @@
-IyBDb250aW51b3VzIGludGVncmF0aW9uIOKAlCBldmVyeSBwdXNoIHRvIG1haW4gYW5kIGV2ZXJ5IHB1bGwgcmVxdWVzdC4KIwojIFdoeSB0aGlzIGZpbGUgZXhpc3RzICgyMDI2LTEwLTE3IHRoaXJkLXBhcnR5IGF1ZGl0KTogdGhlIG9ubHkgd29ya2Zsb3cgd2FzCiMgcHVibGlzaC55bWwsIHdoaWNoIHJ1bnMgb24gYSB2KiB0YWcgb3IgbWFudWFsIGRpc3BhdGNoLiBSZWdyZXNzaW9ucyB0aGVyZWZvcmUKIyBzdXJmYWNlZCBhdCByZWxlYXNlIHRpbWUgKHYwLjcuMCBuZXZlciByZWFjaGVkIG5wbSBiZWNhdXNlIGl0cyB0YWcgQ0kgZmFpbGVkOwojIHYwLjguMSBuZWVkZWQgZm91ciBjb25zZWN1dGl2ZSBDSSBydW5zKS4gVGhpcyB3b3JrZmxvdyBtb3ZlcyB0aGUgc2FtZQojIGZhaWwtY2xvc2VkIHRlc3Qgc3VpdGUgb250byB0aGUgcmV2aWV3IHBhdGggYW5kIGFkZHMgdGhlIHN0YXRpYyBnYXRlcyB0aGUKIyBhdWRpdCBmb3VuZCBtaXNzaW5nOiB2ZXJzaW9uIHNpbmdsZS1zb3VyY2UsIHR5cGVjaGVjaywgYnVpbGQsIGFuZCBhbiBhdWRpdAojIHNpZ25hbC4KIwojIG5wbS9Ob2RlIG1hdHJpeCBpcyBkZWxpYmVyYXRlOiBOb2RlIDIyIHNoaXBzIG5wbSAxMCwgTm9kZSAyNCBzaGlwcyBucG0gMTEuCiMgVGhlIDIwMjYtMTAtMTkgbnBtLXBhY2sgZGVmZWN0IChucG0gMTAgZXhlY3V0ZXMgYSB0YXJnZXQncyBgcHJlcGFyZWAgaG9vawojIGV2ZW4gd2l0aCAtLWlnbm9yZS1zY3JpcHRzKSBpcyBleGFjdGx5IHRoZSBib3VuZGFyeSB0aGUgc3VpdGUgbXVzdCBwcm92ZSBvbgojIGJvdGggc2lkZXMuIERvIG5vdCBkcm9wIGEgbGVnIHdpdGhvdXQgcmVwbGFjaW5nIHRoYXQgY292ZXJhZ2UuCm5hbWU6IGNpCgpvbjoKICBwdXNoOgogICAgYnJhbmNoZXM6IFttYWluXQogIHB1bGxfcmVxdWVzdDoKICB3b3JrZmxvd19kaXNwYXRjaDoKCmNvbmN1cnJlbmN5OgogIGdyb3VwOiBjaS0ke3sgZ2l0aHViLnJlZiB9fQogIGNhbmNlbC1pbi1wcm9ncmVzczogdHJ1ZQoKcGVybWlzc2lvbnM6CiAgY29udGVudHM6IHJlYWQKCmpvYnM6CiAgc3RhdGljOgogICAgbmFtZTogc3RhdGljIGdhdGVzIChub2RlIDI0KQogICAgcnVucy1vbjogdWJ1bnR1LWxhdGVzdAogICAgdGltZW91dC1taW51dGVzOiAxNQogICAgc3RlcHM6CiAgICAgIC0gdXNlczogYWN0aW9ucy9jaGVja291dEB2NAogICAgICAtIHVzZXM6IGFjdGlvbnMvc2V0dXAtbm9kZUB2NAogICAgICAgIHdpdGg6CiAgICAgICAgICBub2RlLXZlcnNpb246IDI0CiAgICAgICAgICBjYWNoZTogbnBtCiAgICAgIC0gcnVuOiBucG0gY2kKICAgICAgLSBuYW1lOiBWZXJzaW9uIGxpdGVyYWxzIGFyZSBzaW5nbGUtc291cmNlCiAgICAgICAgcnVuOiBucG0gcnVuIHZlcnNpb246Y2hlY2sKICAgICAgLSBuYW1lOiBUeXBlY2hlY2sKICAgICAgICBydW46IG5wbSBydW4gdHlwZWNoZWNrCiAgICAgIC0gbmFtZTogQnVpbGQKICAgICAgICBydW46IG5wbSBydW4gYnVpbGQKICAgICAgLSBuYW1lOiBCdWlsdCBDTEkgYW5zd2VycwogICAgICAgIHJ1bjogbm9kZSBkaXN0L2luZGV4LmpzIC0taGVscCA+IC9kZXYvbnVsbAogICAgICAtIG5hbWU6IFByb2R1Y3Rpb24gZGVwZW5kZW5jeSBhdWRpdCAoYmxvY2sgb24gaGlnaCkKICAgICAgICBydW46IG5wbSBhdWRpdCAtLW9taXQ9ZGV2IC0tYXVkaXQtbGV2ZWw9aGlnaAogICAgICAtIG5hbWU6IEZ1bGwgYXVkaXQgcmVwb3J0IChhZHZpc29yeSkKICAgICAgICBydW46IHwKICAgICAgICAgIHNldCArZQogICAgICAgICAgbnBtIGF1ZGl0IC0tanNvbiA+ICIkUlVOTkVSX1RFTVAvbnBtLWF1ZGl0Lmpzb24iIDI+L2Rldi9udWxsCiAgICAgICAgICBucG0gYXVkaXQgLS1vbWl0PWRldiB8fCB0cnVlCiAgICAgICAgICBlY2hvICJGdWxsIGF1ZGl0IChpbmNsdWRpbmcgZGV2RGVwZW5kZW5jaWVzKSBhcmNoaXZlZCBhcyBhbiBhcnRpZmFjdDsiCiAgICAgICAgICBlY2hvICJvbmx5IGNyaXRpY2FsIHByb2R1Y3Rpb24gYWR2aXNvcmllcyBibG9jayB0aGlzIGpvYi4iCiAgICAgIC0gdXNlczogYWN0aW9ucy91cGxvYWQtYXJ0aWZhY3RAdjQKICAgICAgICBpZjogYWx3YXlzKCkKICAgICAgICB3aXRoOgogICAgICAgICAgbmFtZTogbnBtLWF1ZGl0LSR7eyBnaXRodWIucnVuX2lkIH19LSR7eyBnaXRodWIucnVuX2F0dGVtcHQgfX0KICAgICAgICAgIHBhdGg6ICR7eyBydW5uZXIudGVtcCB9fS9ucG0tYXVkaXQuanNvbgogICAgICAgICAgaWYtbm8tZmlsZXMtZm91bmQ6IHdhcm4KCiAgdGVzdDoKICAgIG5hbWU6IHRlc3RzIChub2RlICR7eyBtYXRyaXgubm9kZSB9fSkKICAgIHJ1bnMtb246IHVidW50dS1sYXRlc3QKICAgIHRpbWVvdXQtbWludXRlczogNDUKICAgIHN0cmF0ZWd5OgogICAgICBmYWlsLWZhc3Q6IGZhbHNlCiAgICAgIG1hdHJpeDoKICAgICAgICBub2RlOiBbMjIsIDI0XQogICAgc3RlcHM6CiAgICAgIC0gdXNlczogYWN0aW9ucy9jaGVja291dEB2NAogICAgICAtIHVzZXM6IGFjdGlvbnMvc2V0dXAtbm9kZUB2NAogICAgICAgIHdpdGg6CiAgICAgICAgICBub2RlLXZlcnNpb246ICR7eyBtYXRyaXgubm9kZSB9fQogICAgICAgICAgY2FjaGU6IG5wbQogICAgICAtIHJ1bjogbnBtIGNpCgogICAgICAjIFNhbWUgcHJvdmlzaW9uaW5nIGNvbnRyYWN0IGFzIHB1Ymxpc2gueW1sLiBUaGUgc3VpdGUgZmFpbHMgbG91ZGx5IHdoZW4KICAgICAgIyBhbiBlbmdpbmUgaXMgbWlzc2luZyAodGVzdC9oZWxwZXJzL3JlcXVpcmUtZW5naW5lcy50cyk7IGl0IG5ldmVyIHNraXBzLgogICAgICAtIG5hbWU6IFByb3Zpc2lvbiB0ZXN0L3NjYW4gcHJlcmVxdWlzaXRlcyAoZ2l0bGVha3MgOC4zMC4xICsgcGlubmVkIHBpcCBtb2R1bGVzKQogICAgICAgIHJ1bjogfAogICAgICAgICAgc2V0IC1ldW8gcGlwZWZhaWwKICAgICAgICAgIG1rZGlyIC1wICIkSE9NRS8ubG9jYWwvYmluIgogICAgICAgICAgY2QgIiQobWt0ZW1wIC1kKSIKICAgICAgICAgIGN1cmwgLWZzU0xPIGh0dHBzOi8vZ2l0aHViLmNvbS9naXRsZWFrcy9naXRsZWFrcy9yZWxlYXNlcy9kb3dubG9hZC92OC4zMC4xL2dpdGxlYWtzXzguMzAuMV9saW51eF94NjQudGFyLmd6CiAgICAgICAgICBjdXJsIC1mc1NMTyBodHRwczovL2dpdGh1Yi5jb20vZ2l0bGVha3MvZ2l0bGVha3MvcmVsZWFzZXMvZG93bmxvYWQvdjguMzAuMS9naXRsZWFrc184LjMwLjFfY2hlY2tzdW1zLnR4dAogICAgICAgICAgZ3JlcCAnIGdpdGxlYWtzXzguMzAuMV9saW51eF94NjQudGFyLmd6JCcgZ2l0bGVha3NfOC4zMC4xX2NoZWNrc3Vtcy50eHQgfCBzaGEyNTZzdW0gLWMgLQogICAgICAgICAgdGFyIC14emYgZ2l0bGVha3NfOC4zMC4xX2xpbnV4X3g2NC50YXIuZ3ogZ2l0bGVha3MKICAgICAgICAgIGluc3RhbGwgLW0gMDc1NSBnaXRsZWFrcyAiJEhPTUUvLmxvY2FsL2Jpbi9naXRsZWFrcyIKICAgICAgICAgICIkSE9NRS8ubG9jYWwvYmluL2dpdGxlYWtzIiAtLXZlcnNpb24KICAgICAgICAgIHB5dGhvbjMgLW0gcGlwIGluc3RhbGwgLS11c2VyIC0tYnJlYWstc3lzdGVtLXBhY2thZ2VzIFwKICAgICAgICAgICAgYnVpbGQ9PTEuNi4wIHR3aW5lPT03LjAuMCB3aGVlbD09MC40Ni4zIHNldHVwdG9vbHM9PTc4LjEuMSBodHRweD09MC4yOC4xCiAgICAgICAgICBweXRob24zIC1tIGJ1aWxkIC0tdmVyc2lvbgogICAgICAgICAgcHl0aG9uMyAtbSB0d2luZSAtLXZlcnNpb24KCiAgICAgIC0gbmFtZTogUGluIG5wbSAxMSAoQjAgcHJlbWlzZSAtIG5wbSAxMCBydW5zIHBhY2stcGhhc2UgaG9va3MsIGJvcmRlciBmYWlscyBjbG9zZWQpCiAgICAgICAgcnVuOiB8CiAgICAgICAgICBzZXQgLWV1byBwaXBlZmFpbAogICAgICAgICAgbnBtIGluc3RhbGwgLWcgbnBtQDExLjE5LjEKICAgICAgICAgIG5wbSAtLXZlcnNpb24KICAgICAgLSBuYW1lOiBQbGF0Zm9ybSBiZWhhdmlvciBwcm9iZSAobnBtIHBhY2sgLS1pZ25vcmUtc2NyaXB0cyBwcmVtaXNlKQogICAgICAgIHJ1bjogbm9kZSB0b29scy9wcm9iZS1ucG0tcGFjay5tanMKICAgICAgLSBuYW1lOiBGdWxsIHN1aXRlIChmYWlsLWNsb3NlZCkKICAgICAgICBydW46IHwKICAgICAgICAgIHNldCAtZXVvIHBpcGVmYWlsCiAgICAgICAgICBucG0gcnVuIGJ1aWxkCiAgICAgICAgICBzZXQgLW8gcGlwZWZhaWwKICAgICAgICAgIEJPUkRFUl9QQUNLX1RFU1Q9MSBucG0gdGVzdCAyPiYxIHwgdGVlICIkUlVOTkVSX1RFTVAvYm9yZGVyLXRlc3QtbG9nLnR4dCIKICAgICAgLSBuYW1lOiBVcGxvYWQgdGVzdCBsb2cKICAgICAgICBpZjogYWx3YXlzKCkKICAgICAgICB1c2VzOiBhY3Rpb25zL3VwbG9hZC1hcnRpZmFjdEB2NAogICAgICAgIHdpdGg6CiAgICAgICAgICBuYW1lOiB0ZXN0LWxvZy1ub2RlJHt7IG1hdHJpeC5ub2RlIH19LSR7eyBnaXRodWIucnVuX2lkIH19LSR7eyBnaXRodWIucnVuX2F0dGVtcHQgfX0KICAgICAgICAgIHBhdGg6ICR7eyBydW5uZXIudGVtcCB9fS9ib3JkZXItdGVzdC1sb2cudHh0CiAgICAgICAgICBpZi1uby1maWxlcy1mb3VuZDogd2FybgoKCiAgIyBXOCBjbGVhbi1yb29tIHNlbGYtYXVkaXQ6IHRoZSBQVUJMSVNIRUQgYm9yZGVyIChucG0gbGF0ZXN0KSBhdWRpdHMgdGhpcwogICMgcmVwby4gVHdvIHRydXRocyBpdCBwaW5zIHRoYXQgbm8gaW4tcmVwbyB0ZXN0IGNhbjogKDEpIHRoZSBwYWNrYWdlIHRoYXQKICAjIHVzZXJzIGFjdHVhbGx5IGluc3RhbGwgc3RpbGwgcnVucyBhdCBhbGwgKHByb3ZlbmFuY2UgbGluZSBtdXN0IHByaW50KSwKICAjICgyKSB0aGlzIHJlcG8gcGFzc2VzIGl0cyBvd24gcHVibGlzaGVkIGdhdGUg4oCUIHRoZSBkb2dmb29kIGNvbnRyYWN0LCBmcm9tCiAgIyBvdXRzaWRlIHRoZSB0cmVlIHRoYXQgZGVmaW5lcyB0aGUgcnVsZXMuIEEgdmFuaXNoZWQvcm90dGVuIG5wbSByZWxlYXNlCiAgIyBmYWlscyBoZXJlIGxvdWRseSAocmVnaXN0cnktdmlzaWJpbGl0eSB0cmlwd2lyZSkuCiAgY2xlYW4tcm9vbToKICAgIHJ1bnMtb246IHVidW50dS1sYXRlc3QKICAgIHRpbWVvdXQtbWludXRlczogMTUKICAgIHN0ZXBzOgogICAgICAtIHVzZXM6IGFjdGlvbnMvY2hlY2tvdXRAdjQKICAgICAgLSB1c2VzOiBhY3Rpb25zL3NldHVwLW5vZGVAdjQKICAgICAgICB3aXRoOgogICAgICAgICAgbm9kZS12ZXJzaW9uOiAyMgogICAgICAtIG5hbWU6IFByb3Zpc2lvbiBnaXRsZWFrcyA4LjMwLjEgKHJlcXVpcmVkIGVuZ2luZSBvZiB0aGUgYXVkaXQgcnVuKQogICAgICAgIHJ1bjogfAogICAgICAgICAgc2V0IC1ldW8gcGlwZWZhaWwKICAgICAgICAgIG1rZGlyIC1wICIkSE9NRS8ubG9jYWwvYmluIgogICAgICAgICAgY2QgIiQobWt0ZW1wIC1kKSIKICAgICAgICAgIGN1cmwgLWZzU0xPIGh0dHBzOi8vZ2l0aHViLmNvbS9naXRsZWFrcy9naXRsZWFrcy9yZWxlYXNlcy9kb3dubG9hZC92OC4zMC4xL2dpdGxlYWtzXzguMzAuMV9saW51eF94NjQudGFyLmd6CiAgICAgICAgICBjdXJsIC1mc1NMTyBodHRwczovL2dpdGh1Yi5jb20vZ2l0bGVha3MvZ2l0bGVha3MvcmVsZWFzZXMvZG93bmxvYWQvdjguMzAuMS9naXRsZWFrc184LjMwLjFfY2hlY2tzdW1zLnR4dAogICAgICAgICAgZ3JlcCAnIGdpdGxlYWtzXzguMzAuMV9saW51eF94NjQudGFyLmd6JCcgZ2l0bGVha3NfOC4zMC4xX2NoZWNrc3Vtcy50eHQgfCBzaGEyNTZzdW0gLWMgLQogICAgICAgICAgdGFyIC14emYgZ2l0bGVha3NfOC4zMC4xX2xpbnV4X3g2NC50YXIuZ3ogZ2l0bGVha3MKICAgICAgICAgIGluc3RhbGwgLW0gMDc1NSBnaXRsZWFrcyAiJEhPTUUvLmxvY2FsL2Jpbi9naXRsZWFrcyIKICAgICAgICAgICIkSE9NRS8ubG9jYWwvYmluL2dpdGxlYWtzIiAtLXZlcnNpb24KICAgICAgLSBuYW1lOiBJbnN0YWxsIHB1Ymxpc2hlZCBib3JkZXIgKG5ldmVyIHRoaXMgYnJhbmNoKQogICAgICAgIHJ1bjogfAogICAgICAgICAgbnBtIHZpZXcgYm9yZGVyLWN1c3RvbXMgdmVyc2lvbgogICAgICAgICAgbnBtIGluc3RhbGwgLWcgYm9yZGVyLWN1c3RvbXNAbGF0ZXN0CiAgICAgIC0gbmFtZTogUHJvdmVuYW5jZSBsaW5lICh2ZXJzaW9uK2NvbW1pdCBvZiB0aGUgaW5zdGFsbGVkIGJ1aWxkKQogICAgICAgIHJ1bjogYm9yZGVyIC0tdmVyc2lvbgogICAgICAtIG5hbWU6IFB1Ymxpc2hlZCBnYXRlIGF1ZGl0cyB0aGlzIHJlcG8KICAgICAgICAjIFRoZSByZXBvJ3Mgb3duIHRyYWNrZWQgZ2F0ZSBjb25maWcgKGl0cyBzZWxmLWV4ZW1wdGlvbnMgYXJlIHB1YmxpYykg4oCUCiAgICAgICAgIyB0aGUgc2FtZSBjb250cmFjdCBhIG1haW50YWluZXIncyBtYWNoaW5lIGVuZm9yY2VzLCBydW4gdGhyb3VnaCB0aGUKICAgICAgICAjIFBVQkxJU0hFRCBiaW5hcnkgaW5zdGVhZCBvZiB0aGlzIGJyYW5jaCdzIGJ1aWxkLiBWZXJpZmllZCBsb2NhbGx5CiAgICAgICAgIyB3aXRoIHRoZSBjdXJyZW50IGJ1aWxkOiBleGl0IDAgKDIwMjYtMTAtMjMpLgogICAgICAgIHJ1bjogYm9yZGVyIGNoZWNrIC0tY29uZmlnICIkUFdEL2JvcmRlci55YW1sIgogICAgICAgIGNvbnRpbnVlLW9uLWVycm9yOiBmYWxzZQo=
+# Continuous integration — every push to main and every pull request.
+#
+# Why this file exists (2026-10-17 third-party audit): the only workflow was
+# publish.yml, which runs on a v* tag or manual dispatch. Regressions therefore
+# surfaced at release time (v0.7.0 never reached npm because its tag CI failed;
+# v0.8.1 needed four consecutive CI runs). This workflow moves the same
+# fail-closed test suite onto the review path and adds the static gates the
+# audit found missing: version single-source, typecheck, build, and an audit
+# signal.
+#
+# npm/Node matrix covers Node majors; both legs pin npm 11 before the suite so
+# the pack paths run under the npm the publish gate uses. The 2026-10-19
+# npm-pack defect itself (npm 10 executing a target's `prepare` hook even with
+# --ignore-scripts) is covered deterministically by the fail-closed guard tests
+# in artifacts.npm.test.ts and by the platform probe step, which measures the
+# runner's stock npm BEFORE the pin. Do not drop a leg without replacing the
+# Node-major coverage.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    name: static gates (node 24)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Version literals are single-source
+        run: npm run version:check
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build
+        run: npm run build
+      - name: Built CLI answers
+        run: node dist/index.js --help > /dev/null
+      - name: Production dependency audit (block on high)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Full audit report (advisory)
+        run: |
+          set +e
+          npm audit --json > "$RUNNER_TEMP/npm-audit.json" 2>/dev/null
+          npm audit --omit=dev || true
+          echo "Full audit (including devDependencies) archived as an artifact;"
+          echo "only critical production advisories block this job."
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-audit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/npm-audit.json
+          if-no-files-found: warn
+
+  test:
+    name: tests (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+
+      # Same provisioning contract as publish.yml. The suite fails loudly when
+      # an engine is missing (test/helpers/require-engines.ts); it never skips.
+      - name: Provision test/scan prerequisites (gitleaks 8.30.1 + pinned pip modules)
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          cd "$(mktemp -d)"
+          curl -fsSLO https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          curl -fsSLO https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt
+          grep ' gitleaks_8.30.1_linux_x64.tar.gz$' gitleaks_8.30.1_checksums.txt | sha256sum -c -
+          tar -xzf gitleaks_8.30.1_linux_x64.tar.gz gitleaks
+          install -m 0755 gitleaks "$HOME/.local/bin/gitleaks"
+          "$HOME/.local/bin/gitleaks" --version
+          python3 -m pip install --user --break-system-packages \
+            build==1.6.0 twine==7.0.0 wheel==0.46.3 setuptools==78.1.1 httpx==0.28.1
+          python3 -m build --version
+          python3 -m twine --version
+
+      - name: Pin npm 11 (B0 premise - npm 10 runs pack-phase hooks, border fails closed)
+        run: |
+          set -euo pipefail
+          npm install -g npm@11.19.1
+          npm --version
+      - name: Platform behavior probe (npm pack --ignore-scripts premise, stock npm)
+        run: node tools/probe-npm-pack.mjs
+      - name: Full suite (fail-closed)
+        run: |
+          set -euo pipefail
+          npm run build
+          set -o pipefail
+          BORDER_PACK_TEST=1 npm test 2>&1 | tee "$RUNNER_TEMP/border-test-log.txt"
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log-node${{ matrix.node }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/border-test-log.txt
+          if-no-files-found: warn
+
+
+  # W8 clean-room self-audit: the PUBLISHED border (npm latest) audits this
+  # repo. Two truths it pins that no in-repo test can: (1) the package that
+  # users actually install still runs at all (provenance line must print),
+  # (2) this repo passes its own published gate — the dogfood contract, from
+  # outside the tree that defines the rules. A vanished/rotten npm release
+  # fails here loudly (registry-visibility tripwire).
+  clean-room:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Provision gitleaks 8.30.1 (required engine of the audit run)
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          cd "$(mktemp -d)"
+          curl -fsSLO https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          curl -fsSLO https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt
+          grep ' gitleaks_8.30.1_linux_x64.tar.gz$' gitleaks_8.30.1_checksums.txt | sha256sum -c -
+          tar -xzf gitleaks_8.30.1_linux_x64.tar.gz gitleaks
+          install -m 0755 gitleaks "$HOME/.local/bin/gitleaks"
+          "$HOME/.local/bin/gitleaks" --version
+      - name: Install published border (never this branch)
+        run: |
+          npm view border-customs version
+          npm install -g border-customs@latest
+      - name: Provenance line (version+commit of the installed build)
+        run: border --version
+      - name: Published gate audits this repo
+        # The repo's own tracked gate config (its self-exemptions are public) —
+        # the same contract a maintainer's machine enforces, run through the
+        # PUBLISHED binary instead of this branch's build. Verified locally
+        # with the current build: exit 0 (2026-10-23).
+        run: border check --config "$PWD/border.yaml"
+        continue-on-error: false
