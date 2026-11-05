@@ -2,8 +2,9 @@
 //
 // The V1 load-surface self-audit as ONE gate-owned surface (institutionalising
 // what 2026-09-24 scattered across plugin/border.ts, tools/plugin-drift-watch.mjs,
-// and the installer's status). Six read-only aspects, aggregated fail-closed:
-// any FAIL -> exit 1; no FAIL but any CANNOT -> exit 2; all PASS -> exit 0.
+// and the installer's status). Seven read-only aspects, aggregated fail-closed:
+// any FAIL -> exit 1; no FAIL but any CANNOT -> exit 2; else exit 0 (WARN is
+// informational and never moves the exit — see contract.ts).
 // Zero ledger writes, zero check-pipeline dependency (the scan import-audit
 // contract, copied); every side effect (fs roots, registry, process spawn)
 // rides an injected seam so unit tests script the whole surface offline.
@@ -16,6 +17,7 @@ import type { Ctx } from "../cli/types.ts";
 import type { ScanFetcher } from "../scan/fetch.ts";
 import { verifyCacheVersion } from "./aspects/cacheVersion.ts";
 import { verifyDualRoute } from "./aspects/dualRoute.ts";
+import { verifyGlobalResolution } from "./aspects/globalResolution.ts";
 import { verifyIdentity } from "./aspects/identity.ts";
 import { verifyRouteAParity } from "./aspects/routeA.ts";
 import { verifyScope } from "./aspects/scope.ts";
@@ -59,6 +61,9 @@ export function inspectExit(verdict: AspectVerdict): BorderExit {
     case "CANNOT":
       return EXIT_ERROR;
     case "PASS":
+    case "WARN":
+      // aggregateVerdict collapses WARN into PASS, so WARN cannot reach here;
+      // the arm exists for union totality and keeps the exit contract byte-identical.
       return EXIT_PASS;
   }
 }
@@ -92,6 +97,7 @@ export function gatherFacts(env: Env, cwd: string, deps: InspectDeps): Facts {
 
 export async function runInspectCore(ctx: Ctx, deps: InspectDeps = {}): Promise<BorderExit> {
   const facts = gatherFacts(ctx.env, ctx.cwd, deps);
+  const distEntry = deps.distEntry ?? packagedDistEntry(import.meta.url);
   const aspects: AspectResult[] = [
     verifyCacheVersion(facts),
     await verifySpecFreshness(facts, {
@@ -100,12 +106,20 @@ export async function runInspectCore(ctx: Ctx, deps: InspectDeps = {}): Promise<
     }),
     await verifyIdentity({
       ...(deps.runner !== undefined ? { runner: deps.runner } : {}),
-      distEntry: deps.distEntry ?? packagedDistEntry(import.meta.url),
+      distEntry,
       env: facts.env,
     }),
     verifyRouteAParity(facts),
     verifyDualRoute(facts),
     verifyScope(),
+    await verifyGlobalResolution({
+      ...(deps.runner !== undefined ? { runner: deps.runner } : {}),
+      distEntry,
+      env: facts.env,
+      pkg: facts.pkg,
+      ...(deps.registryFetcher !== undefined ? { fetcher: deps.registryFetcher } : {}),
+      ...(deps.registryBase !== undefined ? { registryBase: deps.registryBase } : {}),
+    }),
   ];
   const verdict = aggregateVerdict(aspects);
   const report: InspectReport = { schemaVersion: 1, scope: "v1", verdict, aspects };

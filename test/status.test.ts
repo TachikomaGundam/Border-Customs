@@ -70,6 +70,13 @@ test("empty ledger ⇒ exit 0, honest 'no runs' line, no crash", async () => {
   assert.match(r.out, /no check runs recorded/i);
 });
 
+test("status names its own engine build (usage table promises engine versions — 2026-11-05 fix)", async () => {
+  const dir = cleanRepo("engine");
+  const r = await status(dir);
+  assert.equal(r.code, EXIT_PASS);
+  assert.match(r.out, /^engine: \d+\.\d+\.\d+\+[0-9a-f]{7,}(\.dirty)?$/m, `engine identity line missing:\n${r.out}`);
+});
+
 test("newest check + per-target push table incl. pending list", async () => {
   const dir = cleanRepo("table");
   const ctx = gatherContext(dir, {});

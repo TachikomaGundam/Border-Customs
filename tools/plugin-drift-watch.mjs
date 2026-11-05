@@ -28,13 +28,25 @@
 // repo dist, i.e. the mutable worktree; the resolved path is reported in the
 // JSON output ("bin" field) so each run's landing is recorded as evidence.
 //
-// Usage: node tools/plugin-drift-watch.mjs [pkg] [--purge] [--json]
+// Exit codes: 0 fresh/not-cached/(purged) | 1 DRIFT | 2 cannot-answer |
+//   3 GLOBAL-WARN (informational: the ACTIVE CLI face lags registry latest or
+//   carries no stamp) / GLOBAL-UNREACHABLE (registry probe could not answer).
+//   rc 3 is warn-only BY CONSTRUCTION: it is derived from the global-resolution
+//   aspect, which is deliberately OUT of MAPPED_ASPECTS, so the cron guard
+//   `[ $rc -eq 1 ] && purge` can never read it as DRIFT; lag under pinned
+//   consumption is a legitimate steady state (2026-11-05 ruling) — the human
+//   decides whether to update.
+// Heartbeat: `--heartbeat <path>` appends one line per run
+// (`<ISO>\t<verdict>\trc=<n>\tbin=<label>`), giving the cron contract a
+// per-run landing for verdict+bin even on the rc-0 paths the old line sent to
+// /dev/null. Absent the flag, behavior is byte-identical to before.
+//
+// Usage: node tools/plugin-drift-watch.mjs [pkg] [--purge] [--json] [--heartbeat <path>]
 //   pkg must be border-customs (default) — inspect audits this gate's own
 //   package only; any other name is CANNOT-ANSWER, never a guessed purge.
 //   --purge: delete every cache dir for the pkg (next cold start re-fetches)
-// Exit codes: 0 fresh/not-cached/(purged) | 1 DRIFT | 2 cannot-answer.
 import { execFile } from "node:child_process";
-import { existsSync, readdirSync, rmSync } from "node:fs";
+import { appendFileSync, existsSync, readdirSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,7 +54,10 @@ import { fileURLToPath } from "node:url";
 const argv = process.argv.slice(2);
 const jsonMode = argv.includes("--json");
 const purge = argv.includes("--purge");
-const pkg = argv.find((a) => !a.startsWith("--")) ?? "border-customs";
+const heartbeatIndex = argv.indexOf("--heartbeat");
+const heartbeatSkip = heartbeatIndex >= 0 ? heartbeatIndex + 1 : -1;
+const heartbeatPath = heartbeatIndex >= 0 ? argv[heartbeatIndex + 1] : undefined;
+const pkg = argv.find((a, i) => !a.startsWith("--") && i !== heartbeatSkip) ?? "border-customs";
 
 const INSPECT_TIMEOUT_MS = 90_000;
 const MAPPED_ASPECTS = ["cache-version", "spec-freshness"];
@@ -114,6 +129,14 @@ function mapVerdict(report) {
 
 function report(fields) {
   const out = { ...fields, bin: resolvedLabel };
+  if (heartbeatPath !== undefined && heartbeatPath.length > 0) {
+    try {
+      appendFileSync(heartbeatPath, `${new Date().toISOString()}\t${out.verdict}\trc=${String(out.rc)}\tbin=${resolvedLabel}\n`);
+    } catch {
+      // a heartbeat write that fails must never change a verdict — the
+      // verdict+bin line still lands on stdout for whoever redirected it.
+    }
+  }
   if (jsonMode) {
     process.stdout.write(`${JSON.stringify(out)}\n`);
     return;
@@ -123,31 +146,46 @@ function report(fields) {
     `  cache: ${out.cacheDirs.join(", ") || "(none)"}`,
     `  verdict: ${out.verdict}${out.detail ? ` — ${out.detail}` : ""}`,
   ];
+  if (out.global !== undefined) lines.push(`  global: ${out.global}`);
   if (out.purged !== undefined) lines.push(`  purged: ${out.purged.join(", ") || "(nothing)"}`);
   process.stdout.write(`${lines.join("\n")}\n`);
+}
+
+/** global-resolution is informational: PASS or an absent aspect (older CLI)
+ * never moves rc; STALE (WARN) and UNREACHABLE (named CANNOT) both map to
+ * the warn-only rc 3, which no purge trigger reads. */
+function globalState(inspectReport) {
+  const a = inspectReport.aspects.find((x) => x.id === "global-resolution");
+  if (a === undefined) return { note: "aspect-absent (older CLI — no global verdict)", rc: 0 };
+  if (a.verdict === "PASS") return { note: "ok", rc: 0 };
+  if (a.verdict === "CANNOT" && String(a.detail).startsWith("registry unreachable")) return { note: `UNREACHABLE — ${a.detail}`, rc: 3 };
+  if (a.verdict === "WARN") return { note: `STALE — ${a.detail}`, rc: 3 };
+  return { note: `${String(a.verdict)} — ${a.detail}`, rc: 3 };
 }
 
 const resolved = resolveBin();
 const resolvedLabel = resolved.label;
 
 if (pkg !== "border-customs") {
-  report({ verdict: "CANNOT-ANSWER", detail: `border opencode inspect audits border-customs only, got pkg '${pkg}'`, cacheDirs: [] });
+  report({ verdict: "CANNOT-ANSWER", detail: `border opencode inspect audits border-customs only, got pkg '${pkg}'`, cacheDirs: [], rc: 2 });
   process.exitCode = 2;
 } else {
   const result = await runInspect(resolved);
   if (!result.ok) {
-    report({ verdict: "CANNOT-ANSWER", detail: result.why, cacheDirs: cacheDirs() });
+    report({ verdict: "CANNOT-ANSWER", detail: result.why, cacheDirs: cacheDirs(), rc: 2 });
     process.exitCode = 2;
   } else {
     const mapped = mapVerdict(result.report);
+    const global = globalState(result.report);
     const dirs = cacheDirs();
     if (purge && mapped.rc !== 2) {
       for (const d of dirs) rmSync(d, { recursive: true, force: true });
-      report({ verdict: "PURGED (cold start will re-fetch)", detail: mapped.detail, cacheDirs: dirs, purged: dirs, inspectVerdict: result.report.verdict });
+      report({ verdict: "PURGED (cold start will re-fetch)", detail: mapped.detail, cacheDirs: dirs, purged: dirs, inspectVerdict: result.report.verdict, global: global.note, rc: 0 });
       process.exitCode = 0;
     } else {
-      report({ verdict: mapped.verdict, detail: mapped.detail, cacheDirs: dirs, purged: undefined, inspectVerdict: result.report.verdict });
-      process.exitCode = mapped.rc;
+      const rc = mapped.rc === 0 && global.rc === 3 ? 3 : mapped.rc;
+      report({ verdict: mapped.verdict, detail: mapped.detail, cacheDirs: dirs, purged: undefined, inspectVerdict: result.report.verdict, global: global.note, rc });
+      process.exitCode = rc;
     }
   }
 }

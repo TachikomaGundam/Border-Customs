@@ -195,6 +195,69 @@ test("a foreign pkg name is rc 2 and the fake CLI is never spawned (no guessed p
   }
 });
 
+test("global-resolution WARN maps to warn-only rc 3 (STALE) — the cron guard's rc 1 stays untouched", () => {
+  const world = makeWorld("drift-global-stale");
+  try {
+    const r = watch(["--json"], fakeEnv(world, inspectJson({ "global-resolution": "WARN" }, { "global-resolution": "active CLI face is 0.8.3, registry latest is 0.8.4" })));
+    assert.equal(r.status, 3, r.stdout);
+    assert.equal(r.json?.verdict, "FRESH", "the cache verdict itself is FRESH — the lag rides the global field");
+    assert.ok(String(r.json?.global).startsWith("STALE —"), `global field must name the STALE class: ${r.stdout}`);
+  } finally {
+    removeWorld(world);
+  }
+});
+
+test("global-resolution registry-unreachable maps to warn-only rc 3 named UNREACHABLE (never rc 2, never silent)", () => {
+  const world = makeWorld("drift-global-unreach");
+  try {
+    const r = watch(["--json"], fakeEnv(world, inspectJson({ "global-resolution": "CANNOT" }, { "global-resolution": "registry unreachable for global-resolution: socket hang up" })));
+    assert.equal(r.status, 3, r.stdout);
+    assert.ok(String(r.json?.global).startsWith("UNREACHABLE —"), `global field must name the UNREACHABLE class: ${r.stdout}`);
+  } finally {
+    removeWorld(world);
+  }
+});
+
+test("DRIFT outranks a co-occurring global WARN: cache lag keeps rc 1 and the purge contract", () => {
+  const world = makeWorld("drift-global-priority");
+  try {
+    const r = watch(["--json"], fakeEnv(world, inspectJson({ "spec-freshness": "FAIL", "global-resolution": "WARN" })));
+    assert.equal(r.status, 1, r.stdout);
+    assert.equal(r.json?.verdict, "DRIFT");
+  } finally {
+    removeWorld(world);
+  }
+});
+
+test("--heartbeat appends one verdict+bin line per run (the cron landing for rc-0 paths)", () => {
+  const world = makeWorld("drift-heartbeat");
+  const hb = join(world.home, "hb.log");
+  try {
+    const r = watch(["--json", "--heartbeat", hb], fakeEnv(world, inspectJson({})));
+    assert.equal(r.status, 0, r.stdout);
+    const line = readSafe(hb);
+    assert.match(line, /FRESH\trc=0\tbin=/, `heartbeat line wrong: ${line}`);
+    const r2 = watch(["--json", "--heartbeat", hb], fakeEnv(world, inspectJson({ "global-resolution": "WARN" }, { "global-resolution": "active CLI face is 0.8.3, registry latest is 0.8.4" })));
+    assert.equal(r2.status, 3, r2.stdout);
+    assert.equal(readSafe(hb).trim().split("\n").length, 2, "one line per run, appended");
+  } finally {
+    removeWorld(world);
+  }
+});
+
+test("a global-resolution WARN never opens the purge gate on its own: rc 3 is not the cron trigger", () => {
+  const world = makeWorld("drift-global-nopurge");
+  plantCacheDir(world, "latest", { version: "0.7.1", marker: "0.7.1" });
+  const dir = join(world.cacheRoot, "border-customs@latest");
+  try {
+    const r = watch(["--json"], fakeEnv(world, inspectJson({ "global-resolution": "WARN" }, { "global-resolution": "lag" })));
+    assert.equal(r.status, 3);
+    assert.ok(existsSync(dir), "a warn-only run must never touch the cache (the guard acts on rc 1 only)");
+  } finally {
+    removeWorld(world);
+  }
+});
+
 test("human mode still reports and exits per the same mapping (cron line uses either mode)", () => {
   const world = makeWorld("drift-12");
   try {

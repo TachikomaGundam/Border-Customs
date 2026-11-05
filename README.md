@@ -849,7 +849,12 @@ argv-only (no shell; 300 s cap, 64 KiB per stream) restricted to the closed comm
 `check`, `push`, `status`, `llm-request`, `llm-ingest`, `scan`, `roundtrip`, `exfil`, `--help`, and
 renders the exit-code contract unchanged: 0 pass, 1 gate-blocked or partial push, 2 the gate
 could not answer — which since 0.5.1 also covers "no border CLI found or verified": the tool
-answers exit 2 cannot-answer and spawns nothing else. The tool REFUSES `--yes` — a real push
+answers exit 2 cannot-answer and spawns nothing else. Every result carries a
+`face: <resolved candidate> version=<--version stamp>` line: the identity handshake proves *which
+binary*, the stamp line makes *which version* observable on every call (a PATH-fallback to an older
+published CLI is loud, never silent). `BORDER_REQUIRE_PKG_VERSION=1` escalates that to a gate: the
+resolved CLI must report the plugin package's own version or the call is refused as cannot-answer
+with nothing spawned. The tool REFUSES `--yes` — a real push
 is the human gate, terminal-only, and a bare `border push` from the session is DRY-RUN by the
 CLI's own contract anyway. `/border` self-registers via the plugin `config` hook with `??=`, so
 a user file command of the same name — including a Route-A `commands/border.md` — stays
@@ -864,16 +869,24 @@ fails); plugin load failures are silent, so judge by the HTTP responses, never b
 code.
 
 `border opencode inspect [--json]` audits this machine's **V1 load surface** as one gate-owned
-command: six read-only aspects — cache self-consistency (package.json vs plugin marker line),
+command: seven read-only aspects — cache self-consistency (package.json vs plugin marker line),
 spec freshness (exact pin offline; dist-tag against the registry), the 0.5.1 identity handshake
 replayed against the CLI resolver's candidate order, Route A byte parity, Route A∧B dual-registration
-collision, and the scope declaration — aggregated fail-closed: any FAIL exits 1, else any CANNOT
-exits 2, all PASS exits 0. The certificate boundary is printed, not implied: `--json` carries
+collision, the scope declaration, and global-resolution (which CLI build answers on which face —
+`BORDER_BIN`, packaged dist, PATH — and whether the active face lags the registry's latest) —
+aggregated fail-closed: any FAIL exits 1, else any CANNOT exits 2, else 0. The seventh aspect's lag
+rung is **WARN — informational**: lag under pinned consumption is a legitimate steady state, so WARN
+never moves the aggregate or any purge trigger; registry-unreachable for this aspect stays named.
+`BORDER_INSPECT_OFFLINE=1` skips the freshness leg explicitly on air-gapped machines — the aspect
+then reports WARN "skipped", never fresh (an unevaluated face is never reported as fresh).
+The certificate boundary is printed, not implied: `--json` carries
 `scope:"v1"`, and V2 load surfaces (project-local `.opencode/plugins/`, npm-prefix layouts, lazy
 activation) are a DECLARED BLIND SPOT pending V2 stabilization — a PASS is never evidence that
 "the whole machine is clean". The tool never writes: `--purge` lives in the drift-watch cron shell,
-which is now a thin consumer of `inspect --json` with the rc contract unchanged
-(FRESH 0 / DRIFT 1 / NOT-CACHED 0 / CANNOT 2).
+which is now a thin consumer of `inspect --json` with rc contract FRESH 0 / DRIFT 1 / NOT-CACHED 0 /
+CANNOT 2 / **GLOBAL-WARN or GLOBAL-UNREACHABLE 3** (warn-only by construction: the cron purge guard
+acts on rc 1 only, and rc 3 can never reach it), plus an optional `--heartbeat <path>` that appends
+one `ISO / verdict / rc / bin` line per run.
 
 ## What this is not
 

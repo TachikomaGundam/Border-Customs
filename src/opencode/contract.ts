@@ -24,17 +24,27 @@ export const DEFAULT_REGISTRY_BASE = "https://registry.npmjs.org";
 /** Registry probe bound — mirrors the 15 s cap of the 2026-09-24 drift-watch script. */
 export const REGISTRY_TIMEOUT_MS = 15_000;
 
-export type AspectVerdict = "PASS" | "FAIL" | "CANNOT";
+export type AspectVerdict = "PASS" | "FAIL" | "CANNOT" | "WARN";
 
+/**
+ * WARN is the informational rung: a fact worth surfacing that is NOT a defect
+ * (the 2026-11-05 dual-face ruling: pinned consumption makes a stale-but-
+ * deliberate install a legitimate steady state, so lag must never reach the
+ * FAIL/CANNOT rungs). aggregateVerdict therefore ignores WARN — inspect's
+ * exit code and the cron purge trigger stay byte-identical; only the thin
+ * drift-watch shell maps WARN to its own rc 3, which the cron guard
+ * (`[ $rc -eq 1 ]`) can never read as DRIFT and can never act on.
+ */
 export type AspectId =
   | "cache-version"
   | "spec-freshness"
   | "identity-handshake"
   | "route-a-parity"
   | "dual-route"
-  | "scope";
+  | "scope"
+  | "global-resolution";
 
-/** The six aspects in the plan's table order — the --json array order. */
+/** The seven aspects in the plan's table order — the --json array order. */
 export const ASPECT_IDS: readonly AspectId[] = [
   "cache-version",
   "spec-freshness",
@@ -42,6 +52,7 @@ export const ASPECT_IDS: readonly AspectId[] = [
   "route-a-parity",
   "dual-route",
   "scope",
+  "global-resolution",
 ];
 
 export type AspectResult = {

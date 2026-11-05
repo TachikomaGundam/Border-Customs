@@ -46,7 +46,7 @@
 // cannot-answer, never a fallback to some other binary.
 
 import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
@@ -209,25 +209,47 @@ function isBorderHelp(result: CliResult): boolean {
 }
 
 type Resolution =
-  | { readonly ok: true; readonly resolution: BinResolution }
+  | { readonly ok: true; readonly resolution: BinResolution; readonly stamp: string }
   | { readonly ok: false; readonly reasons: readonly string[] };
 
+/** Twin of parseVersionStamp in src/opencode/aspects/globalResolution.ts; the
+ * digit anchor keeps the banner (`border — fail-closed…`) from parsing as a
+ * version. Duplicated on purpose: this file must stay import-free (Route A
+ * drops it as a single standalone file). */
+function parseVersion(stdout: string): string | null {
+  const m = /^border\s+(\d[^\s]*)/m.exec(stdout);
+  return m?.[1] ?? null;
+}
+
+/** The version this plugin module was packaged with (the ./package.json export).
+ * Route A drops (bare file in plugins/) have no sibling package.json: null. */
+function packagedVersion(): string | null {
+  try {
+    const pkg = JSON.parse(readFileSync(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8")) as { version?: unknown };
+    return typeof pkg.version === "string" ? pkg.version : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Positive handshakes are cached per BORDER_BIN key for the host process's
- * life; failures are never cached, so a mid-session install recovers on the
- * next call. */
-let verified: { readonly key: string; readonly resolution: BinResolution } | null = null;
+ * life (stamp included); failures are never cached, so a mid-session install
+ * recovers on the next call. */
+let verified: { readonly key: string; readonly resolution: BinResolution; readonly stamp: string } | null = null;
 
 async function resolveVerified(): Promise<Resolution> {
   const key = process.env["BORDER_BIN"] ?? "";
   if (verified !== null && verified.key === key) {
-    return { ok: true, resolution: verified.resolution };
+    return { ok: true, resolution: verified.resolution, stamp: verified.stamp };
   }
   const reasons: string[] = [];
   for (const candidate of candidateList()) {
     const probe = await runCli(candidate, ["--help"], PROBE_TIMEOUT_MS);
     if (isBorderHelp(probe)) {
-      verified = { key, resolution: candidate };
-      return { ok: true, resolution: candidate };
+      const version = await runCli(candidate, ["--version"], PROBE_TIMEOUT_MS);
+      const stamp = version.status === 0 ? (parseVersion(version.stdout) ?? "unknown") : "unknown";
+      verified = { key, resolution: candidate, stamp };
+      return { ok: true, resolution: candidate, stamp };
     }
     reasons.push(
       probe.status === 0
@@ -367,11 +389,26 @@ async function buildToolResult(argv: readonly string[]): Promise<string> {
       "--- stderr ---\n(empty)",
     ].join("\n");
   }
+  const shell = `$ border ${argv.join(" ")}`;
+  if ((process.env["BORDER_REQUIRE_PKG_VERSION"] ?? "") === "1") {
+    const own = packagedVersion();
+    const stampCore = resolution.stamp.split("+")[0];
+    if (own === null || own !== stampCore) {
+      return [
+        shell,
+        "exit: 2",
+        `note: cannot-answer — BORDER_REQUIRE_PKG_VERSION=1 demands the resolved CLI report this package's own version (${own ?? "unreadable"}); the resolved face (${resolution.resolution.label}) reported '${resolution.stamp}'. Nothing was run.`,
+        "--- stdout ---\n(empty)",
+        "--- stderr ---\n(empty)",
+      ].join("\n");
+    }
+  }
   const result = await runCli(resolution.resolution, argv, TIMEOUT_MS);
   if (result.spawnFailed) verified = null;
   const sections = [
-    `$ border ${argv.join(" ")}`,
+    shell,
     `exit: ${String(result.status)}`,
+    `face: ${resolution.resolution.label} version=${resolution.stamp}`,
   ];
   if (result.note.length > 0) sections.push(`note: ${result.note}`);
   sections.push(`--- stdout ---\n${result.stdout.length === 0 ? "(empty)" : result.stdout}`);

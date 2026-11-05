@@ -18,8 +18,9 @@ import { verifyIdentity } from "../src/opencode/aspects/identity.ts";
 import { verifyRouteAParity } from "../src/opencode/aspects/routeA.ts";
 import { verifyDualRoute } from "../src/opencode/aspects/dualRoute.ts";
 import { verifyScope, SCOPE_UNCOVERED } from "../src/opencode/aspects/scope.ts";
+import { verifyGlobalResolution, parseVersionStamp } from "../src/opencode/aspects/globalResolution.ts";
 import { HANDSHAKE_ARGV, HANDSHAKE_BANNER_PREFIX, HANDSHAKE_TIMEOUT_MS, HANDSHAKE_USAGE_NEEDLE, identityCandidates, passesHandshake } from "../src/opencode/aspects/identity.ts";
-import { ASPECT_IDS, PLUGIN_MARKER, type AspectResult, type Env } from "../src/opencode/contract.ts";
+import { ASPECT_IDS, PLUGIN_MARKER, type AspectResult, type Env, type SpawnOutcome, type SpawnTarget } from "../src/opencode/contract.ts";
 import { listCacheDirs, splitNpmSpec } from "../src/opencode/jsonconfig.ts";
 import {
   BORDER_ROOT,
@@ -50,7 +51,30 @@ function core(env: Env, cwd: string, deps: InspectDeps, json = false) {
   return { ...cap, run: () => runInspectCore(cap.ctx, deps) };
 }
 
-const OFFLINE = (runner = scriptedRunner(() => SPAWNED_OK)): { deps: InspectDeps; runner: typeof runner } => ({ deps: { runner: runner.runner, registryFetcher: registryForbidsCalls.fetcher, distEntry: "/nonexistent-border" }, runner });
+/**
+ * The core-suite default world: a runner that stamps `9.9.9+abc` on --version
+ * and answers the identity handshake otherwise, against a scripted registry
+ * answering latest=9.9.9 — so global-resolution PASSes too and the helper
+ * keeps its promise: the core aggregation tests see an all-PASS world with
+ * zero real spawn and zero real network. (Before aspect 7 this helper forbade
+ * registry calls; the freshness rung legitimately consults the seam now.)
+ */
+const OFFLINE_STAMP = "9.9.9+abc";
+function stampedRunner(stamp = OFFLINE_STAMP) {
+  const seen: { target: SpawnTarget; argv: readonly string[] }[] = [];
+  return {
+    seen,
+    runner: async (target: SpawnTarget, argv: readonly string[]): Promise<SpawnOutcome> => {
+      seen.push({ target, argv });
+      return argv.includes("--version") ? { status: 0, stdout: `border ${stamp}\n`, stderr: "" } : SPAWNED_OK;
+    },
+  };
+}
+
+const OFFLINE = (runner = stampedRunner()): { deps: InspectDeps; runner: typeof runner } => ({
+  deps: { runner: runner.runner, registryFetcher: fakeRegistry(() => ({ status: 200, json: { version: "9.9.9" } })).fetcher, distEntry: "/nonexistent-border" },
+  runner,
+});
 
 // ---------------------------------------------------------------- aspect 1: cache-version
 
@@ -303,6 +327,79 @@ test("aggregate priority: FAIL outranks CANNOT outranks PASS; exit mapping 1/2/0
   assert.equal(inspectExit("FAIL"), EXIT_BLOCKED);
 });
 
+test("WARN is informational: it never outranks PASS and never moves the aggregate", () => {
+  assert.equal(aggregateVerdict([a("scope", "PASS"), a("global-resolution", "WARN")]), "PASS");
+  assert.equal(inspectExit(aggregateVerdict([a("global-resolution", "WARN")])), EXIT_PASS);
+});
+
+// ---------------------------------------------------------------- aspect 7: global-resolution
+
+test("parseVersionStamp: the version line parses, the banner does not", () => {
+  assert.equal(parseVersionStamp("border 0.8.4+bc8bb70.dirty\n"), "0.8.4+bc8bb70.dirty");
+  assert.equal(parseVersionStamp("border — fail-closed gate: nothing leaves this machine unchecked\n\nusage: border <command>\n"), null);
+});
+
+test("global-resolution PASS: active PATH face core equals registry latest (commit suffix tolerated)", async () => {
+  const runner = stampedRunner("0.8.4+bc8bb70");
+  const registry = fakeRegistry(() => ({ status: 200, json: { version: "0.8.4" } }));
+  const r = await verifyGlobalResolution({ runner: runner.runner, distEntry: "/no-dist", env: {}, pkg: "border-customs", fetcher: registry.fetcher });
+  assert.equal(r.verdict, "PASS");
+  assert.match(r.detail, /active face matches registry latest 0\.8\.4/);
+});
+
+test("global-resolution WARN (not FAIL): a lagging active face is informational under pinned consumption", async () => {
+  const runner = stampedRunner("0.8.3+5f2f4c3");
+  const registry = fakeRegistry(() => ({ status: 200, json: { version: "0.8.4" } }));
+  const r = await verifyGlobalResolution({ runner: runner.runner, distEntry: "/no-dist", env: {}, pkg: "border-customs", fetcher: registry.fetcher });
+  assert.equal(r.verdict, "WARN");
+  assert.ok(r.detail.includes("0.8.3") && r.detail.includes("0.8.4"), r.detail);
+  assert.match(r.detail, /decision to update stays with the human/);
+});
+
+test("global-resolution CANNOT names registry unreachable (the shell's UNREACHABLE token)", async () => {
+  const runner = stampedRunner();
+  const registry = fakeRegistry(() => ({ error: "socket hang up" }));
+  const r = await verifyGlobalResolution({ runner: runner.runner, distEntry: "/no-dist", env: {}, pkg: "border-customs", fetcher: registry.fetcher });
+  assert.equal(r.verdict, "CANNOT");
+  assert.match(r.detail, /^registry unreachable for global-resolution/);
+});
+
+test("global-resolution: BORDER_BIN wins alone — no PATH/packaged probes, the override is the active face", async () => {
+  const runner = stampedRunner("0.7.0+aaa");
+  const registry = fakeRegistry(() => ({ status: 200, json: { version: "0.8.4" } }));
+  const r = await verifyGlobalResolution({ runner: runner.runner, distEntry: "/no-dist", env: { BORDER_BIN: "/pinned/border" }, pkg: "border-customs", fetcher: registry.fetcher });
+  assert.equal(r.verdict, "WARN");
+  const spawnTargets = runner.seen.filter((s) => s.argv.includes("--version")).map((s) => s.target.bin);
+  assert.deepEqual(spawnTargets, ["/pinned/border"], "only the override may be probed — same wins-alone discipline as the plugin");
+  assert.ok(r.detail.includes("BORDER_BIN=/pinned/border"), r.detail);
+});
+
+test("global-resolution WARN: BORDER_INSPECT_OFFLINE=1 reports skipped, never fresh, and spawns nothing", async () => {
+  let spawned = 0;
+  const registry = fakeRegistry(() => {
+    spawned += 1;
+    return { status: 200, json: { version: "0.8.4" } };
+  });
+  const r = await verifyGlobalResolution({ runner: stampedRunner().runner, distEntry: "/no-dist", env: { BORDER_INSPECT_OFFLINE: "1" }, pkg: "border-customs", fetcher: registry.fetcher });
+  assert.equal(r.verdict, "WARN");
+  assert.match(r.detail, /skipped \(BORDER_INSPECT_OFFLINE=1\)/);
+  assert.equal(registry.calls.length, 0);
+  assert.equal(spawned, 0);
+});
+
+test("global-resolution PASS: no active face at all (no override, PATH unspawnable) is a fact, not a defect", async () => {
+  const registry = fakeRegistry(() => ({ status: 200, json: { version: "0.8.4" } }));
+  const r = await verifyGlobalResolution({
+    runner: async () => ({ status: null, stdout: "", stderr: "" }),
+    distEntry: "/no-dist",
+    env: {},
+    pkg: "border-customs",
+    fetcher: registry.fetcher,
+  });
+  assert.equal(r.verdict, "PASS");
+  assert.match(r.detail, /no active CLI face/);
+});
+
 // ---------------------------------------------------------------- end-to-end core, injected seams
 
 test("core end-to-end all-PASS offline: exit 0, --json surface complete", async () => {
@@ -317,7 +414,7 @@ test("core end-to-end all-PASS offline: exit 0, --json surface complete", async 
     assert.equal(report.scope, "v1", "the certificate bound (plan B3) must be the consumer-facing field");
     assert.equal(report.verdict, "PASS");
     assert.deepEqual(report.aspects.map((x) => x.id), [...ASPECT_IDS]);
-    assert.equal(report.aspects.length, 6);
+    assert.equal(report.aspects.length, 7);
   } finally {
     removeWorld(world);
   }
@@ -331,7 +428,7 @@ test("core human output renders the [v1] scope line and one line per aspect", as
     const code = await c.run();
     assert.equal(code, EXIT_PASS);
     assert.equal(c.out[0], "border opencode inspect [v1] PASS");
-    assert.equal(c.out.length, 7);
+    assert.equal(c.out.length, 8);
     for (const id of ASPECT_IDS) {
       assert.ok(c.out.some((l) => l.includes(id)), `aspect ${id} missing from human render`);
     }

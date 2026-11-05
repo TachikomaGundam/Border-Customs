@@ -11,6 +11,7 @@ import { resolveRepoDir } from "../check/context.ts";
 import { EXIT_ERROR, EXIT_PASS, type BorderExit } from "../cli/exit.ts";
 import type { Ctx } from "../cli/types.ts";
 import { loadConfig, remoteTrackingDrift } from "../config.ts";
+import { engineBuild } from "../buildInfo.ts";
 import { type CheckRecord, type PushRecord, readLedger } from "../ledger.ts";
 import { gitTargetId } from "../gitTargetId.ts";
 
@@ -61,6 +62,11 @@ export function runStatus(ctx: Ctx): BorderExit {
     return EXIT_ERROR;
   }
   for (const w of ledger.warnings) ctx.stderr(`border: WARNING ${w}`);
+
+  // the usage table promises "status shows … engine versions"; the stamp is the
+  // same identity string check/push records carry (0.8.3 shipped the promise
+  // without the line — the 2026-11-05 ruling closed the contradiction).
+  ctx.stdout(`engine: ${engineBuild()}`);
 
   try {
     const drift = remoteTrackingDrift(repoDir);

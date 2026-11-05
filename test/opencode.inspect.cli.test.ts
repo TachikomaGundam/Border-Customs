@@ -22,19 +22,21 @@ async function cli(world: World, args: readonly string[], extraEnv: Record<strin
   return { code, out, err };
 }
 
-const AS_ENV = (world: World): Record<string, string> => ({ BORDER_BIN: HELP_RESPONDER, ...world.env }) as Record<string, string>;
+const AS_ENV = (world: World): Record<string, string> => ({ BORDER_BIN: HELP_RESPONDER, BORDER_INSPECT_OFFLINE: "1", ...world.env }) as Record<string, string>;
 
-test("opencode inspect on a clean sandbox world: exit 0 with all six PASS aspects via the real process", async () => {
+test("opencode inspect on a clean sandbox world: exit 0, six PASS + informational global (offline switch) via the real process", async () => {
   const world = makeWorld("inspect-cli-pass");
   try {
     const r = await cli(world, ["inspect", "--json"], AS_ENV(world));
     assert.equal(r.code, 0, r.out.join("\n") + r.err.join("\n"));
-    const report = JSON.parse(r.out[0] ?? "{}") as { schemaVersion: number; scope: string; verdict: string; aspects: { id: string; verdict: string }[] };
+    const report = JSON.parse(r.out[0] ?? "{}") as { schemaVersion: number; scope: string; verdict: string; aspects: { id: string; verdict: string; detail: string }[] };
     assert.equal(report.schemaVersion, 1);
     assert.equal(report.scope, "v1");
     assert.equal(report.verdict, "PASS");
     assert.deepEqual(report.aspects.map((x) => x.id), [...ASPECT_IDS]);
-    assert.ok(report.aspects.every((x) => x.verdict === "PASS"), JSON.stringify(report.aspects));
+    assert.ok(report.aspects.filter((x) => x.id !== "global-resolution").every((x) => x.verdict === "PASS"), JSON.stringify(report.aspects));
+    const global = report.aspects.find((x) => x.id === "global-resolution");
+    assert.ok(global !== undefined && global.verdict === "WARN" && global.detail.includes("BORDER_INSPECT_OFFLINE=1"), "the offline switch must report skipped, never fresh");
   } finally {
     removeWorld(world);
   }
@@ -94,7 +96,7 @@ test("SABOTAGE (acceptance #2b end-to-end): BORDER_BIN impostor -> exit 1, ident
   rmSync(log, { force: true });
   process.env["IMPOSTOR_LOG"] = log;
   try {
-    const r = await cli(world, ["inspect"], { BORDER_BIN: IMPOSTOR, ...world.env });
+    const r = await cli(world, ["inspect"], { BORDER_BIN: IMPOSTOR, BORDER_INSPECT_OFFLINE: "1", ...world.env });
     assert.equal(r.code, 1, r.out.join("\n"));
     assert.ok(r.out.some((l) => l.startsWith("  FAIL") && l.includes("identity-handshake")), r.out.join("\n"));
     const calls = readFileSync(log, "utf8").split("\n").filter((l) => l.length > 0);

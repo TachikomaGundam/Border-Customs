@@ -21,13 +21,26 @@ const MD_PATH = join(BORDER_ROOT, "plugin", "border-command.md");
 const DIST_INDEX = join(BORDER_ROOT, "dist", "index.js");
 const FIXTURE = join(BORDER_ROOT, "test", "fixtures", "opencode", "echo-argv.mjs");
 const IMPOSTOR = join(BORDER_ROOT, "test", "fixtures", "opencode", "opencode-impostor.mjs");
+const VERSIONED = join(BORDER_ROOT, "test", "fixtures", "opencode", "border-versioned-responder.mjs");
 
 test.before(() => {
   // fake-CLI fixtures are spawned via shebang: need the exec bit (mode bits are
   // not preserved when the file is created by machine, no git commit here)
   chmodSync(FIXTURE, 0o755);
   chmodSync(IMPOSTOR, 0o755);
+  chmodSync(VERSIONED, 0o755);
 });
+
+/** Fresh copy per test: the plugin caches its verified stamp per BORDER_BIN
+ * path for the process lifetime, so tests sharing one path with different
+ * FAKE_STAMP values must not see each other's cached face. */
+function copyOfVersionedFixture(dir: string, name: string): string {
+  mkdirSync(dir, { recursive: true });
+  const dest = join(dir, name);
+  writeFileSync(dest, readFileSync(VERSIONED));
+  chmodSync(dest, 0o755);
+  return dest;
+}
 
 interface PkgShape {
   version?: string;
@@ -216,6 +229,71 @@ test("plugin: the CLI exit code becomes the reported exit code", async (t) => {
 
   const res = resultText(await execute({ command: "status" }, ctx));
   assert.ok(res.includes("exit: 2"), `FAKE_EXIT=2 must surface as exit: 2:\n${res}`);
+});
+
+test("plugin: every result names the resolved face and its version stamp (2026-11-05 B1)", async (t) => {
+  const hooks = await borderPlugin.server();
+  const execute = hooks.tool["border"].execute;
+  const ctx = makeToolContext();
+
+  const home = makeFixtureDir("opencode-face");
+  const bin = copyOfVersionedFixture(home, "border-stamp-123");
+  process.env["BORDER_BIN"] = bin;
+  process.env["FAKE_STAMP"] = "1.2.3";
+  t.after(() => {
+    delete process.env["BORDER_BIN"];
+    delete process.env["FAKE_STAMP"];
+    removeDir(home);
+  });
+
+  const res = resultText(await execute({ command: "status" }, ctx));
+  assert.ok(res.includes("argv: status"), "the command must still run normally by default");
+  assert.ok(res.includes(`face: BORDER_BIN=${bin} version=1.2.3+feedface`), `face line missing/wrong:\n${res}`);
+});
+
+test("plugin: BORDER_REQUIRE_PKG_VERSION=1 refuses a lagging resolved face before user argv runs", async (t) => {
+  const hooks = await borderPlugin.server();
+  const execute = hooks.tool["border"].execute;
+  const ctx = makeToolContext();
+
+  const home = makeFixtureDir("opencode-strict-lag");
+  const bin = copyOfVersionedFixture(home, "border-stamp-lag");
+  process.env["BORDER_BIN"] = bin;
+  process.env["FAKE_STAMP"] = "0.0.1";
+  process.env["BORDER_REQUIRE_PKG_VERSION"] = "1";
+  t.after(() => {
+    delete process.env["BORDER_BIN"];
+    delete process.env["FAKE_STAMP"];
+    delete process.env["BORDER_REQUIRE_PKG_VERSION"];
+    removeDir(home);
+  });
+
+  const res = resultText(await execute({ command: "status" }, ctx));
+  assert.ok(res.includes("exit: 2"), `strict mismatch must map to cannot-answer 2:\n${res}`);
+  assert.ok(res.includes("BORDER_REQUIRE_PKG_VERSION=1"), "refusal must name the strict switch");
+  assert.ok(!res.includes("argv: status"), "user argv must never reach a face that fails the version gate");
+});
+
+test("plugin: BORDER_REQUIRE_PKG_VERSION=1 passes when the stamp core equals the package version", async (t) => {
+  const hooks = await borderPlugin.server();
+  const execute = hooks.tool["border"].execute;
+  const ctx = makeToolContext();
+
+  const home = makeFixtureDir("opencode-strict-match");
+  const bin = copyOfVersionedFixture(home, "border-stamp-match");
+  process.env["BORDER_BIN"] = bin;
+  process.env["FAKE_STAMP"] = readPkg().version ?? "";
+  process.env["BORDER_REQUIRE_PKG_VERSION"] = "1";
+  t.after(() => {
+    delete process.env["BORDER_BIN"];
+    delete process.env["FAKE_STAMP"];
+    delete process.env["BORDER_REQUIRE_PKG_VERSION"];
+    removeDir(home);
+  });
+
+  const res = resultText(await execute({ command: "status" }, ctx));
+  assert.ok(res.includes("argv: status"), `matching stamp must run the command:\n${res}`);
+  assert.ok(res.includes("exit: 0"), res);
 });
 
 test("plugin: an unspawnable BORDER_BIN is cannot-answer exit 2, never a silent fallback", async (t) => {
