@@ -4,6 +4,31 @@ Per-version history with the motivating incident for each release.
 The README carries the current contract; this file carries the history.
 
 
+### 0.8.5 (2026-11-06)
+
+Dual-face remediation wave, ruled by the sibyl chamber `sibyl-20261105T082510Z-5f96` after the
+owner asked "why are two border versions installed and which one is actually live?" (two silent
+faces found: a cron landing on the mutable worktree; the PATH fallback handing argv to an older
+published CLI, because the identity handshake verifies identity but never version).
+
+- NEW: `border opencode inspect` seventh aspect `global-resolution` — names every CLI face
+  (BORDER_BIN / packaged dist / PATH) with its `--version` stamp and judges the ACTIVE face
+  against the registry's latest on the informational WARN rung (lag under pinned consumption is
+  a legitimate steady state; WARN never moves the aggregate exit or any purge trigger;
+  registry-unreachable stays named UNREACHABLE; `BORDER_INSPECT_OFFLINE=1` reports "skipped",
+  never fresh).
+- NEW: the plugin tool result always carries `face: <resolved candidate> version=<stamp>`;
+  `BORDER_REQUIRE_PKG_VERSION=1` gates the call to the package's own version (mismatch ⇒
+  cannot-answer, zero argv delivered).
+- NEW: drift-watch rc 3 (GLOBAL-WARN / GLOBAL-UNREACHABLE) — warn-only, structurally invisible
+  to the cron purge guard — plus `--heartbeat <path>` appending one ISO/verdict/rc/bin line
+  per run.
+- FIX: `border status` prints its own `engine:` identity line (the usage table promised engine
+  versions since 0.8.0 without printing them).
+- DOC: `docs/release/v0.8.4.md` named doc-only statement with a third-party byte-diff recipe;
+  README contract sync + owner-approved pinned-consumption clarification (2026-11-06).
+
+
 ### 0.8.4 (2026-11-04)
 
 Same code as 0.8.3; documentation and disclosure updates only (history scrub —

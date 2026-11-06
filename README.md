@@ -40,6 +40,10 @@ source checkout. Every check and push record carries `engineBuild` — the ident
 `border --version` prints. A `.dirty` suffix means the verdict came from uncommitted code, and
 records from one repo carrying different `engineBuild` values mean the audit trail is mixed:
 both are findings an auditor should chase, which is exactly why the identity is on the record face.
+Freshness telemetry (the `global-resolution` WARN rung, drift-watch rc 3, and heartbeat lines) is
+read-only information. Pinned consumption governs the install and execution surfaces: running an
+older, deliberately chosen version is a legitimate steady state, not a defect. The decision to
+update always stays with the human operator. (Owner-approved clarification, 2026-11-06.)
 
 ## The problem it solves
 
@@ -811,7 +815,7 @@ plugin entry ships as `exports["./server"]`):
 ```jsonc
 {
   // pin the exact version — an @latest channel hits the registry on every cold start
-  "plugin": ["border-customs@0.8.4"]
+  "plugin": ["border-customs@0.8.5"]
 }
 ```
 
