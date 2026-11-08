@@ -41,7 +41,7 @@
     "@secretlint/secretlint-rule-preset-recommend": "13.0.5",
     "@textlint/regexp-string-matcher": "2.0.2",
     "publint": "0.3.24",
-    "typescript": "5.9.3",
+    "typescript": "7.0.2",
     "yaml": "2.9.0",
     "zod": "4.6.7"
   },
