@@ -271,6 +271,7 @@ export function buildPushResultRecord(i: {
     bad("gitExit must be a non-negative integer or null");
   }
   const reason = i.reason === undefined ? undefined : boundPushResultReason(i.reason);
+  if (reason === "") bad("reason must be a non-empty string when present (parse-side contract)");
   return {
     t: "push-result",
     verdict: i.verdict,

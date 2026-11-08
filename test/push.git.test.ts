@@ -636,7 +636,7 @@ test("wound 3: preflightPushRefs names ref, remote(s), and what is missing — b
   );
 });
 
-test("wound 4 boundary: a detached push --yes still mints its failed line (no silent deaths)", async () => {
+test("wound 4 boundary: a synced-then-detached --yes run mints its noop line (no silent deaths)", async () => {
   const top = scratch("detachedrow");
   const repo = seedRepo(top);
   const origin = addBare(top, "origin");
@@ -665,4 +665,19 @@ test("self-review fix: a non-PushStateError derivation death still mints its fai
   assert.equal(row.verdict, "failed");
   assert.match(row.reason ?? "", /no commits at HEAD/);
   assert.equal(row.key, undefined, "pre-fingerprint death carries no key, by schema contract");
+});
+
+test("self-review F1: an executor throw after derivation mints exactly one failed line", async () => {
+  const top = scratch("throwrow");
+  const repo = seedRepo(top);
+  const origin = addBare(top, "origin");
+  const cfgPath = writeCfg(top, [{ name: "origin", url: `file://${origin}` }]);
+  const env: NodeJS.ProcessEnv = { ...process.env, BORDER_PUSH_TIMEOUT_MS: "abc" };
+  await seedPass(repo, cfgPath, env);
+  const r = await runBorder(["push", "--yes", "--config", cfgPath], repo, env);
+  assert.equal(r.code, EXIT_ERROR, `exit mapping unchanged: ${r.out.join("\n")}${r.err.join("\n")}`);
+  const row = solo(pushResults(repo), "mid-run executor death");
+  assert.equal(row.verdict, "failed");
+  assert.match(row.reason ?? "", /BORDER_PUSH_TIMEOUT_MS/);
+  assert.equal(lsRemote(origin, "refs/heads/main"), null, "the death happened before any push spawned");
 });

@@ -195,7 +195,9 @@ async function executeYesPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExi
   // push-state — minted at EVERY exit below; dry-run never reaches here. A
   // ledger this gate cannot write is a gate that fails loudly (appendRecord
   // throws → run()-level exit 2), never a verdict that vanishes unrecorded.
+  let minted = false;
   const recordOutcome = (i: Parameters<typeof buildPushResultRecord>[0]): void => {
+    minted = true;
     appendRecord(repoDir, buildPushResultRecord(i));
   };
   let state: PushStateResult;
@@ -225,6 +227,13 @@ async function executeYesPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExi
     throw err; // ConfigError/EngineRunError keep the run()-level exit-2 mapping
   }
 
+  // Self-review F1 (2026-11-08): an uncaught THROW after derivation — malformed
+  // BORDER_PUSH_TIMEOUT_MS at the spawn budget, a remote dying between derive
+  // and guard, a registry engine error, a landing-pass throw — is an executor
+  // death too. One catch outside the certified body mints its verdict line
+  // exactly once (the minted flag keeps paths that already minted from
+  // double-writing), then the run()-level exit mapping stays untouched.
+  try {
   for (const t of state.targets) ctx.stdout(`border: ${formatTargetLine(t)}`);
   for (const w of state.warnings) ctx.stderr(`border: WARNING ${w}`);
 
@@ -399,6 +408,19 @@ async function executeYesPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExi
       return code;
     }
   }
-  recordOutcome({ key: state.key, verdict: "landed", targets: pendingIds, ...branchOpt });
-  return EXIT_PASS;
+    recordOutcome({ key: state.key, verdict: "landed", targets: pendingIds, ...branchOpt });
+    return EXIT_PASS;
+  } catch (err) {
+    if (!minted) {
+      const deadBranch = state.refSet.find((r) => r.startsWith("refs/heads/"))?.slice("refs/heads/".length);
+      recordOutcome({
+        key: state.key,
+        verdict: "failed",
+        targets: state.targets.map((x) => x.target),
+        ...(deadBranch === undefined ? {} : { branch: deadBranch }),
+        reason: `push executor died mid-run: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    }
+    throw err;
+  }
 }
