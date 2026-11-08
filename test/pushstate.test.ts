@@ -197,6 +197,62 @@ test("first-push gate: PENDING whose transmitted objects carry an unallowlisted 
   assert.deepEqual(pushableTargets(res), []);
 });
 
+/* Sibyl ticket 2026-11-08 wound 1: the push face must decide identity with the
+   SAME predicate as the check face (isBlocking). Repro shape: the offending
+   commit is already public on the remote and the PENDING leg transmits zero
+   new objects (a fresh lightweight tag on a published commit) — the check face
+   answers INFO identity-already-public (non-blocking), so --yes must not
+   refuse on the very key it just passed. */
+test("INFO-only offenders (already public, zero new objects) ⇒ PENDING stays pushable (wound 1 repro)", async () => {
+  const top = scratchDir("ps-eve-public-top");
+  const a = bareRemote(top, "a");
+  const seed = scratchDir("ps-eve-public-seed");
+  gitInit(seed);
+  writeRel(seed, "x.txt", "x\n");
+  gitAddCommit(seed, "x");
+  pushRepo(seed, a.url);
+  git(top, ["clone", "-q", a.url, "clone"]);
+  const clone = join(top, "clone");
+  writeRel(clone, "e.txt", "e\n");
+  git(clone, ["add", "-A"]);
+  git(clone, ["-c", "user.name=evil Eve", "-c", "user.email=eve@evil.test", "commit", "-q", "--no-gpg-sign", "-m", "evil"]);
+  git(clone, ["push", "-q", "origin", "main"]); // the offender becomes PUBLIC on the remote
+  git(clone, ["-c", "user.name=Wiki.js", "-c", "user.email=bot@gate-corp.com", "tag", "v9"]); // fresh tag on a PUBLISHED commit
+  const cfg = fileCfg([{ name: "a", url: a.url }]);
+  await passLedgerFor(clone, cfg, ["git"]);
+  const res = await derivePushState({ repoDir: clone, cfg, configDigest: stableStringify(cfg), effectiveTargets: ["git"] });
+  const t = targetOf(res, "git:a");
+  assert.equal(t.status, "PENDING", `zero-new-object push must ride the INFO rung, got: ${JSON.stringify(t)}`);
+  assert.match(formatTargetLine(t), /refs\/tags\/v9@absent/);
+  assert.deepEqual(pushableTargets(res).map((x) => x.target), ["git:a"]);
+});
+
+test("mixed fresh+public offenders ⇒ BLOCKED counts only the blocking rung (wound 1, fail-closed intact)", async () => {
+  const top = scratchDir("ps-eve-mixed-top");
+  const a = bareRemote(top, "a");
+  const seed = scratchDir("ps-eve-mixed-seed");
+  gitInit(seed);
+  writeRel(seed, "x.txt", "x\n");
+  gitAddCommit(seed, "x");
+  pushRepo(seed, a.url);
+  git(top, ["clone", "-q", a.url, "clone"]);
+  const clone = join(top, "clone");
+  writeRel(clone, "e.txt", "e\n");
+  git(clone, ["add", "-A"]);
+  git(clone, ["-c", "user.name=evil Eve", "-c", "user.email=eve@evil.test", "commit", "-q", "--no-gpg-sign", "-m", "evil published"]);
+  git(clone, ["push", "-q", "origin", "main"]); // rung INFO: every object of THIS offender is public
+  writeRel(clone, "f.txt", "f\n");
+  git(clone, ["add", "-A"]);
+  git(clone, ["-c", "user.name=evil Eve", "-c", "user.email=eve@evil.test", "commit", "-q", "--no-gpg-sign", "-m", "evil first-time"]); // rung CRITICAL
+  const cfg = fileCfg([{ name: "a", url: a.url }]);
+  await passLedgerFor(clone, cfg, ["git"]);
+  const res = await derivePushState({ repoDir: clone, cfg, configDigest: stableStringify(cfg), effectiveTargets: ["git"] });
+  const t = targetOf(res, "git:a");
+  assert.equal(t.status, "BLOCKED", `first-time exposure must still block, got: ${JSON.stringify(t)}`);
+  assert.match(t.reason ?? "", /1 identity finding\(s\) on objects this push would transmit \(1 already-public finding\(s\) not counted\)/);
+  assert.deepEqual(pushableTargets(res), []);
+});
+
 test("remote already has every object ⇒ PUSHED(no-op) is not identity-blocked (nothing transmits)", async () => {
   const top = scratchDir("ps-eve-synced-top");
   const a = bareRemote(top, "a");

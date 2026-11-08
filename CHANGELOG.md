@@ -4,6 +4,51 @@ Per-version history with the motivating incident for each release.
 The README carries the current contract; this file carries the history.
 
 
+### 0.8.6 (unreleased)
+
+Push-path forensics from the Sibyl release wheel 2026-11-08. The owner's Sibyl `border.yaml`
+carried the defect's own confession — an allowlist workaround annotated "Workaround for a
+KNOWN border push-path defect (counts already-public objects as transmitted; ticket open)" —
+while `.border/ledger.jsonl` held zero traces of the 08:48 refusal and the ~14:31 executor
+death. Design: `docs/design/push-outcome-accounting-20261108.md`.
+
+- FIX (wound 1, gate parity): the push identity gate now decides with the check face's
+  single-source predicate `isBlocking` — INFO `identity-already-public` findings (offenders
+  every configured remote already carries) no longer refuse a `push --yes` whose objects are
+  all public, while first-time exposure keeps blocking exactly as before. The refusal reason
+  names how many already-public findings were not counted. A PENDING leg whose scan is
+  INFO-only is now pushable — closing the dry-run-PASS / --yes-REFUSE split on one key.
+  `scanIdentity` on the push path also receives the run's env (seam parity with check).
+- NEW (wound 2, outcome accounting): every `border push --yes` run that reaches push-state
+  appends exactly one `t:"push-result"` verdict line — landed/blocked/partial/failed/noop —
+  with target ids, branch, bounded url-scrubbed reason (url-shaped prose tokens sanitized at
+  the mint; prose is never fed whole to `sanitizeUrl`, whose fail-closed placeholder is for
+  unparseable URLs), and `gitExit` (null = killed/unconfirmed, INDETERMINATE). All exits mint:
+  derivation failure (keyless), gate refusal, divergence, pre-flight refusal, mid-loop partial,
+  unconfirmable success, landing-blocked-after-landing, registry-leg failure. DRY-RUN mints
+  nothing; the pre-derivation no-targets NO-OP (no fingerprint key exists yet) keeps its
+  documented silence. Older binaries read these lines with their existing loud per-line
+  warning (roundtrip/landing precedent).
+- NEW (wound 3, named pre-flight): `preflightPushRefs` checks `check-ref-format` shape, local
+  resolve, and non-empty leg urls BEFORE any `git push` spawns; problems name the ref, the
+  remote(s), and what is missing, and are ledged as blocked verdicts. DIVERGED lines now
+  distinguish branch non-fast-forward from a moved tag and name the missing channel. A
+  `--ref <refspec>` channel stays OUT of the frozen push surface pending an owner policy
+  ruling (it would carry force-shaped operations through a gate whose doctrine is "border
+  never force-pushes").
+- FIX (wound 4, found during remediation): the no-targets NO-OP path certified "nothing to
+  push" on a swallowed probe failure. `remoteTrackingDrift` now reports `probesOk`; a probe
+  that cannot answer exits 2, named — only a working instrument certifies absence. The
+  honest NO-OP (remote-less repo; not-a-repo, which cannot hold remote-tracking refs) keeps
+  exit 0.
+- FIX: `border push` dry-run now prints the detached-HEAD warning `--yes` already refused on,
+  so the plan never shows a line `--yes` would refuse to run.
+- TESTS: pushstate INFO-only repro (Sibyl shape: published offender + fresh tag, zero new
+  objects) + mixed-rung counting; CLI repro lands the Sibyl wheel; dry-run ledger silence;
+  blocked/noop/partial(+gitExit)/moved-tag rows; preflight naming; probesOk + named exit 2;
+  push-result schema mint gates, roundtrip, prose-vs-url scrubbing, corrupt-line tolerance.
+
+
 ### 0.8.5 (2026-11-06)
 
 Dual-face remediation wave, ruled by the sibyl chamber `sibyl-20261105T082510Z-5f96` after the

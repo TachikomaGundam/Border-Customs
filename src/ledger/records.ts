@@ -5,9 +5,10 @@
 // half-written (SIGKILL mid-append leaves a torn last line), so every line is
 // validated into a typed record and anything malformed is SKIPPED with a
 // warning — never a crash, never silent (plan failure AC). Records are
-// append-only: no API here rewrites or deletes past lines. The push record
-// constructor is the single place a url enters the ledger, so G20 sanitation
-// (sanitizeUrl) cannot be forgotten by consumers (todos 15/16/17).
+// append-only: no API here rewrites or deletes past lines. The push/push-result
+// record constructors are the single places a url-shaped string enters the
+// ledger, so G20 sanitation (sanitizeUrl) cannot be forgotten by consumers
+// (todos 15/16/17; Sibyl ticket 2026-11-08 wound 2).
 import { appendFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -112,7 +113,40 @@ export type LandingRecord = {
   readonly ts: string;
 };
 
-export type LedgerRecord = CheckRecord | PushRecord | RoundtripRecord | LandingRecord;
+/**
+ * Push-outcome verdict record (Sibyl ticket 2026-11-08, wound 2): minted EXACTLY
+ * ONCE per `border push --yes` run that reaches push-state derivation — landed,
+ * refused (blocked), half-landed (partial), errored (failed), or nothing
+ * pending (noop). Unlike t:"push" (a proof-of-success receipt) this is the
+ * verdict log the 08:48 refusal and the ~14:31 executor death never left.
+ * `key` is absent when derivePushState threw before the fingerprint existed —
+ * a verdict without a key is still a verdict, and minting it never fails.
+ */
+export const PUSH_RESULT_VERDICTS = ["landed", "blocked", "partial", "failed", "noop"] as const;
+export type PushResultVerdict = (typeof PUSH_RESULT_VERDICTS)[number];
+
+/** Bound so a multi-remote refusal blob can never bloat one ledger line. */
+const PUSH_RESULT_REASON_MAX = 500;
+
+export type PushResultRecord = {
+  readonly t: "push-result";
+  readonly verdict: PushResultVerdict;
+  /** fingerprint the run certified against; absent only pre-fingerprint failures. */
+  readonly key?: string;
+  /** target ids at decision time (effective ∩ configured, then pending/blocked) — config ids, never urls. */
+  readonly targets: readonly string[];
+  /** branch the run would push; absent when detached or pre-branch derivation. */
+  readonly branch?: string;
+  /** sanitized (G20) + bounded why-text: refusal reason, git failure text, or exit summary. */
+  readonly reason?: string;
+  /** git's exit code when a spawn failure decided the outcome; null ⇒ killed/unconfirmed (INDETERMINATE). */
+  readonly gitExit?: number | null;
+  /** identity of the border build that ran (provenance wave). */
+  readonly engineBuild?: string;
+  readonly ts: string;
+};
+
+export type LedgerRecord = CheckRecord | PushRecord | RoundtripRecord | LandingRecord | PushResultRecord;
 
 export function ledgerPath(repoDir: string): string {
   return join(repoDir, BORDER_STATE_DIR, LEDGER_FILE);
@@ -211,6 +245,57 @@ export function buildLandingRecord(i: {
     rulesHash: i.rulesHash,
     ts: i.ts ?? new Date().toISOString(),
   };
+}
+
+/**
+ * Push-outcome records are minted here so the verdict enum, the hex/exit shape,
+ * and the G20 url-sanitation of the why-text cannot be skipped by consumers
+ * (buildLandingRecord precedent, Sibyl ticket 2026-11-08 wound 2).
+ */
+export function buildPushResultRecord(i: {
+  readonly verdict: PushResultVerdict;
+  readonly key?: string;
+  readonly targets: readonly string[];
+  readonly branch?: string;
+  readonly reason?: string;
+  readonly gitExit?: number | null;
+  readonly ts?: string;
+}): PushResultRecord {
+  if (!(PUSH_RESULT_VERDICTS as readonly string[]).includes(i.verdict)) {
+    bad(`verdict must be one of ${PUSH_RESULT_VERDICTS.join("|")}, got '${i.verdict}'`);
+  }
+  if (i.key !== undefined && !HEX64.test(i.key)) bad("key is not hex-shaped");
+  if (i.targets.length === 0 || !i.targets.every((t) => t !== "")) bad("targets must be a non-empty array of non-empty strings");
+  if (i.branch !== undefined && i.branch === "") bad("branch must be a non-empty string when present");
+  if (i.gitExit !== undefined && i.gitExit !== null && (!Number.isInteger(i.gitExit) || i.gitExit < 0)) {
+    bad("gitExit must be a non-negative integer or null");
+  }
+  const reason = i.reason === undefined ? undefined : boundPushResultReason(i.reason);
+  return {
+    t: "push-result",
+    verdict: i.verdict,
+    ...(i.key === undefined ? {} : { key: i.key }),
+    targets: [...i.targets],
+    ...(i.branch === undefined ? {} : { branch: i.branch }),
+    ...(reason === undefined ? {} : { reason }),
+    ...(i.gitExit === undefined ? {} : { gitExit: i.gitExit }),
+    engineBuild: engineBuild(),
+    ts: i.ts ?? new Date().toISOString(),
+  };
+}
+
+/**
+ * sanitizeUrl takes ONE url and fail-closed redacts anything it cannot parse
+ * (redact.ts contract) — so prose must never be fed to it whole. Ledger
+ * why-text is prose: scrub every url-shaped token inside it (scheme-form or
+ * scp-form) through sanitizeUrl instead, keeping the mint-site "single place a
+ * url enters the ledger" discipline.
+ */
+const URLISH_IN_PROSE_RE = /(?:[A-Za-z][A-Za-z0-9+.-]*:\/\/[^\s"']+)|(?:[A-Za-z0-9_.+-]+@[A-Za-z0-9_.+-]+(?::[^\s"']+)?)/g;
+
+function boundPushResultReason(reason: string): string {
+  const safe = reason.replace(URLISH_IN_PROSE_RE, (tok) => sanitizeUrl(tok));
+  return safe.length <= PUSH_RESULT_REASON_MAX ? safe : `${safe.slice(0, PUSH_RESULT_REASON_MAX - 1)}…`;
 }
 
 function needString(o: Record<string, unknown>, field: string): string {
@@ -355,6 +440,35 @@ export function parseLedgerRecord(value: unknown): LedgerRecord {
       verdict: verdict as LandingVerdict,
       blocking,
       rulesHash: needHex(o, "rulesHash", HEX64),
+      ts: needString(o, "ts"),
+    };
+  }
+  if (t === "push-result") {
+    const verdict = needString(o, "verdict");
+    if (!(PUSH_RESULT_VERDICTS as readonly string[]).includes(verdict)) {
+      bad(`verdict must be one of ${PUSH_RESULT_VERDICTS.join("|")}, got '${verdict}'`);
+    }
+    const key = o.key === undefined ? undefined : needHex(o, "key", HEX64);
+    const targets = needStringArray(o, "targets");
+    if (targets.length === 0 || !targets.every((x) => x !== "")) bad("targets must be a non-empty array of non-empty strings");
+    const branch = optionalString(o, "branch");
+    const reason = optionalString(o, "reason");
+    const resultEngineBuild = optionalString(o, "engineBuild");
+    let gitExit: number | null | undefined;
+    if (o.gitExit === null) gitExit = null;
+    else if (o.gitExit !== undefined) {
+      if (!Number.isInteger(o.gitExit) || (o.gitExit as number) < 0) bad("gitExit must be a non-negative integer or null");
+      gitExit = o.gitExit as number;
+    }
+    return {
+      t: "push-result",
+      verdict: verdict as PushResultVerdict,
+      ...(key === undefined ? {} : { key }),
+      targets,
+      ...(branch === undefined ? {} : { branch }),
+      ...(reason === undefined ? {} : { reason }),
+      ...(gitExit === undefined ? {} : { gitExit }),
+      ...(resultEngineBuild === undefined ? {} : { engineBuild: resultEngineBuild }),
       ts: needString(o, "ts"),
     };
   }

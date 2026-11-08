@@ -26,10 +26,10 @@ import { EXIT_BLOCKED, EXIT_PASS } from "../src/cli/exit.ts";
 import { computeConfigDigest } from "../src/check/rulesHash.ts";
 import { loadConfig } from "../src/config.ts";
 import { computeFingerprint } from "../src/ledger.ts";
-import { appendRecord, pushRecords, readLedger, type CheckRecord } from "../src/ledger/records.ts";
+import { appendRecord, pushRecords, readLedger, type CheckRecord, type PushResultRecord } from "../src/ledger/records.ts";
 import type { ReportCounts } from "../src/findings.ts";
 import { setHandler } from "../src/commands/index.ts";
-import { DIVERGED_MESSAGE, fastForwardGuard, pushArgv } from "../src/push/git.ts";
+import { DIVERGED_MESSAGE, fastForwardGuard, preflightPushRefs, pushArgv } from "../src/push/git.ts";
 import { gitAddCommit, gitInit, gitRevParseHead, makeFixtureDir, removeDir, writeRel } from "./helpers/fixtures.ts";
 
 const fixtureRoots: string[] = [];
@@ -207,6 +207,13 @@ test("AC1/AC4 clean --yes lands origin AND backup (branch + peeled tag), 2 push-
     assert.equal(rec.remoteSha, head);
     assert.equal(rec.confirmedVia, "ls-remote");
   }
+
+  // Wound 2 (Sibyl 2026-11-08): the landed run also mints its verdict line.
+  const landedRow = solo(readLedger(repo).records.filter((r): r is PushResultRecord => r.t === "push-result"), "landed run");
+  assert.equal(landedRow.verdict, "landed");
+  assert.equal(landedRow.key, key);
+  assert.deepEqual([...landedRow.targets].sort(), ["git:backup", "git:origin"]);
+  assert.equal(landedRow.branch, "main");
 
   // AC4 direct: an absent remote ref is trivially guard-passable (first push).
   const guard = fastForwardGuard({
@@ -461,4 +468,186 @@ test("F3-followup: named + unnamed mix — named keeps git:origin ledger shape, 
   assert.ok(originRecord !== undefined);
   assert.equal(originRecord.remoteName, "origin", "named-remote record shape unchanged (backward compat)");
   assert.ok(originRecord.url.startsWith("file://"), "url still passes through buildPushRecord (sanitizeUrl) exactly as before");
+});
+
+// ---------------------------------------------------------------- Sibyl ticket 2026-11-08: push-result verdict lines
+//
+// Wound 2: every --yes run that reaches push-state mints exactly one
+// t:"push-result" line — the ledger was silent for the 08:48 refusal and the
+// ~14:31 executor death. Wound 1 CLI repro: an INFO-only offender must not
+// block. Wound 3: preflight names ref/remote/what-missing before any spawn.
+
+const pushResults = (repoDir: string): PushResultRecord[] =>
+  readLedger(repoDir).records.filter((r): r is PushResultRecord => r.t === "push-result");
+
+function solo(rows: readonly PushResultRecord[], label: string): PushResultRecord {
+  assert.equal(rows.length, 1, `${label}: exactly one verdict line`);
+  const row = rows[0];
+  assert.ok(row !== undefined);
+  return row;
+}
+
+test("wound 2: dry-run stays silent — zero push-records AND zero push-result lines", async () => {
+  const top = scratch("silent");
+  const repo = seedRepo(top);
+  const origin = addBare(top, "origin");
+  const cfgPath = writeCfg(top, [{ name: "origin", url: `file://${origin}` }]);
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  await seedPass(repo, cfgPath, env);
+  const restore = setHandler("check", () => EXIT_PASS);
+  try {
+    const r = await runBorder(["push", "--config", cfgPath], repo, env);
+    assert.equal(r.code, EXIT_PASS);
+  } finally {
+    restore();
+  }
+  assert.equal(pushResults(repo).length, 0, "dry-run never mints a verdict line");
+  assert.equal(readLedger(repo).records.filter((x) => x.t === "push").length, 0);
+  assert.equal(lsRemote(origin, "refs/heads/main"), null, "dry-run mutates nothing");
+});
+
+test("wound 2: unchecked refuse mints a blocked line naming the target and the missing gate", async () => {
+  const top = scratch("blockedrow");
+  const repo = seedRepo(top);
+  const origin = addBare(top, "origin");
+  const cfgPath = writeCfg(top, [{ name: "origin", url: `file://${origin}` }]);
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  // NO seedPass — the gate has not certified this fingerprint.
+  const r = await runBorder(["push", "--yes", "--config", cfgPath], repo, env);
+  assert.equal(r.code, EXIT_BLOCKED);
+  const row = solo(pushResults(repo), "refused run");
+  assert.equal(row.verdict, "blocked");
+  assert.deepEqual([...row.targets], ["git:origin"]);
+  assert.match(row.reason ?? "", /unchecked/);
+  assert.equal(row.engineBuild !== undefined, true, "the verdict names its build");
+});
+
+test("wound 2: an already-landed repeat --yes mints a noop line (one line per run, ever)", async () => {
+  const top = scratch("nooprow");
+  const repo = seedRepo(top);
+  const origin = addBare(top, "origin");
+  const cfgPath = writeCfg(top, [{ name: "origin", url: `file://${origin}` }]);
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  await seedPass(repo, cfgPath, env);
+  const first = await runBorder(["push", "--yes", "--config", cfgPath], repo, env);
+  assert.equal(first.code, EXIT_PASS);
+  const again = await runBorder(["push", "--yes", "--config", cfgPath], repo, env);
+  assert.equal(again.code, EXIT_PASS, `second run: ${again.out.join("\n")}${again.err.join("\n")}`);
+  const rows = pushResults(repo);
+  assert.deepEqual(rows.map((x) => x.verdict), ["landed", "noop"]);
+});
+
+test("wound 1 CLI repro: INFO-only offender + fresh annotated tag over published history ⇒ --yes lands", async () => {
+  const top = scratch("w1cli");
+  const origin = addBare(top, "origin");
+  const seed = join(top, "seed");
+  mkdirSync(seed, { recursive: true });
+  gitInit(seed);
+  writeRel(seed, "x.txt", "x\n");
+  gitAddCommit(seed, "x");
+  git(seed, [...ID, "push", "-q", `file://${origin}`, "main"]);
+  git(top, ["clone", "-q", `file://${origin}`, "clone"]);
+  const repo = join(top, "clone");
+  writeRel(repo, "e.txt", "e\n");
+  git(repo, ["add", "-A"]);
+  git(repo, ["-c", "user.name=evil Eve", "-c", "user.email=eve@evil.test", "commit", "-q", "--no-gpg-sign", "-m", "evil"]);
+  git(repo, ["push", "-q", "origin", "main"]); // offender becomes PUBLIC on the remote
+  git(repo, [...ID, "tag", "-a", "v9", "-m", "release wheel"]); // fresh tag, zero new commits
+  const cfgPath = writeCfg(top, [{ name: "origin", url: `file://${origin}` }]);
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  const key = await seedPass(repo, cfgPath, env);
+  const r = await runBorder(["push", "--yes", "--config", cfgPath], repo, env);
+  assert.equal(r.code, EXIT_PASS, `Sibyl wheel must land, got ${String(r.code)}\nout: ${r.out.join("\n")}\nerr: ${r.err.join("\n")}`);
+  const v9 = git(repo, ["rev-parse", "v9^{commit}"]).trim();
+  assert.equal(lsRemote(origin, "refs/tags/v9^{}"), v9, "--follow-tags must carry the annotated tag");
+  const row = solo(pushResults(repo), "Sibyl wheel");
+  assert.deepEqual([row.verdict], ["landed"]);
+  assert.equal(row.key, key);
+});
+
+test("wound 2: a git-leg death mints a partial line carrying git's exit code", async () => {
+  const top = scratch("partialrow");
+  const repo = seedRepo(top);
+  const origin = addBare(top, "origin");
+  const backup = addBare(top, "backup");
+  const cfgPath = writeCfg(top, [
+    { name: "origin", url: `file://${origin}` },
+    { name: "backup", url: `file://${backup}` },
+  ]);
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  await seedPass(repo, cfgPath, env);
+  chmodSync(join(backup, "objects"), 0o555); // leg 2's transport dies; the guard still reads it fine
+  try {
+    const r = await runBorder(["push", "--yes", "--config", cfgPath], repo, env);
+    assert.equal(r.code, EXIT_BLOCKED);
+    const row = solo(pushResults(repo), "partial run");
+    assert.equal(row.verdict, "partial");
+    assert.equal(row.gitExit, 1, `git's refusal must be on the record (push rejects with 1), got ${String(row.gitExit)}`);
+    assert.match(row.reason ?? "", /git:backup/);
+    assert.match(row.reason ?? "", /1\/2 remote\(s\) landed \[git:origin\]/);
+  } finally {
+    chmodSync(join(backup, "objects"), 0o755);
+  }
+  assert.equal(lsRemote(origin, "refs/heads/main"), gitRevParseHead(repo), "leg 1 really landed before leg 2 died");
+});
+
+test("wound 3: a moved tag is refused with the missing channel named, and the refusal is ledged", async () => {
+  const top = scratch("movetag");
+  const repo = seedRepo(top);
+  const origin = addBare(top, "origin");
+  const cfgPath = writeCfg(top, [{ name: "origin", url: `file://${origin}` }]);
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  await seedPass(repo, cfgPath, env);
+  const first = await runBorder(["push", "--yes", "--config", cfgPath], repo, env);
+  assert.equal(first.code, EXIT_PASS);
+  writeRel(repo, "b.txt", "two\n");
+  gitAddCommit(repo, "c2");
+  git(repo, [...ID, "tag", "-f", "-a", "v1", "-m", "v1 moved"]); // tag repointed: never fast-forwardable
+  await seedPass(repo, cfgPath, env); // certify the NEW state so the gate reaches the guard
+  const r = await runBorder(["push", "--yes", "--config", cfgPath], repo, env);
+  assert.equal(r.code, EXIT_BLOCKED);
+  assert.match(r.err.join("\n"), /moved tag: border has no refspec\/tag-move channel/);
+  const rows = pushResults(repo);
+  const refused = rows.at(-1);
+  assert.ok(refused !== undefined);
+  assert.equal(refused.verdict, "blocked");
+  assert.match(refused.reason ?? "", /tag-move channel/);
+});
+
+test("wound 3: preflightPushRefs names ref, remote(s), and what is missing — before any spawn", () => {
+  const top = scratch("pre");
+  const repo = seedRepo(top);
+  const env = { ...process.env } as NodeJS.ProcessEnv;
+  const clean = preflightPushRefs({ repoDir: repo, legs: [{ target: "git:origin", url: "file:///x.git" }], branch: "main", env });
+  assert.deepEqual(clean, [], "a resolvable branch + real url is silent");
+  const problems = preflightPushRefs({ repoDir: repo, legs: [{ target: "git:origin", url: "" }], branch: "nope/missing", env });
+  assert.ok(
+    problems.some((p) => p.includes("refs/heads/nope/missing") && p.includes("git:origin") && p.includes("does not resolve")),
+    `resolve diagnostic missing: ${JSON.stringify(problems)}`,
+  );
+  assert.ok(
+    problems.some((p) => p.includes("empty url") && p.includes("git:origin") && p.includes("missing")),
+    `empty-url diagnostic missing: ${JSON.stringify(problems)}`,
+  );
+  const shaped = preflightPushRefs({ repoDir: repo, legs: [{ target: "git:origin", url: "file:///x.git" }], branch: "bad..name", env });
+  assert.ok(
+    shaped.some((p) => p.includes("not a well-formed git ref name")),
+    `ref-shape diagnostic missing: ${JSON.stringify(shaped)}`,
+  );
+});
+
+test("wound 4 boundary: a detached push --yes still mints its failed line (no silent deaths)", async () => {
+  const top = scratch("detachedrow");
+  const repo = seedRepo(top);
+  const origin = addBare(top, "origin");
+  const cfgPath = writeCfg(top, [{ name: "origin", url: `file://${origin}` }]);
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  git(repo, ["push", "-q", `file://${origin}`, "main", "--tags"]); // sync everything…
+  git(repo, ["checkout", "-q", "--detach"]); // …then detach: refSet = tags only, all PUSHED? no —
+  await seedPass(repo, cfgPath, env); // keep a PASS for the detached key so gates reach the branch refusal
+  const r = await runBorder(["push", "--yes", "--config", cfgPath], repo, env);
+  // tags are synced ⇒ git is PUSHED ⇒ no pending legs ⇒ the noop line is the honest verdict.
+  const row = solo(pushResults(repo), "detached sync run");
+  assert.equal(row.verdict, "noop");
+  assert.equal(r.code, EXIT_PASS);
 });

@@ -141,3 +141,36 @@ test("DRIFT-STATUS: remotes visibility line prints configured, none, and orphans
     throw new Error(`empty-remote visibility wrong: ${JSON.stringify(ctx2.out)}`);
   }
 });
+
+// Sibyl ticket 2026-11-08 wound 4: an instrument that never answers certifies
+// nothing. A broken refs store must surface as probesOk=false and move the
+// push NO-OP path to a named exit 2 — never a claimed-clean empty orphan set.
+test("DRIFT-PROBE: broken refs store surfaces as probe failure, never a clean empty set", (t) => {
+  const { dir } = makeSandbox(t);
+  const clean = remoteTrackingDrift(dir);
+  if (!clean.probesOk) {
+    throw new Error(`clean repo must answer probesOk: ${JSON.stringify(clean)}`);
+  }
+  writeFileSync(join(dir, ".git", "packed-refs"), "garbage line\n");
+  const broken = remoteTrackingDrift(dir);
+  if (broken.probesOk) {
+    throw new Error(`unanswered probe must be probesOk=false, got ${JSON.stringify(broken)}`);
+  }
+});
+
+test("DRIFT-PUSH: no-op targets + probe that cannot answer => named exit 2, never NO-OP (wound 4)", async (t) => {
+  const { dir } = makeSandbox(t);
+  writeFileSync(join(dir, ".git", "packed-refs"), "garbage line\n");
+  const ctx = makeCtx(dir, "push");
+  const rc = await runPush(ctx);
+  if (rc !== EXIT_ERROR) {
+    throw new Error(`expected cannot-answer 2 for a broken probe, got ${rc}; out=${JSON.stringify(ctx.out)}`);
+  }
+  const joined = ctx.err.join("\n");
+  if (!joined.includes("did not answer")) {
+    throw new Error(`named probe-failure message missing: ${joined}`);
+  }
+  if (ctx.out.some((l) => l.includes("NO-OP"))) {
+    throw new Error("a broken instrument must not certify the NO-OP");
+  }
+});

@@ -136,7 +136,11 @@ export type PushExecInput = {
   readonly env: NodeJS.ProcessEnv;
 };
 
-export type PushExecResult = { readonly ok: true } | { readonly ok: false; readonly failure: string };
+export type PushExecResult =
+  | { readonly ok: true }
+  /** `exit` names git's exit code when git answered; null ⇒ killed by the budget
+   *  or never spawned — the remote's state is INDETERMINATE either way. */
+  | { readonly ok: false; readonly failure: string; readonly exit: number | null };
 
 /**
  * Bounded budget for the real `git push` (F2): stdio stays inherited so auth
@@ -184,14 +188,15 @@ export function executePush(i: PushExecInput): PushExecResult {
   if (r.status === null && r.signal !== null) {
     return {
       ok: false,
+      exit: null,
       failure:
         `git push to '${i.remote.target}' timed out after ${String(timeoutMs)}ms (${PUSH_TIMEOUT_ENV}) ` +
         `and was killed by signal ${String(r.signal)} — the remote state is INDETERMINATE: ` +
         `verify with 'git ls-remote ${sanitizeUrl(i.remote.url)}' and rerun 'border push --yes' (safe: landed remotes come back no-op)`,
     };
   }
-  if (r.error !== undefined) return { ok: false, failure: `git could not start (${r.error.message})` };
-  if (r.status !== 0) return { ok: false, failure: `git exited ${String(r.status)}` };
+  if (r.error !== undefined) return { ok: false, exit: null, failure: `git could not start (${r.error.message})` };
+  if (r.status !== 0) return { ok: false, exit: r.status, failure: `git exited ${String(r.status)}` };
   return { ok: true };
 }
 
@@ -213,4 +218,46 @@ export function confirmRemoteBranch(i: {
     );
   }
   return sha;
+}
+
+export type PreflightInput = {
+  readonly repoDir: string;
+  readonly legs: readonly GitRemoteTarget[];
+  readonly branch: string;
+  readonly env: NodeJS.ProcessEnv;
+};
+
+/**
+ * Sibyl ticket 2026-11-08 wound 3: check the refspec and every leg url BEFORE
+ * any `git push` spawns, so an unresolvable push dies as a named diagnostic
+ * (which ref, which remote(s), what is missing) instead of a fatal swallowed
+ * into an executor failure. Reads only — this never spawns push, never
+ * mutates, and keeps fastForwardGuard's all-or-nothing window intact.
+ */
+export function preflightPushRefs(i: PreflightInput): readonly string[] {
+  const problems: string[] = [];
+  const ref = `refs/heads/${i.branch}`;
+  const targetIds = i.legs.map((l) => l.target).join(", ");
+  const gitEnv = { ...i.env, GIT_CEILING_DIRECTORIES: i.repoDir };
+  const shape = spawnSync("git", ["check-ref-format", ref], { encoding: "utf8", env: gitEnv });
+  if (shape.status !== 0 || shape.error !== undefined) {
+    problems.push(
+      `'${ref}' (branch '${i.branch}') is not a well-formed git ref name (git check-ref-format) — refusing to push it to ${targetIds}`,
+    );
+  }
+  const resolves = spawnSync("git", ["-C", i.repoDir, "rev-parse", "--verify", "--quiet", `${ref}^{commit}`], {
+    encoding: "utf8",
+    env: gitEnv,
+  });
+  if (resolves.status !== 0 || resolves.error !== undefined) {
+    problems.push(
+      `${ref} does not resolve to a commit in ${i.repoDir} — remote(s) ${targetIds} cannot be pushed: missing the branch itself (no local ref, detached work tree, or corrupt object store)`,
+    );
+  }
+  for (const leg of i.legs) {
+    if (leg.url.trim() === "") {
+      problems.push(`remote '${leg.target}' has an empty url in border.yaml — missing: the push destination (add url, or drop the entry)`);
+    }
+  }
+  return problems;
 }
