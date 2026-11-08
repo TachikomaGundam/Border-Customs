@@ -22,7 +22,7 @@ import { join } from "node:path";
 import { after, test } from "node:test";
 
 import { run } from "../src/cli.ts";
-import { EXIT_BLOCKED, EXIT_PASS } from "../src/cli/exit.ts";
+import { EXIT_BLOCKED, EXIT_ERROR, EXIT_PASS } from "../src/cli/exit.ts";
 import { computeConfigDigest } from "../src/check/rulesHash.ts";
 import { loadConfig } from "../src/config.ts";
 import { computeFingerprint } from "../src/ledger.ts";
@@ -650,4 +650,19 @@ test("wound 4 boundary: a detached push --yes still mints its failed line (no si
   const row = solo(pushResults(repo), "detached sync run");
   assert.equal(row.verdict, "noop");
   assert.equal(r.code, EXIT_PASS);
+});
+
+test("self-review fix: a non-PushStateError derivation death still mints its failed line (unborn repo)", async () => {
+  const top = scratch("unborn");
+  const repo = join(top, "repo");
+  mkdirSync(repo, { recursive: true });
+  git(repo, ["init", "-q", "-b", "main"]); // zero commits ⇒ gatherContext dies with ConfigError
+  const origin = addBare(top, "origin");
+  const cfgPath = writeCfg(top, [{ name: "origin", url: `file://${origin}` }]);
+  const r = await runBorder(["push", "--yes", "--config", cfgPath], repo, { ...process.env });
+  assert.equal(r.code, EXIT_ERROR);
+  const row = solo(pushResults(repo), "unborn derivation death");
+  assert.equal(row.verdict, "failed");
+  assert.match(row.reason ?? "", /no commits at HEAD/);
+  assert.equal(row.key, undefined, "pre-fingerprint death carries no key, by schema contract");
 });

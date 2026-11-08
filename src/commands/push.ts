@@ -214,6 +214,14 @@ async function executeYesPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExi
       recordOutcome({ verdict: "failed", targets: effectiveTargets, reason: `push-state derivation failed: ${err.message}` });
       return EXIT_ERROR;
     }
+    // Any other derivation death is still a death that must leave a trace
+    // (unborn repo, unreachable registry probe, fingerprint failure) — the
+    // ledger mints first, the run()-level exit-2 mapping stays untouched.
+    recordOutcome({
+      verdict: "failed",
+      targets: effectiveTargets,
+      reason: `push-state derivation failed: ${err instanceof Error ? err.message : String(err)}`,
+    });
     throw err; // ConfigError/EngineRunError keep the run()-level exit-2 mapping
   }
 
