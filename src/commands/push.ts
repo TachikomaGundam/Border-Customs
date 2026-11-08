@@ -19,6 +19,11 @@
 //     fixed: git remotes → npm → PyPI. Every --yes run that reaches push-state
 //     appends exactly one t:"push-result" verdict line (landed/blocked/partial/
 //     failed/noop) — Sibyl ticket 2026-11-08 wound 2; dry-run writes nothing.
+//     A run interrupted by SIGINT/SIGTERM mints its failed line at the next JS
+//     boundary before dying; an uncatchable death (SIGKILL, OOM, power loss)
+//     mints NOTHING — the declared limit of the verdict contract (landed legs
+//     keep their own t:"push" rows; the live state is always re-derivable with
+//     a dry-run `border push`).
 // The DRY_RUN/GIT_PUSH strings live here exactly once (plan grep guard — the
 // todo 16 executor imports these constants, never retypes them).
 import { spawnSync } from "node:child_process";
@@ -198,8 +203,44 @@ async function executeYesPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExi
   let minted = false;
   const recordOutcome = (i: Parameters<typeof buildPushResultRecord>[0]): void => {
     minted = true;
-    appendRecord(repoDir, buildPushResultRecord(i));
+    // Sibyl consult (2026-11-08) last-resort hardening: a verdict line must
+    // never die inside a catch handler. A degenerate empty target list clamps
+    // to a named placeholder instead of throwing out of the mint.
+    appendRecord(repoDir, buildPushResultRecord({ ...i, targets: i.targets.length > 0 ? i.targets : ["unknown"] }));
   };
+  // Sibyl consult must-fix: process death must not vanish either. Catchable
+  // SIGINT/SIGTERM mint exactly one bounded failed line at the next JS
+  // boundary — a signal arriving inside a blocked spawnSync mints when that
+  // spawn returns (the terminal's foreground group kills the git child first;
+  // an external SIGTERM simply defers the mint), then the handler restores
+  // default semantics and re-raises so the exit status stays signal death.
+  // Uncatchable death (SIGKILL, OOM, power loss) is the DECLARED LIMIT named
+  // in the module header and README: landed legs keep their own t:"push"
+  // rows, the run-level verdict is simply absent — the instrument no longer
+  // claims an absolute it cannot make.
+  let derivedKey: string | undefined;
+  const onSignal = (sig: NodeJS.Signals): void => {
+    process.removeListener("SIGINT", onInt);
+    process.removeListener("SIGTERM", onTerm);
+    if (!minted) {
+      try {
+        recordOutcome({
+          ...(derivedKey === undefined ? {} : { key: derivedKey }),
+          verdict: "failed",
+          targets: effectiveTargets,
+          reason: `killed by ${sig} mid-run — verdict never reached; landed legs (if any) keep their own t:"push" rows; rerun 'border push' (no --yes) to see the live state`,
+        });
+      } catch {
+        /* ledger unwritable at death time: nothing left to mint — die as the signal commands */
+      }
+    }
+    process.kill(process.pid, sig);
+  };
+  const onInt = (): void => onSignal("SIGINT");
+  const onTerm = (): void => onSignal("SIGTERM");
+  process.on("SIGINT", onInt);
+  process.on("SIGTERM", onTerm);
+  try {
   let state: PushStateResult;
   try {
     state = await derivePushState({
@@ -210,6 +251,7 @@ async function executeYesPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExi
       env,
       ...(ctx.flags.requireEngine !== undefined && ctx.flags.requireEngine.length > 0 ? { requireOverride: ctx.flags.requireEngine } : {}),
     });
+    derivedKey = state.key;
   } catch (err) {
     if (err instanceof PushStateError) {
       ctx.stderr(`border: ${err.message}`);
@@ -422,5 +464,9 @@ async function executeYesPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExi
       });
     }
     throw err;
+  }
+  } finally {
+    process.removeListener("SIGINT", onInt);
+    process.removeListener("SIGTERM", onTerm);
   }
 }

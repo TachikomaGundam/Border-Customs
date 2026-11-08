@@ -681,3 +681,48 @@ test("self-review F1: an executor throw after derivation mints exactly one faile
   assert.match(row.reason ?? "", /BORDER_PUSH_TIMEOUT_MS/);
   assert.equal(lsRemote(origin, "refs/heads/main"), null, "the death happened before any push spawned");
 });
+
+test("Sibyl consult must-fix: SIGTERM mid-run mints exactly one bounded failed line", async () => {
+  // Child-process test: the pypi probe's fetch against a socket that accepts
+  // but never answers parks the run inside derive (async, event loop free —
+  // the window where a signal handler can actually run). SIGTERM then must
+  // mint exactly one keyless failed line before the process dies of signal.
+  const net = await import("node:net");
+  const { spawn } = await import("node:child_process");
+  const top = scratch("sigterm");
+  const repo = seedRepo(top);
+  writeRel(repo, "pyproject.toml", '[project]\nname = "sigdemo"\nversion = "0.1.0"\n');
+  git(repo, [...ID, "add", "-A"]);
+  git(repo, [...ID, "commit", "-q", "-m", "pyproject"]);
+  const origin = addBare(top, "origin");
+  const blackhole = net.createServer((sock) => {
+    sock.on("data", () => { /* accept and never answer — the probe parks until its fetch budget */ });
+  });
+  await new Promise<void>((res) => blackhole.listen(0, "127.0.0.1", res));
+  const port = (blackhole.address() as { port: number }).port;
+  const cfgPath = join(top, "border-sig.yaml");
+  writeFileSync(
+    cfgPath,
+    ["version: 1", "targets:", "  git:", `    remotes:`, `      - name: origin`, `        url: file://${origin}`, "  pypi:", `    repository: http://127.0.0.1:${port}`, "rules:", "  authors:", "    emails: [bot@gate-corp.com]", "    names: [Wiki.js]", "  hosts: []", "  ips: []", "  pathPatterns: []", "engines:", "  require: []", "  trufflehog: false", ""].join("\n"),
+  );
+  const child = spawn(
+    process.execPath,
+    ["--import", "./tools/register-ts.mjs", "-e", `import("./src/cli.ts").then((m) => m.run(["push","--yes","--config",${JSON.stringify(cfgPath)}], () => {}, () => {}, { cwd: ${JSON.stringify(repo)} }))`],
+    { cwd: process.cwd(), env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" } },
+  );
+  // wait until the probe has connected (parked), then signal.
+  await new Promise<void>((res, rej) => {
+    const t = setTimeout(() => rej(new Error("blackhole never saw a probe connection")), 20_000);
+    blackhole.once("connection", () => {
+      clearTimeout(t);
+      res();
+    });
+  });
+  child.kill("SIGTERM");
+  await new Promise<void>((res) => child.once("exit", () => res()));
+  blackhole.close();
+  const row = solo(pushResults(repo), "SIGTERM death");
+  assert.equal(row.verdict, "failed");
+  assert.match(row.reason ?? "", /killed by SIGTERM/);
+  assert.equal(row.key, undefined, "death during derivation is keyless by schema contract");
+});

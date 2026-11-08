@@ -480,7 +480,11 @@ never from cache:
   the target ids, the branch when known, a bounded url-scrubbed reason, and git's exit code
   when a spawn failure decided the outcome. A refusal or an executor death no longer vanishes
   unrecorded (Sibyl ticket 2026-11-08); DRY-RUN still writes nothing, and the pre-derivation
-  NO-OP (no targets discovered, no fingerprint key yet) keeps its silent contract. Before any
+  NO-OP (no targets discovered, no fingerprint key yet) keeps its silent contract. A run
+  interrupted by SIGINT/SIGTERM mints its `failed` line at the next safe boundary before
+  dying with signal semantics; an uncatchable death (SIGKILL, OOM, power loss) mints
+  nothing — the named limit of the contract: landed legs keep their own push rows and the
+  live state is always re-derivable with a dry-run `border push`. Before any
   push spawns, the branch refspec and every leg url pass a named pre-flight (`git
   check-ref-format`, local resolve, non-empty url) so an unresolvable push dies with the ref,
   the remote(s), and what is missing spelled out — and that refusal is ledged too.
