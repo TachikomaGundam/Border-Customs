@@ -12,7 +12,7 @@ import { test } from "node:test";
 import { parseConfig, type BorderConfig } from "../src/config.ts";
 import { validateFinding } from "../src/findings.ts";
 import { TextSanitizer } from "../src/redact.ts";
-import { IDENTITY_RULE, matchGlob, scanIdentity } from "../src/rules/identity.ts";
+import { IDENTITY_PUBLIC_RULE, IDENTITY_RULE, matchGlob, scanIdentity } from "../src/rules/identity.ts";
 import { gitInit, makeFixtureDir, removeDir, writeRel } from "./helpers/fixtures.ts";
 
 const WIKI = { name: "Wiki.js", email: "bot@gate-corp.com" };
@@ -470,24 +470,129 @@ test("regression: allow-listed first-push adds ZERO new findings", () => {
   }
 });
 
-test("regression: remote already fully has the ref adds no duplicate findings (sha listed exactly once)", () => {
+test("remote already fully has the ref ⇒ INFO identity-already-public (no CRITICAL), sha named exactly once", () => {
   const { top, a } = wikiSeededRemote();
   try {
     const b = cloneOf(top, a);
     const evilSha = commitAs(b, EVE_FP);
     gitRun(b, ["push", "-q", "origin", "main"]);
-    gitRun(b, ["fetch", "-q", "origin"]); // origin/main == main ⇒ rev-list leg is empty
+    gitRun(b, ["fetch", "-q", "origin"]); // remote == local ⇒ nothing new leaves the machine
     const cfg = cfgWithRemote({ emails: ["bot@gate-corp.com"], names: ["Wiki.js"], remotes: [{ name: "origin", url: `file://${a}` }] });
     const findings = scanIdentity({ repoDir: b, refSet: ["refs/heads/main"], cfg });
-    assert.equal(findings.length, 1);
-    const msg = findings[0]?.message ?? "";
+    assert.equal(findings.length, 1, JSON.stringify(findings.map((f) => [f.rule, f.severity])));
+    const f = findings[0] as ReturnType<typeof scanIdentity>[number];
+    assert.equal(f.rule, IDENTITY_PUBLIC_RULE, "an already-public offending identity must land on the INFO rung (2026-11-08 escalation)");
+    assert.equal(f.severity, "INFO");
+    const msg = f.message;
+    assert.ok(!msg.includes("filter-repo"), "INFO rung must NEVER recommend rewriting published history");
     assert.equal(msg.split(evilSha).length - 1, 1, `sha must appear exactly once, got: ${msg}`);
   } finally {
     removeDir(top);
   }
 });
 
-test("unresolvable remote endpoint (named remote never fetched) skips the rev-list leg silently — full history still scanned", () => {
+// ------------------------------------------------- escalation 2026-11-08: exposure class
+
+test("escalation: mixed history — fresh evil commit stays CRITICAL naming ONLY the fresh sha; the public one rides INFO", () => {
+  const { top, a } = wikiSeededRemote();
+  try {
+    const b = cloneOf(top, a);
+    const publicEvil = commitAs(b, EVE_FP);
+    gitRun(b, ["push", "-q", "origin", "main"]);
+    const freshEvil = commitAs(b, EVE_FP);
+    const cfg = cfgWithRemote({ emails: ["bot@gate-corp.com"], names: ["Wiki.js"], remotes: [{ name: "origin", url: `file://${a}` }] });
+    const findings = scanIdentity({ repoDir: b, refSet: ["refs/heads/main"], cfg });
+    const critical = findings.filter((f) => f.rule === IDENTITY_RULE);
+    const info = findings.filter((f) => f.rule === IDENTITY_PUBLIC_RULE);
+    assert.equal(critical.length, 1, JSON.stringify(findings.map((f) => [f.rule, f.severity])));
+    assert.equal(critical[0]?.severity, "CRITICAL");
+    assert.ok(critical[0]?.message.includes(freshEvil), "CRITICAL must name the fresh sha");
+    assert.ok(!(critical[0]?.message ?? "").includes(publicEvil), "CRITICAL must NOT convict the already-public commit");
+    assert.ok(critical[0]?.message.includes("filter-repo"), "remediation advice stays legitimate for un-public history");
+    assert.equal(info.length, 1);
+    assert.ok(info[0]?.message.includes(publicEvil));
+    assert.ok(!(info[0]?.message ?? "").includes("filter-repo"), "INFO rung never recommends history rewrites");
+  } finally {
+    removeDir(top);
+  }
+});
+
+test("escalation: unreachable remote WITH offenders throws — the exposure class is never guessed", () => {
+  const dir = newRepo();
+  try {
+    commitAs(dir, EVIL);
+    const cfg = cfgWithRemote({ emails: ["bot@gate-corp.com"], names: ["Wiki.js"], remotes: [{ name: "origin", url: "file:///does-not-exist-xyz.git" }] });
+    assert.throws(
+      () => scan(dir, ["main"], cfg),
+      /unreachable|cannot be decided/,
+      "offenders + unreachable remote must fail closed (exit 2), never convict-or-pass by guessing",
+    );
+  } finally {
+    removeDir(dir);
+  }
+});
+
+test("escalation: clean history with an unreachable remote NEVER touches the network (seam must not be called)", () => {
+  const dir = newRepo();
+  try {
+    commitAs(dir, WIKI);
+    const cfg = cfgWithRemote({ emails: ["bot@gate-corp.com"], names: ["Wiki.js"], remotes: [{ name: "origin", url: "file:///" }] });
+    const findings = scanIdentity({
+      repoDir: dir,
+      refSet: ["main"],
+      cfg,
+      lsRemote: () => {
+        throw new Error("SEAM-CALLED");
+      },
+    });
+    assert.deepEqual(findings, []);
+  } finally {
+    removeDir(dir);
+  }
+});
+
+test("escalation: remote never had the ref ⇒ whole walk fresh (first-push CRITICAL unchanged)", () => {
+  const dir = newRepo();
+  try {
+    const evil = commitAs(dir, EVIL);
+    const cfg = cfgWithRemote({ emails: ["bot@gate-corp.com"], names: ["Wiki.js"], remotes: [{ name: "origin", url: "file:///" }] });
+    const findings = scanIdentity({
+      repoDir: dir,
+      refSet: ["main"],
+      cfg,
+      lsRemote: () => new Map(), // live remote answers: no refs at all
+    });
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0]?.rule, IDENTITY_RULE);
+    assert.ok(findings[0]?.message.includes(evil));
+  } finally {
+    removeDir(dir);
+  }
+});
+
+test("escalation: annotated tag the remote already holds exactly ⇒ INFO; a local-only tag object stays CRITICAL", () => {
+  const { top, a } = wikiSeededRemote();
+  try {
+    const b = cloneOf(top, a);
+    tagAs(b, "v-public", EVIL);
+    gitRun(b, ["push", "-q", "origin", "v-public"]);
+    tagAs(b, "v-local", EVIL);
+    const cfg = cfgWithRemote({ emails: ["bot@gate-corp.com"], names: ["Wiki.js"], remotes: [{ name: "origin", url: `file://${a}` }] });
+    const findings = scanIdentity({ repoDir: b, refSet: ["refs/heads/main", "refs/tags/v-public", "refs/tags/v-local"], cfg });
+    const critical = findings.filter((f) => f.rule === IDENTITY_RULE);
+    const info = findings.filter((f) => f.rule === IDENTITY_PUBLIC_RULE);
+    assert.equal(critical.length, 1, JSON.stringify(findings.map((f) => [f.rule, f.severity])));
+    assert.ok(critical[0]?.message.includes("refs/tags/v-local"), "local-only evil tag object must stay CRITICAL");
+    assert.ok(!(critical[0]?.message ?? "").includes("refs/tags/v-public"), "the remote-held tag object must not ride the CRITICAL rung");
+    assert.equal(info.length, 1);
+    assert.ok(info[0]?.message.includes("refs/tags/v-public"));
+  } finally {
+    removeDir(top);
+  }
+});
+
+
+test("live endpoint truth is remote-based, not tracking-ref-based: differently-named remote still yields first-push CRITICAL", () => {
   const { top, a } = wikiSeededRemote();
   try {
     const b = cloneOf(top, a); // tracking refs exist only under `origin`, never under `a`

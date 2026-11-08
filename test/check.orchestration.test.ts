@@ -275,7 +275,10 @@ test("pipeline builds the Report per schema: key/digests/counts/exposure/refSet/
 test("native identity rule runs in the pipeline: disallowed commit author ⇒ identity-not-allowlisted (after engine legs)", async () => {
   const dir = fixture("identity");
   gitInit(dir);
-  writeRel(dir, "border.yaml", borderYamlFor("file:///x/origin.git"));
+  // a real EMPTY bare: live ls-remote answers "no refs" ⇒ first push, the whole walk
+  // is fresh and the CRITICAL rung must fire (2026-11-08 exposure-class semantics).
+  writeRel(dir, "border.yaml", borderYamlFor(`file://${dir}/origin.git`));
+  git(dir, ["init", "-q", "--bare", "-b", "main", "origin.git"]);
   writeRel(dir, "code.js", "export const a = 1;\n");
   git(dir, ["add", "-A"]);
   git(dir, ["-c", "user.name=Mallory", "-c", "user.email=mallory@evil.test", "commit", "-q", "-m", "sneaky"]);
@@ -458,4 +461,64 @@ test("CLI: unknown --targets value relative to config exits 2 with a config-erro
   const r = await runCli(["check", "--targets", "npm"], dir);
   assert.equal(r.code, EXIT_ERROR);
   assert.match(r.err.join("\n"), /not configured/i);
+});
+
+// ------------------------------------------------ escalation 2026-11-08 end-to-end
+
+test("escalation e2e: offending identity ALREADY PUBLIC on the remote ⇒ INFO rung, verdict PASS (the Sibyl scenario)", async () => {
+  // cfgFor(repoDir) pins the remote at <repoDir>/origin.git — the bare lives INSIDE
+  // the work repo and is .gitignored to stay out of the status digest.
+  const work = fixture("esc-public");
+  gitInit(work);
+  writeRel(work, ".gitignore", "origin.git/\n");
+  writeRel(work, "code.js", "export const a = 1;\n");
+  gitAddCommit(work, "seed");
+  git(work, ["init", "-q", "--bare", "-b", "main", "origin.git"]);
+  git(work, ["push", "-q", "./origin.git", "main"]);
+  writeRel(work, "more.js", "export const b = 2;\n");
+  git(work, ["add", "-A"]);
+  git(work, ["-c", "user.name=Mallory", "-c", "user.email=mallory@evil.test", "commit", "-q", "-m", "merge-shape, PR-published"]);
+  git(work, ["push", "-q", "./origin.git", "main"]); // the offending commit is now the remote tip — public
+  const outcome = await runPipeline(work);
+  const critical = outcome.report.findings.filter((f) => f.rule === "identity-not-allowlisted");
+  const info = outcome.report.findings.filter((f) => f.rule === "identity-already-public");
+  assert.equal(critical.length, 0, `zero new exposure must mean zero CRITICAL: ${JSON.stringify(outcome.report.findings.filter((f) => f.severity === "CRITICAL").map((f) => f.rule))}`);
+  assert.equal(info.length, 1);
+  assert.ok(!info[0]?.message.includes("filter-repo"), "must never advise rewriting published history");
+  assert.equal(outcome.report.verdict, "PASS");
+});
+
+test("escalation e2e: same history PLUS a fresh unpushed Mallory commit ⇒ FAIL, CRITICAL names only the fresh sha", async () => {
+  const work = fixture("esc-fresh");
+  gitInit(work);
+  writeRel(work, ".gitignore", "origin.git/\n");
+  writeRel(work, "code.js", "export const a = 1;\n");
+  gitAddCommit(work, "seed");
+  git(work, ["init", "-q", "--bare", "-b", "main", "origin.git"]);
+  writeRel(work, "more.js", "export const b = 2;\n");
+  git(work, ["add", "-A"]);
+  git(work, ["-c", "user.name=Mallory", "-c", "user.email=mallory@evil.test", "commit", "-q", "-m", "public-evil"]);
+  git(work, ["push", "-q", "./origin.git", "main"]);
+  writeRel(work, "even-more.js", "export const c = 3;\n");
+  git(work, ["add", "-A"]);
+  git(work, ["-c", "user.name=Mallory", "-c", "user.email=mallory@evil.test", "commit", "-q", "-m", "fresh-evil"]);
+  const freshSha = git(work, ["rev-parse", "HEAD"]).trim();
+  const outcome = await runPipeline(work);
+  const critical = outcome.report.findings.filter((f) => f.rule === "identity-not-allowlisted");
+  assert.equal(critical.length, 1);
+  assert.ok(critical[0]?.message.includes(freshSha), "CRITICAL must name the fresh commit");
+  assert.equal(outcome.report.verdict, "FAIL", "fail-closed must survive the escalation: new exposure still blocks");
+});
+
+test("escalation e2e: .gitignore'd untracked evidence never blocks; the SAME bytes tracked do", async () => {
+  const planted = randAwsPair();
+  const ignored = checkRepo("esc-ignored", { ".gitignore": "/evidence/\n", "evidence/run-1/gate.log": planted.text });
+  const outcome = await runPipeline(ignored);
+  const evidence = outcome.report.findings.filter((f) => (f.path ?? "").includes("evidence/"));
+  assert.ok(evidence.length >= 1, "the planted pair must stay VISIBLE as an INFO row, never silently dropped");
+  assert.ok(evidence.every((f) => f.severity === "INFO"), `ignored+untracked rows must all be INFO: ${JSON.stringify(evidence.map((f) => [f.rule, f.severity]))}`);
+  assert.equal(outcome.report.verdict, "PASS", "unpushable bytes must never block the push gate");
+  const tracked = checkRepo("esc-tracked", { "src/gate.log": planted.text });
+  const blocked = await runPipeline(tracked);
+  assert.equal(blocked.report.verdict, "FAIL", "identical bytes on the pushable surface must still block");
 });

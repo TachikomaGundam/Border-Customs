@@ -32,6 +32,7 @@ import { BUILD_WITHHELD_RULE, type BuildConsent } from "./check/buildConsent.ts"
 import { sandboxBindingJoin } from "./artifacts/sandbox.ts";
 import type { DockerExec } from "./roundtrip/docker.ts";
 import { filterBorderStateFindings, suppressGateConfigPathPatterns } from "./check/exclusions.ts";
+import { demoteIgnoredUntracked } from "./check/ignoredSurface.ts";
 import { acquireLock, BORDER_STATE_DIR, releaseLock } from "./check/lock.ts";
 import { scanExfilTree } from "./check/exfilTreeScan.ts";
 import { scanTipTreeLens } from "./check/tipTreeLens.ts";
@@ -186,7 +187,8 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
   // T2/T3 exfil lens (plan §分面契约): the native tree leg carries the MEDIUM
   // family on the blob face (the HIGH family's tree face belongs to the twins
   // above), and the message leg scans `exfil-*:message` over the will-publish
-  // range (endpoint unresolvable ⇒ whole ref, identity.ts:144-146). BOTH ride
+  // range (endpoint unresolvable ⇒ whole ref — the same first-time-exposure policy the
+  // identity module header states). BOTH ride
   // with the native rules OUTSIDE the broken.has gates — "native 腿不吃引擎
   // 健康守卫": a degraded engine may never silence them.
   findings.push(...filterBorderStateFindings(scanExfilTree({ repoDir, hosts: o.cfg.rules.hosts, ...legOptions(o, sanitizer) }), repoDir));
@@ -232,6 +234,15 @@ async function runPipeline(o: CheckPipelineOptions, ctx: CheckContext, lockWarni
       findings.push(f);
     }
   }
+
+  // IGNORED-SURFACE DEMOTION (2026-11-08 owner escalation): tree-facet findings on
+  // .gitignore'd AND untracked paths demote to INFO with a named note — `git add`
+  // honours .gitignore, so those bytes provably never reach a push and a blocking
+  // verdict on them trains operators to mute the gate. History findings (commit-carrying),
+  // tip-tree findings (tracked by construction) and artifact findings (channel targets)
+  // are untouched: a committed blob is push surface forever. Tracked-but-ignored stays
+  // fully blocking. See src/check/ignoredSurface.ts for the full safety case.
+  demoteIgnoredUntracked(findings, repoDir, o.env !== undefined ? { env: o.env } : {});
 
   // GAP B (todos 11+12 wired end-to-end): packed/built bytes are scanned HERE, in
   // the full-check path only — the SKIP path consults the ledger before executeCheck,

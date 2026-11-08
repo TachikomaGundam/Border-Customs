@@ -25,6 +25,18 @@ published CLI, because the identity handshake verifies identity but never versio
   per run.
 - FIX: `border status` prints its own `engine:` identity line (the usage table promised engine
   versions since 0.8.0 without printing them).
+- FIX (owner escalation 2026-11-08, blocking-class factual misreport): identity exposure claims
+  are now computed against LIVE `git ls-remote` endpoints, never the full local walk or stale
+  remote-tracking refs. Offenders already public on a remote ride the new INFO
+  `identity-already-public` rung (no remediation advice — rewriting published history is pure
+  damage); only objects leaving the machine for the FIRST time keep the CRITICAL rung with its
+  filter-repo advice. Offenders + unreachable remote THROWS (exit 2): the exposure class is
+  never guessed. First-push and no-remote semantics unchanged.
+- FIX (owner escalation 2026-11-08, scope): tree-facet findings on .gitignore'd AND untracked
+  paths demote to INFO with a named note — `git add` honours .gitignore, so those bytes can
+  never reach a push, and blocking on them trains users to mute the gate (Sibyl's own tool
+  evidence tree produced 26 such CRITICALs). Committed blobs, tip-tree bytes and artifact
+  targets are untouched; tracked-but-ignored stays fully blocking; the allow-list is unchanged.
 - DOC: `docs/release/v0.8.4.md` named doc-only statement with a third-party byte-diff recipe;
   README contract sync + owner-approved pinned-consumption clarification (2026-11-06).
 

@@ -64,6 +64,7 @@ function cfgFor(o: {
   readonly npmRegistry?: string;
   readonly pypiRepository?: string;
   readonly emails?: readonly string[];
+  readonly names?: readonly string[];
   readonly remotes?: readonly string[];
 }): BorderConfig {
   return {
@@ -74,7 +75,7 @@ function cfgFor(o: {
       ...(o.pypiRepository === undefined ? {} : { pypi: { repository: o.pypiRepository } }),
     },
     rules: {
-      authors: { emails: [...(o.emails ?? [])], names: [] },
+      authors: { emails: [...(o.emails ?? [])], names: [...(o.names ?? [])] },
       hosts: [],
       ips: [],
       pathPatterns: [],
@@ -350,7 +351,11 @@ function cliYaml(registry: string): string {
 test("executeCheck: npm target configured ⇒ probes join the report; present version ⇒ verdict FAIL", async () => {
   const s = await stub([{ path: "/widgets", body: PACKUMENT_WIDGETS_100 }]);
   const dir = trackedRepo("pipeline", { "package.json": PKG_JSON, "border.yaml": cliYaml(s.url) });
-  const cfg = cfgFor({ npmRegistry: s.url, emails: ["alice@self.example"] });
+  // the fixture commits as gitInit's Wiki.js/bot@gate-corp.com — allowlist it so
+  // the identity leg has zero offenders and this test stays a REGISTRY probe test
+  // (post escalation 2026-11-08 offenders + the unreachable origin.example stub
+  // would fail closed with exit 2 before the registry verdict could be asserted).
+  const cfg = cfgFor({ npmRegistry: s.url, emails: ["alice@self.example", "bot@gate-corp.com"], names: ["Wiki.js"] });
   const { report } = await executeCheck({
     consent: CONSENT,
     repoDir: dir,

@@ -49,12 +49,11 @@ import { allChannels, publishChannels, type ChannelId, type PublishChannelId } f
 import { sanitizeUrl } from "./redact.ts";
 import { gitTargetId } from "./gitTargetId.ts";
 
-/** Exit-2 class (same shape as BorderLockHeldError): a git probe that cannot
- *  answer fails closed naming the target; the CLI maps exitCode. */
-export class PushStateError extends Error {
-  readonly exitCode: 2 = 2;
-  override readonly name = "PushStateError";
-}
+/** Exit-2 class + the ls-remote parser live in src/lsremote.ts (a cycle-free
+ *  leaf shared with rules/identity.ts since 2026-11-08); re-exported here so
+ *  every existing importer keeps resolving them from this module. */
+export { PushStateError, parseLsRemote, SHA_SHAPE } from "./lsremote.ts";
+import { PushStateError, parseLsRemote } from "./lsremote.ts";
 
 // Derived from the channel registry (todo C2): "git" plus every registered
 // publish channel id — the same set computeEffectiveTargets and the CLI accept.
@@ -95,27 +94,6 @@ export type PushStateOptions = {
   /** Test seam forwarded to the todo-13 pypi leg (production = global fetch). */
   readonly fetcher?: RegistryProbeOptions["fetcher"];
 };
-
-const SHA_SHAPE = /^[0-9a-f]{40}$|^[0-9a-f]{64}$/;
-
-/** Parse `git ls-remote` stdout (`sha \t ref` lines) fail-closed: any malformed
- *  line throws naming the target — garbage output is never read as "equal". */
-export function parseLsRemote(text: string, targetId: string): Map<string, string> {
-  const out = new Map<string, string>();
-  for (const line of text.split("\n")) {
-    if (line.trim() === "") continue;
-    const fields = line.split("\t");
-    const sha = fields[0];
-    const ref = fields[1];
-    // HEAD is the one legit non-refs/ line git emits; it is never in refSet.
-    const shapeOk = fields.length === 2 && sha !== undefined && SHA_SHAPE.test(sha) && (ref === "HEAD" || (ref !== undefined && ref.startsWith("refs/")));
-    if (!shapeOk) {
-      throw new PushStateError(`target '${targetId}': malformed 'git ls-remote' output line '${line.slice(0, 72)}' — refusing to interpret (fail closed)`);
-    }
-    if (ref !== "HEAD") out.set(ref, sha);
-  }
-  return out;
-}
 
 /** Local refSet → commit map; annotated tags resolve through %(*objectname). */
 function localRefCommits(repoDir: string, refSet: readonly string[], env: NodeJS.ProcessEnv): Map<string, string> {

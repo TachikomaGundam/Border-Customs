@@ -128,6 +128,12 @@ test("push on a clean fixture: real gate runs from dist (assets resolve), dry-ru
   const fx = makeRemoteFixture();
   try {
     writeRel(fx.work, "border.yaml", borderYaml([{ name: "origin", url: fx.bare }]));
+    // an UNPUSHED commit by the non-allowlisted fixture author: post escalation
+    // 2026-11-08 the already-pushed init commit rides the INFO rung (it is public),
+    // so the CRITICAL that must block here comes from fresh exposure only.
+    writeRel(fx.work, "fresh.js", "export const fresh = 1;\n");
+    gitIn(fx.work, fx.work, ["add", "-A"]);
+    gitIn(fx.work, fx.work, ["-c", "user.name=Wiki.js", "-c", "user.email=bot@gate-corp.com", "commit", "-q", "-m", "unpushed"]);
     const before = gitIn(fx.root, fx.bare, ["rev-parse", "main"]);
     const r = runDist(["push"], fx.work);
     assert.match(r.stdout, /DRY-RUN/);

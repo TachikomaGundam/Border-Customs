@@ -63,7 +63,11 @@ pushed" includes the six things people forget:
 
 - **Untracked and dirty files are inputs too.** History scanning alone misses the `.env`
   that was never committed but will ride along in a `git add -A`. border fingerprints the
-  full `git status --porcelain` digest and scans the working tree directly.
+  full `git status --porcelain` digest and scans the working tree directly. One carve-out is
+  provably unpushable and demoted to INFO (never silently dropped): paths that are
+  `.gitignore`'d **and** untracked — `git add` honours `.gitignore`, so they can only reach a
+  commit through a deliberate `git add -f`, which moves them into the tracked surface where
+  the full gate applies. Blocking on them would train operators to mute the gate.
 - **Deleted-but-pushed blobs.** A secret removed in a later commit still ships in the
   history of the ref being pushed. The history leg scans everything the push would
   transmit, not just HEAD.
@@ -133,9 +137,13 @@ it, and the two registry-facing legs (pre-flight and publish) both have to agree
    (`.omo/**`, `**/transcripts/**`, `*.session.jsonl`, `opencode.json(c)`, `.opencode/**`,
    env files except `.env.example`/`.env.sample`, junk like `probe*`/`*.rej`/
    `node_modules/**`, plus your `rules.pathPatterns` through the same compiler). Identity
-   allow-listing over commit authors, merge committers, and annotated-tag taggers, checked
-   against the history of every ref *and* against the object set a remote does not already
-   have (the transmit set). Oversized-file, checked-in-binary, and notebook-output rules
+   allow-listing over commit authors, merge committers, and annotated-tag taggers, split by
+   *exposure class* against each configured remote's **live** `git ls-remote` (never a stale
+   local tracking ref): objects leaving the machine for the first time are CRITICAL
+   `identity-not-allowlisted`; offenders the remote already carries everywhere are recorded as
+   INFO `identity-already-public` without remediation — border never advises rewriting
+   published history. Offenders plus an unreachable remote exit 2 (the exposure class is
+   never guessed); no configured remote means first-push semantics (all fresh). Oversized-file, checked-in-binary, and notebook-output rules
    round it out.
 7. **Landing-grade tip lens.** The exact machinery `border push` uses to verify a landing
    (`scanTipTree`: the tip tree materialized from git objects into a throwaway directory,
