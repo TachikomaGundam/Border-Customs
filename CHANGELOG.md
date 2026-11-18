@@ -4,7 +4,7 @@ Per-version history with the motivating incident for each release.
 The README carries the current contract; this file carries the history.
 
 
-### 0.8.6 (unreleased)
+### 0.8.6 (2026-11-18)
 
 Push-path forensics from the Sibyl release wheel 2026-11-08. The owner's Sibyl `border.yaml`
 carried the defect's own confession — an allowlist workaround annotated "Workaround for a
