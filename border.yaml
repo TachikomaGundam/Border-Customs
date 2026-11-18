@@ -135,6 +135,18 @@ allow:
   # (repo-self-ignores-findings) still guards this file independently.
   - { rule: "@secretlint/secretlint-rule-no-homedir/*", match: "*", file: "border.yaml" }
   - { rule: "path-pattern:*", match: "*", file: "border.yaml" }
+  # (c, dogfood-waiver 2026-11-18) the v0.8.5 release receipt itself: its
+  # human-execution section quotes the maintainer's absolute `cd` command line.
+  # The receipt predates the rule's reach (gate ran on the pre-receipt tree;
+  # CONTRIBUTING forbids rewriting release receipts) and the tip has carried
+  # the conviction since 56c5aa3 — CI clean-room red since 2026-11-08, local
+  # self-check red since the first full-tree run. Path-PRIVACY rules only,
+  # pinned to the exact file and the two firing rule families; every secret-
+  # shaped rule still fires on it. Future receipts must use the TEMPLATE's
+  # <repo-root> placeholder (hardened 2026-11-18) — new receipts never re-arm
+  # this waiver, which is why the file is pinned, not docs/release/**.
+  - { rule: "path-pattern:/home/[a-z]+/", match: "*", file: "docs/release/v0.8.5.md" }
+  - { rule: "@secretlint/secretlint-rule-no-homedir/*", match: "*", file: "docs/release/v0.8.5.md" }
   # (c, twin) secretlint's no-homedir view of the workspace-path detector the
   # (c) block already sanctions for "docs, planning evidence, engine reports".
   # The two contract docs quote REAL execution evidence verbatim (readlink
