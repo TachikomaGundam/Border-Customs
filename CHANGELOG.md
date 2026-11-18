@@ -43,6 +43,14 @@ death. Design: `docs/design/push-outcome-accounting-20261108.md`.
   exit 0.
 - FIX: `border push` dry-run now prints the detached-HEAD warning `--yes` already refused on,
   so the plan never shows a line `--yes` would refuse to run.
+- FIX (dogfood self-conviction, found by the 0.8.6 gate run): the v0.8.5 receipt's
+  human-execution section quotes a machine-absolute `cd` path, so the path-privacy rules
+  (`path-pattern:/home/[a-z]+/`, secretlint no-homedir) convicted the immutable record —
+  CI clean-room red on every main push since 2026-11-08 (runs 42500708090, 43716159168
+  named; the push receipts of that day verified the landing ref, never CI green: named
+  receipt gap). Receipts are records and are never rewritten, so the fix is a file-pinned,
+  rule-pinned allowlist pair in border.yaml (secret-shaped rules keep full strength on the
+  file) plus a TEMPLATE.md hard rule: future receipts keep the `<repo-root>` placeholder.
 - TESTS: pushstate INFO-only repro (Sibyl shape: published offender + fresh tag, zero new
   objects) + mixed-rung counting; CLI repro lands the Sibyl wheel; dry-run ledger silence;
   blocked/noop/partial(+gitExit)/moved-tag rows; preflight naming; probesOk + named exit 2;
