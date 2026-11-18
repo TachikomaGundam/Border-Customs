@@ -188,3 +188,32 @@ archive clone cannot resolve any pre-scrub tip (cat-file fatal, post reflog-expi
 gc-prune); all rewrite instrument clones destroyed; repository working tree contains
 zero files with banned literals; npm tarballs of all published versions verified free
 of machine paths; sentry workflow asserts the branch guard every 15 minutes.
+
+## History scrub disclosure — row 2 (stale-branch and legacy-tag reachability closed 2026-11-18; rows 1/1a/1b stand as written)
+
+**Finding (owner forensics 2026-11-08; machine audits 2026-11-09, 2026-11-16, 2026-11-18)**:
+the 2026-11-04 scrub rewrote `main`; two ref classes still pointed into pre-scrub history.
+(a) Eight stale dependabot branch tips (closed-PR orphans from 2026-11-01/02) each froze
+431–432 process-file paths (`.omo/**`, `handoffs/**`) readable in plain branch browsing.
+(b) Thirteen version tags (`v0.3.0`–`v0.8.1`) still carried pre-scrub trees with 400+ such
+paths per tag. An interim audit had reported tags clean; that report was wrong — its
+reachability loop ran against an incomplete object fetch and suppressed per-ref errors.
+The corrected method (full fetch, per-ref loop, non-zero commit-count self-proof) produced
+the numbers above.
+
+**Remediation (owner instruction; executed and machine-verified)**: the eight poisoned
+branches plus one clean campaign-remnant branch were deleted from the remote on
+2026-11-16/17; the thirteen legacy tags were deleted on 2026-11-18. Post-deletion audit
+against a fresh full clone on 2026-11-18 enumerated every live ref — `main`, all current
+dependabot branches, open PR head refs #10–#14, and both surviving tags (`v0.8.4`,
+`v0.8.5`) — and measured zero reachable process-file paths on each.
+
+**Residual (extends the row 1b doctrine)**: thirty-five named objects remain server-side,
+unreachable from any live ref: nine closed-PR frozen head commits (`refs/pull/1..9/head`),
+thirteen former tag targets, nine discarded annotated-tag objects, and four remnants of two
+locally-deleted ghost tags. Unreachable objects may remain readable by exact SHA until the
+platform's own maintenance removes them; the platform offers no owner-side purge channel.
+A purge request naming all thirty-five objects has been submitted to platform support.
+Platform-side erasure is not guaranteed; this row stays open until a platform response
+arrives. Content class per the independent audit: paths, hostnames, LAN addresses, session
+transcripts — no credentials.
