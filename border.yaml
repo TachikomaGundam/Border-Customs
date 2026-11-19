@@ -39,9 +39,23 @@ rules:
       # keep email-private ON so new web-API commits use the noreply alias; if
       # history is ever re-rewritten to noreply-only, this line comes out.
       - "TachikomaGundam@hotmail.com"
+      # 2026-11-19: the two PLATFORM-generated identities, sanctioned on the same
+      # doctrine as the lines above (public at the moment GitHub minted the
+      # object — stating the fact, not creating the exposure). First dependabot
+      # merge into main (PR#15) armed this: the merge commit 5eb2dff and the
+      # dependabot commit ce4fa3d carry committer 'GitHub <noreply@github.com>'
+      # (gh pr merge / GitHub web merge path) and author
+      # 'dependabot[bot] <49699333+…>' respectively. Machine identities only —
+      # no human address is sanctioned here; every real person still needs a
+      # ruling to enter this list. Forensics: CI run 44480634312 (main red on
+      # exactly these two findings).
+      - "noreply@github.com"
+      - "49699333+dependabot[bot]@users.noreply.github.com"
     names:
       - "Wiki.js"
       - "TachikomaGundam"
+      - "GitHub"
+      - "dependabot[bot]"
   hosts: []
   ips: []
   # The repo's own absolute path must never leak outward: every occurrence of
