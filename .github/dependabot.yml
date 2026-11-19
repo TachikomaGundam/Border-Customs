@@ -5,6 +5,17 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # verdaccio 7 is a deliberate exclusion, not an oversight: the npm-push E2E
+    # harness pins server behavior validated on 6.10.2 (test file header:
+    # "REAL pinned devDependency verdaccio 6"). PR#14's 7.1.1 bump broke all 7
+    # registry E2E legs — node 24: E401 to the anonymous absent-version probe
+    # (border's probe is correct to fail closed on it); node 22: v7 hard-fails
+    # the Node>=24 startup guard. Major migration is a seat project with its
+    # own plan (log-config format, probe semantics, matrix floor); minors and
+    # patches within 6.x still flow.
+    ignore:
+      - dependency-name: verdaccio
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: "deps"
     groups:

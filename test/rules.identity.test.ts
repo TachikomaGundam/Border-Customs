@@ -199,7 +199,7 @@ test("AC3: annotated tag with violating tagger fires CRITICAL naming the refname
     const findings = scan(dir, ["main"], CLEAN_CFG);
     assert.equal(findings.length, 1);
     const f = findings[0];
-    assert.ok(f?.message.includes("refs/tags/v1.0.0"), f?.message);
+    assert.ok(f?.message.includes("refs/tags/v1.0.0"), "finding message must name the tag ref");
     assert.ok(f?.message.includes("evil@personal.example"));
     assert.ok(f?.message.includes("tagger"), "role label must say tagger");
   } finally {
@@ -230,7 +230,7 @@ test("AC4: merge commits check the committer only (bad author passes, bad commit
     const findings = scan(dir, ["main"], CLEAN_CFG);
     assert.equal(findings.length, 1);
     assert.ok(findings[0]?.message.includes(mergeSha));
-    assert.ok(findings[0]?.message.includes("committer of"), findings[0]?.message);
+    assert.ok(findings[0]?.message.includes("committer of"), "evil must appear as committer with role label");
     assert.ok(!findings[0]?.message.includes("author of"), "evil must appear as committer of the merge only");
   } finally {
     removeDir(dir);
@@ -310,7 +310,7 @@ test("email patterns match case-insensitively; names are case-sensitive by desig
     commitAs(dir, { name: "wiki.js", email: "bot@gate-corp.com" }); // wrong-case NAME
     const findings = scan(dir, ["main"], lc);
     assert.equal(findings.length, 1, "names are compared case-sensitively");
-    assert.ok(findings[0]?.message.includes("wiki.js"), findings[0]?.message);
+    assert.ok(findings[0]?.message.includes("wiki.js"), "blocked-ref finding message must name wiki.js");
   } finally {
     removeDir(dir);
   }
