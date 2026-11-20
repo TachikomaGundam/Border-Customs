@@ -28,6 +28,18 @@ updates:
       # and patches within 5.x still flow.
       - dependency-name: typescript
         update-types: ["version-update:semver-major"]
+      # @secretlint/* 13->14 holds for PR#19/#20 (runs 44680708228/44680749075):
+      # static-gate TS2375 at src/engines/secretlint.ts:211 — core@14 resolves
+      # its SecretLintCoreConfig through a nested @secretlint/types copy while
+      # the hoisted types (preset line) stay 13, and exactOptionalPropertyTypes
+      # refuses the two structurally-equal-but-distinct identities. Upstream
+      # blocker: @secretlint/secretlint-rule-preset-recommend has NO 14 release
+      # (npm view = 13.1.0, probed 2026-11-20), so the family cannot align.
+      # Revisit when preset-recommend ships 14; 13.x minors still flow.
+      - dependency-name: "@secretlint/core"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@secretlint/secretlint-rule-no-homedir"
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: "deps"
     groups:
