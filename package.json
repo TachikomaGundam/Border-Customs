@@ -39,7 +39,7 @@
     "@secretlint/secretlint-rule-no-dotenv": "13.0.5",
     "@secretlint/secretlint-rule-no-homedir": "13.0.5",
     "@secretlint/secretlint-rule-preset-recommend": "13.1.0",
-    "@textlint/regexp-string-matcher": "2.0.2",
+    "@textlint/regexp-string-matcher": "2.0.4",
     "publint": "0.3.24",
     "typescript": "5.9.3",
     "yaml": "2.9.1",
