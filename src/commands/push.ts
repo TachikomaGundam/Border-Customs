@@ -16,17 +16,26 @@
 //     remotes (todo 16: a diverged backup protects origin too), then pushes
 //     each pending remote with `stdio: inherit` (border touches no creds) and
 //     appends one push-record per confirmed success. Cross-target order is
-//     fixed: git remotes → npm → PyPI.
+//     fixed: git remotes → npm → PyPI. Every --yes run that reaches push-state
+//     appends exactly one t:"push-result" verdict line (landed/blocked/partial/
+//     failed/noop) — Sibyl ticket 2026-11-08 wound 2; dry-run writes nothing.
+//     A run interrupted by SIGINT/SIGTERM mints its failed line at the next JS
+//     boundary before dying; an uncatchable death (SIGKILL, OOM, power loss)
+//     mints NOTHING — the declared limit of the verdict contract (landed legs
+//     keep their own t:"push" rows; the live state is always re-derivable with
+//     a dry-run `border push`).
 // The DRY_RUN/GIT_PUSH strings live here exactly once (plan grep guard — the
 // todo 16 executor imports these constants, never retypes them).
+import { spawnSync } from "node:child_process";
+
 import { computeEffectiveTargets, resolveRepoDir } from "../check/context.ts";
 import { computeConfigDigest, type LoadedConfig } from "../check/rulesHash.ts";
 import { EXIT_BLOCKED, EXIT_ERROR, EXIT_PASS, type BorderExit } from "../cli/exit.ts";
 import type { Ctx } from "../cli/types.ts";
 import { loadConfig, remoteTrackingDrift } from "../config.ts";
-import { computeFingerprint, latestPassCoveringTargets, readLedger } from "../ledger.ts";
+import { appendRecord, buildPushResultRecord, computeFingerprint, latestPassCoveringTargets, readLedger } from "../ledger.ts";
 import { derivePushState, formatTargetLine, pushableTargets, recordPushSuccess, PushStateError, type PushStateResult } from "../pushstate.ts";
-import { confirmRemoteBranch, DIVERGED_MESSAGE, executePush, fastForwardGuard, type GitRemoteTarget } from "../push/git.ts";
+import { confirmRemoteBranch, DIVERGED_MESSAGE, executePush, fastForwardGuard, preflightPushRefs, type GitRemoteTarget } from "../push/git.ts";
 import { runLandingVerification } from "../push/landing.ts";
 import { publishChannels } from "../channels/registry.ts";
 import { sanitizeUrl } from "../redact.ts";
@@ -50,6 +59,18 @@ function shortSha(sha: string): string {
   return sha.slice(0, 8);
 }
 
+/** symbolic-ref answers 1 ⇔ detached HEAD; every other failure (outside a
+ *  repo, git missing) is NOT claimed as detached — the check leg owns those. */
+function isDetachedHead(ctx: Ctx): boolean {
+  try {
+    const repoDir = resolveRepoDir(ctx.cwd, { env: ctx.env });
+    const r = spawnSync("git", ["-C", repoDir, "symbolic-ref", "--quiet", "HEAD"], { encoding: "utf8", env: ctx.env });
+    return r.error === undefined && r.status === 1;
+  } catch {
+    return false;
+  }
+}
+
 export async function runPush(ctx: Ctx): Promise<BorderExit> {
   const loaded = loadConfig({
     ...(ctx.flags.config !== undefined ? { configPath: ctx.flags.config } : {}),
@@ -60,9 +81,26 @@ export async function runPush(ctx: Ctx): Promise<BorderExit> {
     for (const warning of loaded.warnings) ctx.stderr(`border: ${warning}`);
     let orphans: string[] = [];
     try {
-      orphans = remoteTrackingDrift(resolveRepoDir(ctx.cwd, { env: ctx.env })).orphans;
-    } catch {
-      orphans = [];
+      const drift = remoteTrackingDrift(resolveRepoDir(ctx.cwd, { env: ctx.env }));
+      if (!drift.probesOk) {
+        // Sibyl wound 4: an empty orphan set from a probe that never answered
+        // (corrupt refs store, git spawn failure) certifies nothing — the
+        // NO-OP claim would be made by a broken instrument. Fail closed, named.
+        ctx.stderr(
+          "border: cannot certify 'nothing to push' — the remote-tracking drift probe (git remote -v / for-each-ref) did not answer; refusing to report a no-op on a broken instrument",
+        );
+        return EXIT_ERROR;
+      }
+      orphans = drift.orphans;
+    } catch (err) {
+      // Only resolveRepoDir's "not a git repository" may keep the NO-OP here:
+      // a non-repo structurally cannot hold remote-tracking refs. Anything
+      // else is a probe failure — same broken-instrument rule, exit 2.
+      if (!(err instanceof Error && err.message.startsWith("not a git repository"))) {
+        const why = err instanceof Error ? err.message : String(err);
+        ctx.stderr(`border: cannot certify 'nothing to push' — drift probe failed (${why}); refusing to report a no-op on a broken instrument`);
+        return EXIT_ERROR;
+      }
     }
     if (orphans.length > 0) {
       ctx.stderr(
@@ -121,6 +159,11 @@ async function dryRunPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExit> {
   for (const remote of loaded.config.targets.git.remotes) {
     ctx.stdout(`  ${DRY_RUN_PREFIX}: ${GIT_PUSH_DRY_RUN} ${remote.name ?? displayRemote(remote.url)} --follow-tags  (${displayRemote(remote.url)})`);
   }
+  if (loaded.config.targets.git.remotes.length > 0 && isDetachedHead(ctx)) {
+    // plan/--yes parity: --yes refuses on detached HEAD (exit 2) — the dry-run
+    // plan must say so instead of printing a push line --yes would never run.
+    ctx.stderr("border: WARNING detached HEAD — the push ref-set holds no branch ref; 'border push --yes' would refuse to guess a branch to push");
+  }
   const registryCode = await dryRunRegistryLegs(ctx, loaded);
   if (registryCode !== EXIT_PASS) return registryCode;
   // Gate seam: the registry's check handler stands in for todo 10's pipeline.
@@ -153,6 +196,51 @@ async function executeYesPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExi
   // Same digest the check run fed into the fingerprint — else the gates won't match.
   const configDigest = computeConfigDigest(loaded);
   const effectiveTargets = computeEffectiveTargets(loaded.config, ctx.flags.targets);
+  // Sibyl wound 2: one t:"push-result" verdict line per --yes run that reaches
+  // push-state — minted at EVERY exit below; dry-run never reaches here. A
+  // ledger this gate cannot write is a gate that fails loudly (appendRecord
+  // throws → run()-level exit 2), never a verdict that vanishes unrecorded.
+  let minted = false;
+  const recordOutcome = (i: Parameters<typeof buildPushResultRecord>[0]): void => {
+    minted = true;
+    // Sibyl consult (2026-11-08) last-resort hardening: a verdict line must
+    // never die inside a catch handler. A degenerate empty target list clamps
+    // to a named placeholder instead of throwing out of the mint.
+    appendRecord(repoDir, buildPushResultRecord({ ...i, targets: i.targets.length > 0 ? i.targets : ["unknown"] }));
+  };
+  // Sibyl consult must-fix: process death must not vanish either. Catchable
+  // SIGINT/SIGTERM mint exactly one bounded failed line at the next JS
+  // boundary — a signal arriving inside a blocked spawnSync mints when that
+  // spawn returns (the terminal's foreground group kills the git child first;
+  // an external SIGTERM simply defers the mint), then the handler restores
+  // default semantics and re-raises so the exit status stays signal death.
+  // Uncatchable death (SIGKILL, OOM, power loss) is the DECLARED LIMIT named
+  // in the module header and README: landed legs keep their own t:"push"
+  // rows, the run-level verdict is simply absent — the instrument no longer
+  // claims an absolute it cannot make.
+  let derivedKey: string | undefined;
+  const onSignal = (sig: NodeJS.Signals): void => {
+    process.removeListener("SIGINT", onInt);
+    process.removeListener("SIGTERM", onTerm);
+    if (!minted) {
+      try {
+        recordOutcome({
+          ...(derivedKey === undefined ? {} : { key: derivedKey }),
+          verdict: "failed",
+          targets: effectiveTargets,
+          reason: `killed by ${sig} mid-run — verdict never reached; landed legs (if any) keep their own t:"push" rows; rerun 'border push' (no --yes) to see the live state`,
+        });
+      } catch {
+        /* ledger unwritable at death time: nothing left to mint — die as the signal commands */
+      }
+    }
+    process.kill(process.pid, sig);
+  };
+  const onInt = (): void => onSignal("SIGINT");
+  const onTerm = (): void => onSignal("SIGTERM");
+  process.on("SIGINT", onInt);
+  process.on("SIGTERM", onTerm);
+  try {
   let state: PushStateResult;
   try {
     state = await derivePushState({
@@ -163,36 +251,79 @@ async function executeYesPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExi
       env,
       ...(ctx.flags.requireEngine !== undefined && ctx.flags.requireEngine.length > 0 ? { requireOverride: ctx.flags.requireEngine } : {}),
     });
+    derivedKey = state.key;
   } catch (err) {
     if (err instanceof PushStateError) {
       ctx.stderr(`border: ${err.message}`);
+      recordOutcome({ verdict: "failed", targets: effectiveTargets, reason: `push-state derivation failed: ${err.message}` });
       return EXIT_ERROR;
     }
+    // Any other derivation death is still a death that must leave a trace
+    // (unborn repo, unreachable registry probe, fingerprint failure) — the
+    // ledger mints first, the run()-level exit-2 mapping stays untouched.
+    recordOutcome({
+      verdict: "failed",
+      targets: effectiveTargets,
+      reason: `push-state derivation failed: ${err instanceof Error ? err.message : String(err)}`,
+    });
     throw err; // ConfigError/EngineRunError keep the run()-level exit-2 mapping
   }
 
+  // Self-review F1 (2026-11-08): an uncaught THROW after derivation — malformed
+  // BORDER_PUSH_TIMEOUT_MS at the spawn budget, a remote dying between derive
+  // and guard, a registry engine error, a landing-pass throw — is an executor
+  // death too. One catch outside the certified body mints its verdict line
+  // exactly once (the minted flag keeps paths that already minted from
+  // double-writing), then the run()-level exit mapping stays untouched.
+  try {
   for (const t of state.targets) ctx.stdout(`border: ${formatTargetLine(t)}`);
   for (const w of state.warnings) ctx.stderr(`border: WARNING ${w}`);
 
   const blocked = state.targets.filter((t) => t.status === "BLOCKED");
   if (blocked.length > 0) {
     ctx.stderr(`border: push --yes refused — ${String(blocked.length)} BLOCKED target(s) above; nothing was pushed`);
+    recordOutcome({
+      key: state.key,
+      verdict: "blocked",
+      targets: blocked.map((t) => t.target),
+      reason: blocked.map((t) => `${t.target}: ${t.reason ?? "blocked"}`).join("; "),
+    });
     return EXIT_BLOCKED;
   }
   const pending = pushableTargets(state);
   if (pending.length === 0) {
     ctx.stdout("border: nothing pending — every target is already PUSHED (no-op)");
+    recordOutcome({ key: state.key, verdict: "noop", targets: state.targets.map((t) => t.target) });
     return EXIT_PASS;
   }
 
+  const pendingIds = pending.map((t) => t.target);
+  const done: string[] = []; // git legs with ls-remote-confirmed landings (registry outcome reads this)
+  const branchRef = state.refSet.find((r) => r.startsWith("refs/heads/"));
+  const branch = branchRef?.slice("refs/heads/".length);
+  const branchOpt = branch === undefined ? {} : { branch };
   const legs = gitLegs(state, loaded);
   if (legs.length > 0) {
-    const branchRef = state.refSet.find((r) => r.startsWith("refs/heads/"));
-    if (branchRef === undefined) {
+    if (branch === undefined) {
       ctx.stderr("border: detached HEAD — the push ref-set holds no branch ref; refusing to guess a branch to push");
+      recordOutcome({
+        key: state.key,
+        verdict: "failed",
+        targets: pendingIds,
+        reason: `detached HEAD — ref-set holds no refs/heads/* ref to push; remotes: ${legs.map((l) => l.target).join(", ")}`,
+      });
       return EXIT_ERROR;
     }
-    const branch = branchRef.slice("refs/heads/".length);
+
+    // Sibyl wound 3: every refspec/leg input is checked BEFORE any push spawns,
+    // each problem named by ref, remote(s), and what is missing — then ledged.
+    const preflight = preflightPushRefs({ repoDir, legs, branch, env });
+    if (preflight.length > 0) {
+      for (const p of preflight) ctx.stderr(`border: pre-flight: ${p}`);
+      recordOutcome({ key: state.key, verdict: "blocked", targets: pendingIds, ...branchOpt, reason: `preflight: ${preflight.join("; ")}` });
+      return EXIT_BLOCKED;
+    }
+
     for (const leg of legs) {
       ctx.stdout(`  ${DRY_RUN_PREFIX}: ${GIT_PUSH_DRY_RUN} ${leg.target.slice("git:".length)} ${branch} --follow-tags  (${displayRemote(leg.url)})`);
     }
@@ -201,22 +332,51 @@ async function executeYesPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExi
     const guard = fastForwardGuard({ repoDir, remotes: legs, refSet: state.refSet, env });
     if (!guard.ok) {
       ctx.stderr(`border: ${DIVERGED_MESSAGE}`);
-      for (const d of guard.divergences) {
-        ctx.stderr(`border:   ${d.target} ${d.ref}: remote ${shortSha(d.remoteSha)} is not an ancestor of local ${shortSha(d.localSha)} — a fast-forward is impossible`);
-      }
+      const lines = guard.divergences.map(
+        (d) =>
+          `${d.target} ${d.ref}: remote ${shortSha(d.remoteSha)} is not an ancestor of local ${shortSha(d.localSha)} — a fast-forward is impossible` +
+          (d.ref.startsWith("refs/tags/")
+            ? "; moved tag: border has no refspec/tag-move channel — repoint or delete the local tag, or resolve with plain git yourself"
+            : ""),
+      );
+      for (const l of lines) ctx.stderr(`border:   ${l}`);
+      recordOutcome({ key: state.key, verdict: "blocked", targets: pendingIds, ...branchOpt, reason: `${DIVERGED_MESSAGE}: ${lines.join("; ")}` });
       return EXIT_BLOCKED;
     }
 
-    const done: string[] = [];
     for (const leg of legs) {
       const result = executePush({ repoDir, remote: leg, branch, env });
       if (!result.ok) {
         ctx.stderr(
           `border: PARTIAL push — '${leg.target}' failed (${result.failure}) after ${String(done.length)}/${String(legs.length)} remote(s) [${done.length === 0 ? "none" : done.join(", ")}] landed; rerun 'border push --yes' — landed remotes come back PUSHED(no-op)`,
         );
+        recordOutcome({
+          key: state.key,
+          verdict: "partial",
+          targets: pendingIds,
+          ...branchOpt,
+          reason: `push to '${leg.target}' failed (${result.failure}) after ${String(done.length)}/${String(legs.length)} remote(s) landed [${done.length === 0 ? "none" : done.join(", ")}]`,
+          gitExit: result.exit,
+        });
         return EXIT_BLOCKED;
       }
-      const remoteSha = confirmRemoteBranch({ repoDir, remote: leg, branch, env });
+      let remoteSha: string;
+      try {
+        remoteSha = confirmRemoteBranch({ repoDir, remote: leg, branch, env });
+      } catch (err) {
+        // the push MAY have landed — border records the uncertainty, it never
+        // records the unconfirmed success (ledger stays honest, exit stays 2).
+        const why = err instanceof Error ? err.message : String(err);
+        recordOutcome({
+          key: state.key,
+          verdict: "failed",
+          targets: pendingIds,
+          ...branchOpt,
+          reason: `push to '${leg.target}' executed but its success could not be confirmed on the wire (landed state unknown): ${why}`,
+          gitExit: null,
+        });
+        throw err;
+      }
       recordPushSuccess(repoDir, {
         key: state.key,
         target: leg.target,
@@ -247,7 +407,19 @@ async function executeYesPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExi
       out: ctx.stdout,
       err: ctx.stderr,
     });
-    if (landing !== null) return landing;
+    if (landing !== null) {
+      // the push landed (t:"push" records prove it on the wire); the landing
+      // pass refused afterwards — bytes may already be PUBLIC (landing.ts
+      // doctrine). The verdict row says exactly that.
+      recordOutcome({
+        key: state.key,
+        verdict: "landed",
+        targets: done,
+        ...branchOpt,
+        reason: `pushed [${done.join(", ")}] but landing verification exited ${String(landing)} — public bytes may already be exposed; see t:"landing" record`,
+      });
+      return landing;
+    }
   }
 
   // Cross-target order fixed by the plan: git remotes (done above) → npm → PyPI.
@@ -267,7 +439,34 @@ async function executeYesPush(ctx: Ctx, loaded: LoadedConfig): Promise<BorderExi
       out: ctx.stdout,
       err: ctx.stderr,
     });
-    if (code !== EXIT_PASS) return code;
+    if (code !== EXIT_PASS) {
+      recordOutcome({
+        key: state.key,
+        verdict: done.length > 0 ? "partial" : "failed",
+        targets: pendingIds,
+        ...branchOpt,
+        reason: `registry leg '${channel.id}' exited ${String(code)}; git legs landed: ${done.length === 0 ? "none" : done.join(", ")}`,
+      });
+      return code;
+    }
   }
-  return EXIT_PASS;
+    recordOutcome({ key: state.key, verdict: "landed", targets: pendingIds, ...branchOpt });
+    return EXIT_PASS;
+  } catch (err) {
+    if (!minted) {
+      const deadBranch = state.refSet.find((r) => r.startsWith("refs/heads/"))?.slice("refs/heads/".length);
+      recordOutcome({
+        key: state.key,
+        verdict: "failed",
+        targets: state.targets.map((x) => x.target),
+        ...(deadBranch === undefined ? {} : { branch: deadBranch }),
+        reason: `push executor died mid-run: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    }
+    throw err;
+  }
+  } finally {
+    process.removeListener("SIGINT", onInt);
+    process.removeListener("SIGTERM", onTerm);
+  }
 }

@@ -5,6 +5,29 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # verdaccio 7 is a deliberate exclusion, not an oversight: the npm-push E2E
+    # harness pins server behavior validated on 6.10.2 (test file header:
+    # "REAL pinned devDependency verdaccio 6"). PR#14's 7.1.1 bump broke all 7
+    # registry E2E legs — node 24: E401 to the anonymous absent-version probe
+    # (border's probe is correct to fail closed on it); node 22: v7 hard-fails
+    # the Node>=24 startup guard. Major migration is a seat project with its
+    # own plan (log-config format, probe semantics, matrix floor); minors and
+    # patches within 6.x still flow.
+    ignore:
+      - dependency-name: verdaccio
+        update-types: ["version-update:semver-major"]
+      # typescript 7 is a deliberate exclusion, not an oversight: TS7's native
+      # port strips the JS compiler API from the package entry. Probe (node
+      # -e "require('typescript')") on 7.0.2 returns only {version,
+      # versionMajorMinor} — ts.ScriptKind/ts.SyntaxKind are undefined — while
+      # src/exfil/tsSpans.ts reads ts.ScriptKind/ts.SyntaxKind at runtime for
+      # the exfil literal-span guard. PR#12's 7.0.2 bump failed exactly the
+      # 4 span-guard legs with "Cannot read properties of undefined (reading
+      # 'TS')" (run 44583990234, both node floors). TS7 migration is a seat
+      # project (swap/vendor the API or keep 5.x for the span parser); minors
+      # and patches within 5.x still flow.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: "deps"
     groups:

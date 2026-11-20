@@ -12,6 +12,10 @@ gate: PASS
 
 ## human execution (terminal, key stays human)
     cd <repo-root> && git push origin main v<VERSION>
+# HARD RULE (2026-11-18, from the v0.8.5 self-conviction): keep the literal
+# <repo-root> placeholder — NEVER write a machine-absolute path into a receipt.
+# Receipts are immutable records and the tip gets re-scanned by the dogfood
+# gate; an absolute path here arms the gate against your own release forever.
 then verify `npm view border-customs version` → <VERSION>; release lease after landing:
     bash <abathur-root>/scripts/release-lease.sh release
 
