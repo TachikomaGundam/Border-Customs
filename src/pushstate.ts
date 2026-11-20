@@ -26,6 +26,7 @@
 import { gatherContext, runGitChecked } from "./check/context.ts";
 import type { BorderConfig } from "./config.ts";
 import type { Finding } from "./findings.ts";
+import { isBlocking } from "./findings.ts";
 import { scanIdentity } from "./rules/identity.ts";
 import { computeFingerprint } from "./ledger.ts";
 import {
@@ -125,13 +126,23 @@ function uncheckedReason(id: string): string {
  * identity allowlist must gate that transmit set even when the todo-14
  * ledger says PASSED (the PASS predates or cannot express first-push
  * content). PUSHED legs upload nothing and never reach this.
+ * Only BLOCKING findings gate: the check face's single-source predicate
+ * `isBlocking` decides here too, so dry-run and --yes cannot diverge on one
+ * fingerprint (Sibyl ticket 2026-11-08 wound 1 — counting the INFO
+ * `identity-already-public` rung refused pushes whose offenders were already
+ * public and transmitted zero new objects, on a key the check had just
+ * PASSED). First-time exposure keeps its CRITICAL rung and still blocks.
  */
 function gateTransmitIdentities(t: TargetResult, identities: readonly Finding[]): TargetResult {
-  if (t.status !== "PENDING" || identities.length === 0) return t;
+  if (t.status !== "PENDING") return t;
+  const blocking = identities.filter((f) => isBlocking(f.severity));
+  if (blocking.length === 0) return t;
+  const publicCount = identities.length - blocking.length;
+  const note = publicCount > 0 ? ` (${String(publicCount)} already-public finding(s) not counted)` : "";
   return {
     ...t,
     status: "BLOCKED",
-    reason: `${t.reason ?? ""} — ${String(identities.length)} identity finding(s) on objects this push would transmit`,
+    reason: `${t.reason ?? ""} — ${String(blocking.length)} identity finding(s) on objects this push would transmit${note}`,
     findings: identities,
   };
 }
@@ -201,7 +212,7 @@ export async function derivePushState(o: PushStateOptions): Promise<PushStateRes
     const locals = localRefCommits(o.repoDir, ctx.refSet, env);
     let identities: readonly Finding[] | null = null;
     const transmittedIdentities = (): readonly Finding[] =>
-      (identities ??= scanIdentity({ repoDir: o.repoDir, refSet: [...ctx.refSet], cfg: o.cfg }));
+      (identities ??= scanIdentity({ repoDir: o.repoDir, refSet: [...ctx.refSet], cfg: o.cfg, env }));
     for (const [index, remote] of o.cfg.targets.git.remotes.entries()) {
       const id = gitTargetId(remote, index);
       const t = gitState(o, id, remote.url, ctx.refSet, locals, gate);

@@ -368,8 +368,9 @@ function headFile(toplevel: string, rel: string): string {
 // detectable signature is remote-tracking refs whose named remote is unconfigured.
 // Full wipes (refs gone too) cannot be detected as drift by any local means — they
 // get the status.ts visibility line instead, never a claimed guarantee.
-export function remoteTrackingDrift(cwd: string): { configured: string[]; orphans: string[] } {
-  const configured = parseRemoteV(runGit(cwd, ["remote", "-v"]).stdout)
+export function remoteTrackingDrift(cwd: string): { configured: string[]; orphans: string[]; probesOk: boolean } {
+  const remoteV = runGit(cwd, ["remote", "-v"]);
+  const configured = parseRemoteV(remoteV.stdout)
     .map((r) => r.name)
     .filter((n): n is string => n !== undefined)
     .sort();
@@ -385,7 +386,11 @@ export function remoteTrackingDrift(cwd: string): { configured: string[]; orphan
   }
   const configuredSet = new Set(configured);
   const orphans = [...refNames].filter((n) => !configuredSet.has(n)).sort();
-  return { configured, orphans };
+  // probesOk (Sibyl wound 4): empty orphans may mean "no drift" OR "the probe
+  // never answered" (corrupt refs store, git spawn failure). A NO-OP claim may
+  // only be certified by an instrument that answered; consumers that treat an
+  // empty orphan set as proof must check this flag first.
+  return { configured, orphans, probesOk: remoteV.ok && refs.ok };
 }
 
 function hasTargets(cfg: BorderConfig): boolean {
