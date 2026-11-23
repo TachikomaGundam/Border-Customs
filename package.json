@@ -50,7 +50,7 @@
     "@secretlint/secretlint-rule-pattern": "13.1.0",
     "@types/node": "26.6.6",
     "esbuild": "0.28.2",
-    "secretlint": "14.0.0",
-    "verdaccio": "6.11.2"
+    "secretlint": "14.0.1",
+    "verdaccio": "6.11.3"
   }
 }
